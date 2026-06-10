@@ -120,7 +120,8 @@ helm upgrade --install "$RELEASE" charts/flyte-devbox \
   --namespace "$NAMESPACE" \
   --set flyte-binary.deployment.image.repository="$IMAGE_REPOSITORY" \
   --set flyte-binary.deployment.image.tag="$IMAGE_TAG" \
-  --set flyte-binary.deployment.image.pullPolicy=Never
+  --set flyte-binary.deployment.image.pullPolicy=Never \
+  --set knative-serving.enabled=false
 
 kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary --timeout=10m
 kubectl -n "$NAMESPACE" get svc,pod
