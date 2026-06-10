@@ -29,6 +29,7 @@ assert_contains "PROXY_URL='http://172.19.210.24:7890'"
 assert_contains 'export HTTP_PROXY="$PROXY_URL"'
 assert_contains 'curl -sfL https://get.k3s.io'
 assert_contains 'get_helm.sh'
+assert_contains 'docker-buildx'
 assert_contains 'sudo env DOCKER_BUILDKIT=1 docker build'
 assert_contains "IMAGE_REPOSITORY='flyte-binary-v2'"
 assert_contains "IMAGE_TAG='ssh-workspace'"

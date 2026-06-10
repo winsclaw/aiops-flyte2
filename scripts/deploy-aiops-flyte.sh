@@ -77,9 +77,9 @@ if ! command -v helm >/dev/null 2>&1; then
   /tmp/get_helm.sh
 fi
 
-if ! command -v docker >/dev/null 2>&1; then
+if ! command -v docker >/dev/null 2>&1 || ! docker buildx version >/dev/null 2>&1; then
   sudo apt-get update
-  sudo apt-get install -y ca-certificates curl gnupg docker.io
+  sudo apt-get install -y ca-certificates curl gnupg docker.io docker-buildx
   sudo usermod -aG docker "$USER" || true
 fi
 
