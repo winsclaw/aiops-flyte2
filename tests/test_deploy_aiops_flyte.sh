@@ -36,7 +36,12 @@ assert_contains 'sudo env DOCKER_BUILDKIT=1 docker build'
 assert_contains "IMAGE_REPOSITORY='flyte-binary-v2'"
 assert_contains "IMAGE_TAG='ssh-workspace'"
 assert_contains 'k3s ctr images import'
+assert_contains 'import_docker_image postgres:17'
+assert_contains 'CREATE DATABASE runs'
+assert_contains 'kubectl -n "$NAMESPACE" rollout status deploy/postgresql'
 assert_contains 'helm upgrade --install "$RELEASE" charts/flyte-devbox'
+assert_contains '--set docker-registry.enabled=false'
+assert_contains '--set flyte-binary.console.image.repository=ghcr.io/unionai-oss/flyteconsole-v2'
 assert_contains '--set knative-serving.enabled=false'
 assert_contains 'kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary'
 assert_contains 'port-forward svc/flyte-binary-http 8088:80'

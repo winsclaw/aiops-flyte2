@@ -114,13 +114,100 @@ tmp_image="/tmp/${IMAGE_REPOSITORY}-${IMAGE_TAG}.tar"
 sudo docker save "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -o "$tmp_image"
 sudo k3s ctr images import "$tmp_image"
 
+import_docker_image() {
+  local image="$1"
+  local safe_name
+  safe_name="$(printf '%s' "$image" | tr '/:' '__')"
+  local image_tar="/tmp/${safe_name}.tar"
+  sudo docker pull "$image"
+  sudo docker save "$image" -o "$image_tar"
+  sudo k3s ctr images import "$image_tar"
+  rm -f "$image_tar"
+}
+
+import_docker_image rancher/mirrored-pause:3.6
+import_docker_image postgres:17
+import_docker_image ghcr.io/unionai-oss/flyteconsole-v2:latest
+import_docker_image rustfs/rustfs:1.0.0-alpha.94
+import_docker_image busybox:stable
+
 sudo k3s kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+sudo k3s kubectl -n "$NAMESPACE" apply -f - <<POSTGRES_MANIFEST
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-init
+data:
+  init.sql: |
+    CREATE DATABASE runs;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  selector:
+    app: postgresql
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:17
+          imagePullPolicy: Never
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgres
+            - name: POSTGRES_DB
+              value: flyte
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: init
+          configMap:
+            name: postgresql-init
+POSTGRES_MANIFEST
+kubectl -n "$NAMESPACE" rollout status deploy/postgresql --timeout=5m
 helm dependency update charts/flyte-devbox
 helm upgrade --install "$RELEASE" charts/flyte-devbox \
   --namespace "$NAMESPACE" \
+  --set docker-registry.enabled=false \
   --set flyte-binary.deployment.image.repository="$IMAGE_REPOSITORY" \
   --set flyte-binary.deployment.image.tag="$IMAGE_TAG" \
   --set flyte-binary.deployment.image.pullPolicy=Never \
+  --set flyte-binary.deployment.waitForDB.image.repository=postgres \
+  --set flyte-binary.deployment.waitForDB.image.tag=17 \
+  --set flyte-binary.deployment.waitForDB.image.pullPolicy=Never \
+  --set flyte-binary.console.image.repository=ghcr.io/unionai-oss/flyteconsole-v2 \
+  --set flyte-binary.console.image.tag=latest \
+  --set flyte-binary.console.image.pullPolicy=Never \
+  --set rustfs.image.repository=rustfs/rustfs \
+  --set rustfs.image.tag=1.0.0-alpha.94 \
   --set knative-serving.enabled=false
 
 kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary --timeout=10m
