@@ -83,10 +83,33 @@ if ! command -v docker >/dev/null 2>&1 || ! docker buildx version >/dev/null 2>&
   sudo usermod -aG docker "$USER" || true
 fi
 
+if [[ -n "${PROXY_URL:-}" ]]; then
+  sudo mkdir -p /etc/systemd/system/docker.service.d
+  sudo tee /etc/systemd/system/docker.service.d/http-proxy.conf >/dev/null <<EOF
+[Service]
+Environment="HTTP_PROXY=$PROXY_URL"
+Environment="HTTPS_PROXY=$PROXY_URL"
+Environment="NO_PROXY=$NO_PROXY"
+EOF
+  sudo systemctl daemon-reload
+  sudo systemctl restart docker
+fi
+
 sudo systemctl enable --now docker || true
 
 cd "$REMOTE_DIR"
-sudo env DOCKER_BUILDKIT=1 docker build -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .
+build_proxy_args=()
+if [[ -n "${PROXY_URL:-}" ]]; then
+  build_proxy_args+=(
+    --build-arg HTTP_PROXY="$PROXY_URL"
+    --build-arg HTTPS_PROXY="$PROXY_URL"
+    --build-arg http_proxy="$PROXY_URL"
+    --build-arg https_proxy="$PROXY_URL"
+    --build-arg NO_PROXY="$NO_PROXY"
+    --build-arg no_proxy="$NO_PROXY"
+  )
+fi
+sudo env DOCKER_BUILDKIT=1 docker build "${build_proxy_args[@]}" -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .
 tmp_image="/tmp/${IMAGE_REPOSITORY}-${IMAGE_TAG}.tar"
 sudo docker save "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -o "$tmp_image"
 sudo k3s ctr images import "$tmp_image"

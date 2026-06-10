@@ -27,6 +27,8 @@ assert_contains 'REMOTE_ARCHIVE='
 assert_contains 'tar -xf "$REMOTE_ARCHIVE"'
 assert_contains "PROXY_URL='http://172.19.210.24:7890'"
 assert_contains 'export HTTP_PROXY="$PROXY_URL"'
+assert_contains 'docker.service.d'
+assert_contains '--build-arg HTTP_PROXY="$PROXY_URL"'
 assert_contains 'curl -sfL https://get.k3s.io'
 assert_contains 'get_helm.sh'
 assert_contains 'docker-buildx'
