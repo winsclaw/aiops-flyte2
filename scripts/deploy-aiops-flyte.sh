@@ -122,7 +122,7 @@ import_docker_image() {
   sudo docker pull "$image"
   sudo docker save "$image" -o "$image_tar"
   sudo k3s ctr images import "$image_tar"
-  rm -f "$image_tar"
+  sudo rm -f "$image_tar"
 }
 
 import_docker_image rancher/mirrored-pause:3.6
