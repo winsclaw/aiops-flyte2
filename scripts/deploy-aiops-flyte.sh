@@ -201,7 +201,7 @@ helm upgrade --install "$RELEASE" charts/flyte-devbox \
   --set flyte-binary.deployment.image.tag="$IMAGE_TAG" \
   --set flyte-binary.deployment.image.pullPolicy=Never \
   --set flyte-binary.deployment.waitForDB.image.repository=postgres \
-  --set flyte-binary.deployment.waitForDB.image.tag=17 \
+  --set-string flyte-binary.deployment.waitForDB.image.tag=17 \
   --set flyte-binary.deployment.waitForDB.image.pullPolicy=Never \
   --set flyte-binary.console.image.repository=ghcr.io/unionai-oss/flyteconsole-v2 \
   --set flyte-binary.console.image.tag=latest \
