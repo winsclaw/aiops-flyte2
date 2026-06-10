@@ -52,7 +52,7 @@ bash scripts/deploy-aiops-flyte.sh
 如远端下载需要代理：
 
 ```bash
-PROXY_URL=http://172.19.210.24:7890 bash scripts/deploy-aiops-flyte.sh
+PROXY_URL=http://172.19.210.24:7897 bash scripts/deploy-aiops-flyte.sh
 ```
 
 常用环境变量：
@@ -64,7 +64,7 @@ NAMESPACE=flyte
 RELEASE=flyte-devbox
 IMAGE_REPOSITORY=flyte-binary-v2
 IMAGE_TAG=ssh-workspace
-PROXY_URL=http://172.19.210.24:7890
+PROXY_URL=http://172.19.210.24:7897
 ```
 
 部署脚本默认通过 `git archive HEAD` 把当前仓库版本同步到远端，远端构建镜像：
