@@ -73,16 +73,22 @@ PROXY_URL=http://172.19.210.24:7890
 flyte-binary-v2:ssh-workspace
 ```
 
-Web UI 访问方式：
+部署完成后脚本会输出实际 Service IP 对应的 SSH 隧道命令，例如：
 
 ```bash
-ssh -L 8088:127.0.0.1:8088 aiops-deploy "kubectl -n flyte port-forward svc/flyte-binary-http 8088:80"
+ssh -N -L 8088:10.43.149.230:80 -L 8090:10.43.205.65:8090 aiops-deploy
 ```
 
-然后访问：
+然后访问 Web UI：
 
 ```text
-http://localhost:8088
+http://localhost:8088/v2
+```
+
+本地 API endpoint 使用：
+
+```text
+http://localhost:8090
 ```
 
 ## 启动 SSH 工作空间

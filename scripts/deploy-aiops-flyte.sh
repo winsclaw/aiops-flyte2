@@ -126,10 +126,21 @@ import_docker_image() {
 }
 
 import_docker_image rancher/mirrored-pause:3.6
+import_docker_image rancher/mirrored-coredns-coredns:1.14.3
+import_docker_image rancher/local-path-provisioner:v0.0.36
+import_docker_image rancher/mirrored-library-busybox:1.37.0
 import_docker_image postgres:17
 import_docker_image ghcr.io/unionai-oss/flyteconsole-v2:latest
 import_docker_image rustfs/rustfs:1.0.0-alpha.94
 import_docker_image busybox:stable
+
+sudo k3s kubectl -n kube-system delete pod -l k8s-app=kube-dns --ignore-not-found || true
+sudo k3s kubectl -n kube-system delete pod -l app=local-path-provisioner --ignore-not-found || true
+kubectl -n kube-system rollout status deploy/coredns --timeout=5m
+kubectl -n kube-system rollout status deploy/local-path-provisioner --timeout=5m
+
+sudo mkdir -p /var/lib/flyte/storage/rustfs
+sudo chown -R 10001:10001 /var/lib/flyte/storage/rustfs
 
 sudo k3s kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | sudo k3s kubectl apply -f -
 sudo k3s kubectl -n "$NAMESPACE" apply -f - <<POSTGRES_MANIFEST
@@ -210,11 +221,15 @@ helm upgrade --install "$RELEASE" charts/flyte-devbox \
   --set rustfs.image.tag=1.0.0-alpha.94 \
   --set knative-serving.enabled=false
 
+kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary-console --timeout=5m
+kubectl -n "$NAMESPACE" rollout status deploy/rustfs --timeout=5m
 kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary --timeout=10m
 kubectl -n "$NAMESPACE" get svc,pod
-printf '\nLocal web UI tunnel command:\n'
-printf 'ssh -L 8088:127.0.0.1:8088 %s "kubectl -n %s port-forward svc/flyte-binary-http 8088:80"\n' "${REMOTE_HOST}" "${NAMESPACE}"
-printf 'Then open http://localhost:8088\n'
+console_ip="$(kubectl -n "$NAMESPACE" get svc flyte-binary-console -o jsonpath='{.spec.clusterIP}')"
+api_ip="$(kubectl -n "$NAMESPACE" get svc flyte-binary-http -o jsonpath='{.spec.clusterIP}')"
+printf '\nLocal tunnel command:\n'
+printf 'ssh -N -L 8088:%s:80 -L 8090:%s:8090 %s\n' "$console_ip" "$api_ip" "${REMOTE_HOST}"
+printf 'Then open http://localhost:8088/v2 and use ENDPOINT=http://localhost:8090\n'
 REMOTE_SCRIPT
 )"
 
