@@ -25,7 +25,19 @@ remote_env() {
     "$(shell_quote "$PROXY_URL")"
 }
 
-prepare_script='set -euo pipefail; if [[ -z "${REMOTE_DIR:-}" ]]; then REMOTE_DIR="flyte-work"; fi; if [[ "$REMOTE_DIR" != /* ]]; then REMOTE_DIR="$HOME/$REMOTE_DIR"; fi; rm -rf "$REMOTE_DIR"; mkdir -p "$REMOTE_DIR"; tar -xf - -C "$REMOTE_DIR"'
+if command -v scp.exe >/dev/null 2>&1 && command -v ssh.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
+  SSH_BIN=ssh.exe
+  SCP_BIN=scp.exe
+  local_path_for_transport() {
+    wslpath -w "$1"
+  }
+else
+  SSH_BIN=ssh
+  SCP_BIN=scp
+  local_path_for_transport() {
+    printf '%s' "$1"
+  }
+fi
 
 remote_script="$(cat <<'REMOTE_SCRIPT'
 set -euo pipefail
@@ -104,9 +116,9 @@ remote_runner="/tmp/flyte-deploy-$(date +%s)-$$.sh"
 
 if [[ "$DRY_RUN" == "1" ]]; then
   printf 'git archive --format=tar HEAD -o %s\n' "$local_archive"
-  printf 'scp %s %s:%s\n' "$local_archive" "$REMOTE_HOST" "$remote_archive"
-  printf 'scp %s %s:%s\n' "$local_runner" "$REMOTE_HOST" "$remote_runner"
-  printf 'ssh %s %s REMOTE_ARCHIVE=%s bash %s\n' "$REMOTE_HOST" "$ssh_env" "$(shell_quote "$remote_archive")" "$(shell_quote "$remote_runner")"
+  printf '%s %s %s:%s\n' "$SCP_BIN" "$(local_path_for_transport "$local_archive")" "$REMOTE_HOST" "$remote_archive"
+  printf '%s %s %s:%s\n' "$SCP_BIN" "$(local_path_for_transport "$local_runner")" "$REMOTE_HOST" "$remote_runner"
+  printf '%s %s %s REMOTE_ARCHIVE=%s bash %s\n' "$SSH_BIN" "$REMOTE_HOST" "$ssh_env" "$(shell_quote "$remote_archive")" "$(shell_quote "$remote_runner")"
   printf '%s\n' "$remote_script"
   exit 0
 fi
@@ -114,6 +126,6 @@ fi
 trap 'rm -f "$local_archive" "$local_runner"' EXIT
 git archive --format=tar HEAD -o "$local_archive"
 printf '%s\n' "$remote_script" > "$local_runner"
-scp "$local_archive" "$REMOTE_HOST:$remote_archive"
-scp "$local_runner" "$REMOTE_HOST:$remote_runner"
-ssh "$REMOTE_HOST" "$ssh_env REMOTE_ARCHIVE=$(shell_quote "$remote_archive") bash $(shell_quote "$remote_runner")"
+"$SCP_BIN" "$(local_path_for_transport "$local_archive")" "$REMOTE_HOST:$remote_archive"
+"$SCP_BIN" "$(local_path_for_transport "$local_runner")" "$REMOTE_HOST:$remote_runner"
+"$SSH_BIN" "$REMOTE_HOST" "$ssh_env REMOTE_ARCHIVE=$(shell_quote "$remote_archive") bash $(shell_quote "$remote_runner")"
