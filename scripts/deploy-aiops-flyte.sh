@@ -86,7 +86,7 @@ fi
 sudo systemctl enable --now docker || true
 
 cd "$REMOTE_DIR"
-sudo docker build -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .
+sudo env DOCKER_BUILDKIT=1 docker build -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .
 tmp_image="/tmp/${IMAGE_REPOSITORY}-${IMAGE_TAG}.tar"
 sudo docker save "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -o "$tmp_image"
 sudo k3s ctr images import "$tmp_image"
