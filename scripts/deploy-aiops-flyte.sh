@@ -36,6 +36,12 @@ fi
 if [[ "$REMOTE_DIR" != /* ]]; then
   REMOTE_DIR="$HOME/$REMOTE_DIR"
 fi
+if [[ -n "${REMOTE_ARCHIVE:-}" ]]; then
+  rm -rf "$REMOTE_DIR"
+  mkdir -p "$REMOTE_DIR"
+  tar -xf "$REMOTE_ARCHIVE" -C "$REMOTE_DIR"
+  rm -f "$REMOTE_ARCHIVE"
+fi
 
 if [[ -n "${PROXY_URL:-}" ]]; then
   export HTTP_PROXY="$PROXY_URL"
@@ -90,15 +96,24 @@ REMOTE_SCRIPT
 )"
 
 ssh_env="$(remote_env)"
+archive_name="flyte-work-$(date +%s)-$$.tar"
+local_archive="${TMPDIR:-/tmp}/$archive_name"
+local_runner="${TMPDIR:-/tmp}/flyte-deploy-$(date +%s)-$$.sh"
+remote_archive="/tmp/$archive_name"
+remote_runner="/tmp/flyte-deploy-$(date +%s)-$$.sh"
 
 if [[ "$DRY_RUN" == "1" ]]; then
-  printf 'git archive --format=tar HEAD | ssh %s %s bash -lc %s\n' "$REMOTE_HOST" "$ssh_env" "$(shell_quote "$prepare_script")"
-  printf 'ssh %s <<EOF\n' "$REMOTE_HOST"
-  printf '%s bash -s\n' "$ssh_env"
+  printf 'git archive --format=tar HEAD -o %s\n' "$local_archive"
+  printf 'scp %s %s:%s\n' "$local_archive" "$REMOTE_HOST" "$remote_archive"
+  printf 'scp %s %s:%s\n' "$local_runner" "$REMOTE_HOST" "$remote_runner"
+  printf 'ssh %s %s REMOTE_ARCHIVE=%s bash %s\n' "$REMOTE_HOST" "$ssh_env" "$(shell_quote "$remote_archive")" "$(shell_quote "$remote_runner")"
   printf '%s\n' "$remote_script"
-  printf 'EOF\n'
   exit 0
 fi
 
-git archive --format=tar HEAD | ssh "$REMOTE_HOST" "$ssh_env bash -lc $(shell_quote "$prepare_script")"
-printf '%s\n' "$remote_script" | ssh "$REMOTE_HOST" "$ssh_env bash -s"
+trap 'rm -f "$local_archive" "$local_runner"' EXIT
+git archive --format=tar HEAD -o "$local_archive"
+printf '%s\n' "$remote_script" > "$local_runner"
+scp "$local_archive" "$REMOTE_HOST:$remote_archive"
+scp "$local_runner" "$REMOTE_HOST:$remote_runner"
+ssh "$REMOTE_HOST" "$ssh_env REMOTE_ARCHIVE=$(shell_quote "$remote_archive") bash $(shell_quote "$remote_runner")"

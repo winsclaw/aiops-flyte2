@@ -20,7 +20,10 @@ assert_contains() {
   fi
 }
 
+assert_contains 'git archive --format=tar HEAD -o'
+assert_contains 'scp'
 assert_contains 'ssh aiops-deploy'
+assert_contains 'tar -xf "$REMOTE_ARCHIVE"'
 assert_contains "PROXY_URL='http://172.19.210.24:7890'"
 assert_contains 'export HTTP_PROXY="$PROXY_URL"'
 assert_contains 'curl -sfL https://get.k3s.io'
