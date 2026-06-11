@@ -129,6 +129,7 @@ import_docker_image rancher/mirrored-pause:3.6
 import_docker_image rancher/mirrored-coredns-coredns:1.14.3
 import_docker_image rancher/local-path-provisioner:v0.0.36
 import_docker_image rancher/mirrored-library-busybox:1.37.0
+import_docker_image rancher/mirrored-library-traefik:3.6.13
 import_docker_image postgres:17
 import_docker_image ghcr.io/unionai-oss/flyteconsole-v2:latest
 import_docker_image rustfs/rustfs:1.0.0-alpha.94
@@ -136,8 +137,14 @@ import_docker_image busybox:stable
 
 sudo k3s kubectl -n kube-system delete pod -l k8s-app=kube-dns --ignore-not-found || true
 sudo k3s kubectl -n kube-system delete pod -l app=local-path-provisioner --ignore-not-found || true
+if sudo k3s kubectl -n kube-system get deploy/traefik >/dev/null 2>&1; then
+  sudo k3s kubectl -n kube-system rollout restart deploy/traefik
+fi
 kubectl -n kube-system rollout status deploy/coredns --timeout=5m
 kubectl -n kube-system rollout status deploy/local-path-provisioner --timeout=5m
+if sudo k3s kubectl -n kube-system get deploy/traefik >/dev/null 2>&1; then
+  kubectl -n kube-system rollout status deploy/traefik --timeout=5m
+fi
 
 sudo mkdir -p /var/lib/flyte/storage/rustfs
 sudo chown -R 10001:10001 /var/lib/flyte/storage/rustfs
@@ -225,11 +232,11 @@ kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary-console --timeout=5m
 kubectl -n "$NAMESPACE" rollout status deploy/rustfs --timeout=5m
 kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary --timeout=10m
 kubectl -n "$NAMESPACE" get svc,pod
-console_ip="$(kubectl -n "$NAMESPACE" get svc flyte-binary-console -o jsonpath='{.spec.clusterIP}')"
-api_ip="$(kubectl -n "$NAMESPACE" get svc flyte-binary-http -o jsonpath='{.spec.clusterIP}')"
-printf '\nLocal tunnel command:\n'
-printf 'ssh -N -L 8088:%s:80 -L 8090:%s:8090 %s\n' "$console_ip" "$api_ip" "${REMOTE_HOST}"
-printf 'Then open http://localhost:8088/v2 and use ENDPOINT=http://localhost:8090\n'
+node_ip="$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
+ingress_port="$(kubectl -n kube-system get svc traefik -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}')"
+printf '\nIngress access:\n'
+printf 'Web UI: http://%s:%s/v2\n' "$node_ip" "$ingress_port"
+printf 'API endpoint: http://%s:%s\n' "$node_ip" "$ingress_port"
 REMOTE_SCRIPT
 )"
 

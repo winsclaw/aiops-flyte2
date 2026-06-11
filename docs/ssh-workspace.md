@@ -73,22 +73,23 @@ PROXY_URL=http://172.19.210.24:7897
 flyte-binary-v2:ssh-workspace
 ```
 
-部署完成后脚本会输出实际 Service IP 对应的 SSH 隧道命令，例如：
+部署完成后脚本会输出 k3s Ingress 的访问地址，例如：
 
 ```bash
-ssh -N -L 8088:10.43.149.230:80 -L 8090:10.43.205.65:8090 aiops-deploy
+Web UI: http://172.19.65.172:30080/v2
+API endpoint: http://172.19.65.172:30080
 ```
 
 然后访问 Web UI：
 
 ```text
-http://localhost:8088/v2
+http://172.19.65.172:30080/v2
 ```
 
-本地 API endpoint 使用：
+本地 API endpoint 使用同一个 Ingress：
 
 ```text
-http://localhost:8090
+http://172.19.65.172:30080
 ```
 
 ## 启动 SSH 工作空间
@@ -96,7 +97,7 @@ http://localhost:8090
 脚本依赖 `buf`、`python3` 和可访问 Flyte API 的 `ENDPOINT`。
 
 ```bash
-ENDPOINT=http://localhost:8090 \
+ENDPOINT=http://172.19.65.172:30080 \
 ORG=testorg \
 PROJECT=flytesnacks \
 DOMAIN=development \
@@ -132,7 +133,7 @@ ssh dev@10.0.0.11 -p 30222
 ## 启动持续运行的机器学习任务
 
 ```bash
-ENDPOINT=http://localhost:8090 \
+ENDPOINT=http://172.19.65.172:30080 \
 ORG=testorg \
 PROJECT=flytesnacks \
 DOMAIN=development \
@@ -146,7 +147,7 @@ bash tests/start_ml_task.sh
 ## 查询工作流状态
 
 ```bash
-ENDPOINT=http://localhost:8090 bash tests/get_run_status.sh testorg/flytesnacks/development/abc123
+ENDPOINT=http://172.19.65.172:30080 bash tests/get_run_status.sh testorg/flytesnacks/development/abc123
 ```
 
 返回格式：
