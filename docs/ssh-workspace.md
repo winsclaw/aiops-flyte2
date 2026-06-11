@@ -8,10 +8,11 @@
 - 注册任务类型：`ssh_workspace`
 - 在 `executor/setup.go` 中注册插件，使 `flyte-binary` 启动时自动加载
 - 新增本地调用脚本：
-  - `tests/start_ssh_workspace.sh`
-  - `tests/start_ml_task.sh`
-  - `tests/get_run_status.sh`
-  - `tests/get_ssh_workspace_connection.sh`
+  - `deploy/tests/start_ssh_workspace.sh`
+  - `deploy/tests/start_ml_task.sh`
+  - `deploy/tests/get_run_status.sh`
+  - `deploy/tests/get_ssh_workspace_connection.sh`
+- 修复普通 Pod/container 任务无声明输出时仍读取 `outputs.pb` 的问题。无输出任务成功退出后直接标记成功；声明了输出或插件显式写了输出时仍保留原输出读取逻辑。
 - 新增部署脚本：`scripts/deploy-aiops-flyte.sh`
 
 ## SSH 工作空间任务
@@ -103,7 +104,7 @@ PROJECT=flytesnacks \
 DOMAIN=development \
 AUTHORIZED_KEY_FILE="$HOME/.ssh/id_rsa.pub" \
 NODE_PORT=30222 \
-bash tests/start_ssh_workspace.sh
+bash deploy/tests/start_ssh_workspace.sh
 ```
 
 返回值只输出 Flyte 工作流 ID，例如：
@@ -137,17 +138,31 @@ ENDPOINT=http://172.19.65.172:30080 \
 ORG=testorg \
 PROJECT=flytesnacks \
 DOMAIN=development \
-IMAGE=python:3.12-slim \
-COMMAND='python -c "import time; print(\"ml task started\", flush=True); time.sleep(86400)"' \
-bash tests/start_ml_task.sh
+IMAGE=rancher/mirrored-library-busybox:1.37.0 \
+COMMAND='echo ml task started; sleep 3600' \
+bash deploy/tests/start_ml_task.sh
 ```
 
 返回值只输出 Flyte 工作流 ID。
 
+PowerShell 可以直接执行封装脚本：
+
+```powershell
+cd D:\flyte-work\deploy\tests
+.\ps_start_workflow.ps1
+```
+
+该脚本会通过 WSL/bash 调用 `deploy/tests/start_ml_task.sh`，并在 bash 内设置：
+
+```bash
+IMAGE='rancher/mirrored-library-busybox:1.37.0'
+COMMAND='echo ml task started; sleep 3600'
+```
+
 ## 查询工作流状态
 
 ```bash
-ENDPOINT=http://172.19.65.172:30080 bash tests/get_run_status.sh testorg/flytesnacks/development/abc123
+ENDPOINT=http://172.19.65.172:30080 bash deploy/tests/get_run_status.sh /flytesnacks/development/abc123
 ```
 
 返回格式：
@@ -175,7 +190,8 @@ ENDPOINT=http://172.19.65.172:30080 bash tests/get_run_status.sh testorg/flytesn
 ## 单元测试
 
 ```bash
+go test ./executor/pkg/plugin/k8s -count=1
 go test ./flyteplugins/go/tasks/plugins/core/sshworkspace -count=1
-bash tests/test_flyte_api_scripts.sh
-bash tests/test_deploy_aiops_flyte.sh
+bash deploy/tests/test_flyte_api_scripts.sh
+bash deploy/tests/test_deploy_aiops_flyte.sh
 ```
