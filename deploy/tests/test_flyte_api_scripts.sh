@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DEFAULT_ENDPOINT="http://172.19.65.172:30080"
 
 # shellcheck source=tests/lib/flyte_api.sh
 source "$ROOT_DIR/tests/lib/flyte_api.sh"
@@ -15,6 +16,19 @@ assert_eq() {
     exit 1
   fi
 }
+
+assert_file_contains() {
+  local file="$1"
+  local needle="$2"
+  if ! grep -Fq "$needle" "$file"; then
+    printf 'FAIL: expected %s to contain: %s\n' "$file" "$needle" >&2
+    exit 1
+  fi
+}
+
+assert_file_contains "$ROOT_DIR/tests/start_ssh_workspace.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
+assert_file_contains "$ROOT_DIR/tests/start_ml_task.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
+assert_file_contains "$ROOT_DIR/tests/get_run_status.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
 
 json_get() {
   local json="$1"
@@ -85,6 +99,10 @@ failed_json="$(format_run_status "$failed_response")"
 assert_eq "6" "$(json_get "$failed_json" "phase")" "numeric phase remains numeric"
 assert_eq "boom" "$(json_get "$failed_json" "error")" "error message extracted"
 assert_eq "3" "$(json_get "$failed_json" "durationSeconds")" "numeric duration is seconds"
+
+run_id_payload="$(run_id_json "/flytesnacks/development/run-123")"
+assert_eq "" "$(json_get "$run_id_payload" "runId.org")" "empty org run id is supported"
+assert_eq "flytesnacks" "$(json_get "$run_id_payload" "runId.project")" "empty org run id project"
 
 payload="$(build_ssh_workspace_payload \
   "testorg" "flytesnacks" "development" \

@@ -9,7 +9,18 @@ require_command() {
   fi
 }
 
-require_command kubectl
+kubectl_command() {
+  if command -v kubectl >/dev/null 2>&1; then
+    printf 'kubectl\n'
+  elif command -v kubectl.exe >/dev/null 2>&1; then
+    printf 'kubectl.exe\n'
+  else
+    printf 'required command not found: kubectl\n' >&2
+    return 1
+  fi
+}
+
+KUBECTL_BIN="$(kubectl_command)"
 if command -v python3 >/dev/null 2>&1; then
   PYTHON_BIN=python3
 elif command -v python >/dev/null 2>&1; then
@@ -30,7 +41,7 @@ fi
 
 IFS=/ read -r org project domain name <<<"$RUN_ID"
 selector="flyte.org/run-name=${name},flyte.org/project=${project},flyte.org/domain=${domain},flyte.org/org=${org}"
-service_json="$(kubectl -n "$NAMESPACE" get svc -l "$selector" -o json)"
+service_json="$("$KUBECTL_BIN" -n "$NAMESPACE" get svc -l "$selector" -o json)"
 service_count="$(SERVICE_JSON="$service_json" "$PYTHON_BIN" -c 'import json, os; print(len(json.loads(os.environ["SERVICE_JSON"]).get("items", [])))')"
 if [[ "$service_count" == "0" ]]; then
   printf 'no SSH workspace service found for run id %s\n' "$RUN_ID" >&2
@@ -41,13 +52,13 @@ service_name="$(SERVICE_JSON="$service_json" "$PYTHON_BIN" -c 'import json, os; 
 service_type="$(SERVICE_JSON="$service_json" "$PYTHON_BIN" -c 'import json, os; print(json.loads(os.environ["SERVICE_JSON"])["items"][0]["spec"]["type"])')"
 port="$(SERVICE_JSON="$service_json" "$PYTHON_BIN" -c 'import json, os; svc=json.loads(os.environ["SERVICE_JSON"])["items"][0]; port=svc["spec"]["ports"][0]; print(port.get("nodePort") or port["port"])')"
 if [[ "$service_type" == "NodePort" || "$service_type" == "LoadBalancer" ]]; then
-  nodes_json="$(kubectl get nodes -o json)"
+  nodes_json="$("$KUBECTL_BIN" get nodes -o json)"
   host="$(NODES_JSON="$nodes_json" "$PYTHON_BIN" -c 'import json, os; data=json.loads(os.environ["NODES_JSON"]); addresses=data["items"][0]["status"]["addresses"]; print(next((a["address"] for a in addresses if a.get("type") == "InternalIP"), addresses[0]["address"]))')"
 else
   host="$(SERVICE_JSON="$service_json" "$PYTHON_BIN" -c 'import json, os; print(json.loads(os.environ["SERVICE_JSON"])["items"][0]["spec"]["clusterIP"])')"
 fi
 
-pod_json="$(kubectl -n "$NAMESPACE" get pod -l "$selector" -o json)"
+pod_json="$("$KUBECTL_BIN" -n "$NAMESPACE" get pod -l "$selector" -o json)"
 pod_name="$(POD_JSON="$pod_json" "$PYTHON_BIN" -c 'import json, os; items=json.loads(os.environ["POD_JSON"]).get("items", []); print(items[0]["metadata"]["name"] if items else "")')"
 
 "$PYTHON_BIN" -c '

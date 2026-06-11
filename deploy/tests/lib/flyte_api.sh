@@ -8,6 +8,17 @@ require_command() {
   fi
 }
 
+buf_command() {
+  if command -v buf >/dev/null 2>&1; then
+    printf 'buf\n'
+  elif command -v buf.exe >/dev/null 2>&1; then
+    printf 'buf.exe\n'
+  else
+    printf 'required command not found: buf\n' >&2
+    return 1
+  fi
+}
+
 python_json() {
   if command -v python3 >/dev/null 2>&1; then
     python3 "$@"
@@ -62,9 +73,16 @@ print(json.dumps({
 
 run_id_json() {
   local run_id="$1"
-  IFS=/ read -r org project domain name <<<"$run_id"
-  if [[ -z "${org:-}" || -z "${project:-}" || -z "${domain:-}" || -z "${name:-}" ]]; then
-    printf 'run id must have form org/project/domain/name\n' >&2
+  local org project domain name extra
+  IFS=/ read -r org project domain name extra <<<"$run_id"
+  if [[ -z "${name:-}" ]]; then
+    name="$domain"
+    domain="$project"
+    project="$org"
+    org=""
+  fi
+  if [[ -n "${extra:-}" || -z "${project:-}" || -z "${domain:-}" || -z "${name:-}" ]]; then
+    printf 'run id must have form project/domain/name or org/project/domain/name\n' >&2
     return 1
   fi
   python_json -c '
@@ -120,7 +138,7 @@ payload = {
         }
     },
     "inputs": {"literals": []},
-    "source": "RUN_SOURCE_MANUAL",
+    "source": "RUN_SOURCE_CLI",
 }
 if node_port:
     payload["taskSpec"]["taskTemplate"]["custom"]["nodePort"] = int(node_port)
@@ -174,7 +192,7 @@ payload = {
         }
     },
     "inputs": {"literals": []},
-    "source": "RUN_SOURCE_MANUAL",
+    "source": "RUN_SOURCE_CLI",
 }
 print(json.dumps(payload, separators=(",", ":")))
 ' "$org" "$project" "$domain" "$image" "$command"
@@ -184,6 +202,7 @@ flyte_buf_curl() {
   local endpoint="$1"
   local procedure="$2"
   local payload="$3"
-  require_command buf
-  buf curl --schema . "$endpoint/$procedure" --data "$payload"
+  local buf_bin
+  buf_bin="$(buf_command)"
+  "$buf_bin" curl --schema . "$endpoint/$procedure" --data "$payload"
 }
