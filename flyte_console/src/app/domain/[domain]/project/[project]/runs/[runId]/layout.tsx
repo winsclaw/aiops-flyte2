@@ -5,7 +5,7 @@
 import { type Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Run Details',
+  title: '运行详情',
 }
 
 export default function RunDetailsLayout({
