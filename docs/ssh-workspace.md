@@ -4,7 +4,7 @@
 
 ## 修改内容
 
-- 新增核心任务插件：`flyteplugins/go/tasks/plugins/core/sshworkspace`
+- 新增核心任务插件：`flyteplugins/aione/sshworkspace`
 - 注册任务类型：`ssh_workspace`
 - 在 `executor/setup.go` 中注册插件，使 `flyte-binary` 启动时自动加载
 - 新增本地调用脚本：
@@ -116,7 +116,7 @@ testorg/flytesnacks/development/abc123
 工作流 Ready 后可查询 SSH 连接信息：
 
 ```bash
-NAMESPACE=flyte bash tests/get_ssh_workspace_connection.sh testorg/flytesnacks/development/abc123
+NAMESPACE=flyte bash deploy/tests/get_ssh_workspace_connection.sh testorg/flytesnacks/development/abc123
 ```
 
 返回示例：
@@ -191,7 +191,7 @@ ENDPOINT=http://172.19.65.172:30080 bash deploy/tests/get_run_status.sh /flytesn
 
 ```bash
 go test ./executor/pkg/plugin/k8s -count=1
-go test ./flyteplugins/go/tasks/plugins/core/sshworkspace -count=1
+go test ./flyteplugins/aione/sshworkspace -count=1
 bash deploy/tests/test_flyte_api_scripts.sh
 bash deploy/tests/test_deploy_aiops_flyte.sh
 ```

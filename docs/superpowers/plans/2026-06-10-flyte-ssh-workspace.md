@@ -13,9 +13,9 @@
 ### Task 1: SSH Workspace Plugin Configuration and Resource Builders
 
 **Files:**
-- Create: `flyteplugins/go/tasks/plugins/core/sshworkspace/config.go`
-- Create: `flyteplugins/go/tasks/plugins/core/sshworkspace/resources.go`
-- Create: `flyteplugins/go/tasks/plugins/core/sshworkspace/resources_test.go`
+- Create: `flyteplugins/aione/sshworkspace/config.go`
+- Create: `flyteplugins/aione/sshworkspace/resources.go`
+- Create: `flyteplugins/aione/sshworkspace/resources_test.go`
 
 - [ ] **Step 1: Write failing tests**
 
@@ -33,7 +33,7 @@ Add tests for invalid missing key, invalid service type, and `BuildResources` pr
 
 - [ ] **Step 2: Verify tests fail**
 
-Run: `go test ./flyteplugins/go/tasks/plugins/core/sshworkspace -run 'TestParseConfig|TestBuildResources' -count=1`
+Run: `go test ./flyteplugins/aione/sshworkspace -run 'TestParseConfig|TestBuildResources' -count=1`
 
 Expected: FAIL because package/functions do not exist.
 
@@ -53,15 +53,15 @@ exec /usr/sbin/sshd -D -e
 
 - [ ] **Step 4: Verify tests pass**
 
-Run: `go test ./flyteplugins/go/tasks/plugins/core/sshworkspace -run 'TestParseConfig|TestBuildResources' -count=1`
+Run: `go test ./flyteplugins/aione/sshworkspace -run 'TestParseConfig|TestBuildResources' -count=1`
 
 Expected: PASS.
 
 ### Task 2: SSH Workspace Core Plugin Lifecycle
 
 **Files:**
-- Create: `flyteplugins/go/tasks/plugins/core/sshworkspace/plugin.go`
-- Create: `flyteplugins/go/tasks/plugins/core/sshworkspace/plugin_test.go`
+- Create: `flyteplugins/aione/sshworkspace/plugin.go`
+- Create: `flyteplugins/aione/sshworkspace/plugin_test.go`
 - Modify: `executor/setup.go`
 
 - [ ] **Step 1: Write failing tests**
@@ -78,7 +78,7 @@ Add tests that a ready StatefulSet plus Service returns `PhaseRunning`, invalid 
 
 - [ ] **Step 2: Verify tests fail**
 
-Run: `go test ./flyteplugins/go/tasks/plugins/core/sshworkspace -run 'TestPlugin' -count=1`
+Run: `go test ./flyteplugins/aione/sshworkspace -run 'TestPlugin' -count=1`
 
 Expected: FAIL because plugin lifecycle code does not exist.
 
@@ -96,7 +96,7 @@ Reconcile objects idempotently, store plugin state, return queued while creating
 
 - [ ] **Step 4: Verify tests pass**
 
-Run: `go test ./flyteplugins/go/tasks/plugins/core/sshworkspace -count=1`
+Run: `go test ./flyteplugins/aione/sshworkspace -count=1`
 
 Expected: PASS.
 
@@ -174,7 +174,7 @@ Expected: PASS.
 Run:
 
 ```bash
-go test ./flyteplugins/go/tasks/plugins/core/sshworkspace -count=1
+go test ./flyteplugins/aione/sshworkspace -count=1
 bash tests/test_flyte_api_scripts.sh
 bash tests/deploy_aiops_dry_run_test.sh
 ```

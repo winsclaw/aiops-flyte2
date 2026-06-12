@@ -48,3 +48,11 @@ empty-config.yaml
 **/flyteidl2.egg-info
 node_modules
 .claude/
+
+# Extracted Flyte console project artifacts
+/flyte_console/node_modules/
+/flyte_console/.next/
+/flyte_console/playwright-*.png
+/flyte_console/*.tar
+/flyte_console/*.log
+/flyte_console/.env*.local

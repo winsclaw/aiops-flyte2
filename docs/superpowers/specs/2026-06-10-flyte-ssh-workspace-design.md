@@ -38,7 +38,7 @@ Proxy support will be explicit. Deployment scripts will accept `PROXY_URL`, for 
 Add a new core task plugin:
 
 - Task type: `ssh_workspace`
-- Package: `flyteplugins/go/tasks/plugins/core/sshworkspace`
+- Package: `flyteplugins/aione/sshworkspace`
 - Registered via `pluginmachinery.PluginRegistry().RegisterCorePlugin`
 - Imported from the executor startup path so the registry sees it before task reconciliation begins.
 - Added to Helm plugin configuration only where that configuration is consumed by the deployed binary.
