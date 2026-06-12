@@ -43,6 +43,12 @@ const proxyRequest = (targetOrigin, req, res) => {
 
 const server = http.createServer((req, res) => {
   const path = req.url || '/'
+  if (path === '/favicon.ico') {
+    res.writeHead(302, { location: '/v2/union-192x192.png' })
+    res.end()
+    return
+  }
+
   if (
     path.startsWith('/flyteidl2.') ||
     path === '/healthz' ||
