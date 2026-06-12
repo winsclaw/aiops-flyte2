@@ -36,6 +36,8 @@ Active branch:                           codex/flyte-ssh-workspace
 ## Development Rules
 
 - Prefer existing repository patterns over new abstractions.
+- All source changes must be committed to Git before deployment. Commit messages must clearly describe the functional purpose of the change.
+- Remote deployments must obtain repository changes only through `git pull --ff-only` from the active branch. Do not use direct local-to-remote overwrites such as `scp`, `rsync`, zip extraction, or ad hoc file replacement inside the remote checkout.
 - Keep generated or local build output out of commits.
 - `flyte_console/public/monaco/` is generated during frontend production builds and must not be committed.
 - `flyte_console/server.js` at source root is not needed. The runtime `server.js` comes from Next standalone output copied from `.next/standalone`.
@@ -80,6 +82,8 @@ git diff --check
 ```
 
 ## Backend Build And Deployment
+
+Remote deployment steps must start from committed code already pushed to `origin/codex/flyte-ssh-workspace`; update the remote checkout with `git pull --ff-only` only.
 
 Pull current code on the remote server:
 
@@ -144,6 +148,8 @@ bash deploy/tests/get_ssh_workspace_connection.sh /flytesnacks/development/<run-
 ```
 
 ## Frontend Build And Deployment
+
+Remote frontend builds must use the committed source already present in `/opt/aiops-flyte2` after `git pull --ff-only`; do not copy local frontend source files directly into the remote checkout.
 
 Frontend Dockerfile:
 
