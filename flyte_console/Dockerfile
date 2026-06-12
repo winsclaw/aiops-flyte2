@@ -17,7 +17,7 @@ RUN corepack enable \
   && pnpm install --no-frozen-lockfile
 
 COPY . .
-RUN rm -f server.js && pnpm run build:prod
+RUN pnpm run build:prod
 
 FROM docker.fzyun.io/node:23.11.1-alpine3.22 AS runner
 
