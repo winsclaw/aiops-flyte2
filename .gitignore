@@ -56,3 +56,6 @@ node_modules
 /flyte_console/*.tar
 /flyte_console/*.log
 /flyte_console/.env*.local
+
+/.playwright-cli/
+/output/playwright/
