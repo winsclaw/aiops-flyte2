@@ -20,23 +20,23 @@ type FilterConfig = {
 
 export const filterConfigs: FilterConfig[] = [
   {
-    label: 'Last hour',
+    label: '最近 1 小时',
     value: 'last_hour',
   },
   {
-    label: 'Past 24 hours',
+    label: '过去 24 小时',
     value: 'past_24_hours',
   },
   {
-    label: 'Past week',
+    label: '过去一周',
     value: 'past_week',
   },
   {
-    label: 'Past month',
+    label: '过去一个月',
     value: 'past_month',
   },
   {
-    label: 'Past year',
+    label: '过去一年',
     value: 'past_year',
   },
 ]

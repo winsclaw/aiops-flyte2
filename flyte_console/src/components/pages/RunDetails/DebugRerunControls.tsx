@@ -14,6 +14,7 @@ import {
 import { useWatchActionDetails } from '@/hooks/useWatchActionDetails'
 import { isTaskSpec } from '@/lib/actionSpecUtils'
 import { isActionTerminal } from '@/lib/actionUtils'
+import { getUiText } from '@/lib/uiText'
 import React, { useEffect, useMemo, useState } from 'react'
 import { AbortActionModal } from './AbortActionModal'
 
@@ -74,11 +75,11 @@ export const SummaryPopoverWrapper: React.FC<{
     if (!isNonTerminal) return []
 
     return [
-      createOption('Abort action', () => setIsAbortModalOpen(true), {
+      createOption('中止操作', () => setIsAbortModalOpen(true), {
         size: 'sm',
         color: 'rose',
       }),
-      createOption('Rerun action', () => setIsOpen(true), {
+      createOption(getUiText('rerunAction'), () => setIsOpen(true), {
         size: 'sm',
       }),
     ]
@@ -115,7 +116,7 @@ export const SummaryPopoverWrapper: React.FC<{
             className={singleButtonClassName}
           >
             <div className="flex flex-row items-center justify-between gap-1.5 text-xs/5 text-zinc-600 dark:text-zinc-400">
-              Rerun action
+              {getUiText('rerunAction')}
             </div>
           </Button>
         </div>
@@ -142,7 +143,7 @@ export const DebugRerunControls: React.FC<{
   actionDetailsQuery: ReturnType<typeof useWatchActionDetails>
 }> = ({ actionDetailsQuery }) => {
   return (
-    <LaunchFormStateProvider buttonText="Rerun">
+    <LaunchFormStateProvider buttonText={getUiText('rerun')}>
       <SummaryPopoverWrapper actionDetailsQuery={actionDetailsQuery} />
     </LaunchFormStateProvider>
   )

@@ -5,6 +5,7 @@
 import { useCopyToClipboard } from '@/components/CopyButton'
 import { PopoverMenu } from '@/components/Popovers'
 import { StatusIcon } from '@/components/StatusIcons/StatusIcon'
+import { getUiText } from '@/lib/uiText'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useRouter } from 'next/navigation'
 import { type RunsTableRow } from './types'
@@ -20,7 +21,7 @@ const plainRunId = helper.accessor('runId', {
       </div>
     </div>
   ),
-  header: 'Run',
+  header: getUiText('run'),
   minSize: 250,
 })
 
@@ -39,13 +40,13 @@ const complexRunId = helper.accessor('runId', {
             {taskName}
           </div>
           <div className="min-w-0 truncate text-[11px] font-medium text-(--system-gray-5) text-gray-500">
-            Run ID: {runId}
+            {getUiText('runId')}: {runId}
           </div>
         </div>
       </div>
     )
   },
-  header: 'Run',
+  header: getUiText('run'),
   minSize: 250,
 })
 
@@ -61,7 +62,7 @@ const environment = helper.accessor('environment', {
 })
 
 const name = helper.accessor('name', {
-  header: 'Run',
+  header: getUiText('run'),
   cell: (info) => (
     <div className="flex min-w-0 flex-col">
       <div className="min-w-0 truncate text-sm/5 font-semibold text-zinc-950 dark:text-white">
@@ -76,7 +77,7 @@ const name = helper.accessor('name', {
 })
 
 const runTime = helper.accessor('runTime', {
-  header: () => <div className="w-full">Duration</div>,
+  header: () => <div className="w-full">{getUiText('duration')}</div>,
   cell: (info) => (
     <div className="text-xs/5 font-medium text-gray-500 dark:text-[#CACACA]">
       {info.getValue()}
@@ -87,7 +88,7 @@ const runTime = helper.accessor('runTime', {
 })
 
 const startTime = helper.accessor('startTime', {
-  header: () => 'Start time',
+  header: () => getUiText('startTime'),
   cell: (info) => (
     <div className="text-xs/5 font-medium whitespace-nowrap text-gray-500 dark:text-[#CACACA]">
       {info.getValue()}
@@ -98,7 +99,7 @@ const startTime = helper.accessor('startTime', {
 })
 
 const endTime = helper.accessor('endTime', {
-  header: () => 'End time',
+  header: () => getUiText('endTime'),
   cell: (info) => (
     <div className="text-xs/5 font-medium whitespace-nowrap text-gray-500 dark:text-[#CACACA]">
       {info.getValue()}
@@ -146,7 +147,7 @@ const ActionsCell = ({ value, setIsLaunchFormOpen }: ActionsCellProps) => {
         items={[
           {
             id: 'url',
-            label: 'View run details',
+            label: getUiText('viewRunDetails'),
             type: 'item',
             onClick: () => router.push(value.url),
           },
@@ -156,7 +157,7 @@ const ActionsCell = ({ value, setIsLaunchFormOpen }: ActionsCellProps) => {
           },
           {
             id: 'rerun',
-            label: 'Rerun task',
+            label: '重新运行任务',
             type: 'item',
             onClick: () => setIsLaunchFormOpen(),
           },
@@ -167,7 +168,7 @@ const ActionsCell = ({ value, setIsLaunchFormOpen }: ActionsCellProps) => {
           {
             id: 'copy-run-name',
             type: 'item',
-            label: 'Copy run name',
+            label: getUiText('copyRunName'),
             onClick: (e) => {
               handleCopy(e, value.runId ?? '')
             },
@@ -175,13 +176,13 @@ const ActionsCell = ({ value, setIsLaunchFormOpen }: ActionsCellProps) => {
           {
             id: 'copy-latest-version',
             type: 'item',
-            label: 'Copy latest version number',
+            label: getUiText('copyLatestVersionNumber'),
             onClick: (e) => handleCopy(e, value.latestVersion ?? ''),
           },
           {
             id: 'copy-action-id',
             type: 'item',
-            label: 'Copy action ID',
+            label: getUiText('copyActionId'),
             onClick: (e) => handleCopy(e, value.actionId ?? ''),
           },
         ]}
@@ -191,7 +192,7 @@ const ActionsCell = ({ value, setIsLaunchFormOpen }: ActionsCellProps) => {
 }
 
 const trigger = helper.accessor('trigger', {
-  header: () => 'Trigger',
+  header: () => getUiText('trigger'),
   cell: (info) => {
     const value = info.getValue()
     return (

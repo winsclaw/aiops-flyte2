@@ -4,6 +4,7 @@
 
 import { Button } from '@/components/Button'
 import { PaneRightIcon } from '@/components/icons/PaneRightIcon'
+import { getUiText } from '@/lib/uiText'
 
 export const RunInfoButton = ({ onClick }: { onClick: () => void }) => {
   return (
@@ -13,7 +14,7 @@ export const RunInfoButton = ({ onClick }: { onClick: () => void }) => {
       onClick={onClick}
     >
       <PaneRightIcon />
-      Run info
+      {getUiText('runInfo')}
     </Button>
   )
 }

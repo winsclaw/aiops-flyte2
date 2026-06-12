@@ -3,6 +3,7 @@
  */
 
 import clsx from 'clsx'
+import { getUiText } from '@/lib/uiText'
 
 interface ClearAllFiltersButtonProps {
   onClick: () => void
@@ -24,7 +25,7 @@ export const ClearAllFiltersButton = ({
         className,
       )}
     >
-      Clear all
+      {getUiText('clearAll')}
     </button>
   )
 }

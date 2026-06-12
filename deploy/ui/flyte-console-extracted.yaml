@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flyte-console-extracted
+  namespace: flyte
+  labels:
+    app: flyte-console-extracted
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flyte-console-extracted
+  template:
+    metadata:
+      labels:
+        app: flyte-console-extracted
+    spec:
+      containers:
+        - name: flyte-console-extracted
+          image: flyte-console-extracted:latest
+          imagePullPolicy: Never
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HOSTNAME
+              value: 0.0.0.0
+            - name: PORT
+              value: "8080"
+            - name: NEXT_PORT
+              value: "3000"
+            - name: FLYTE_API_ORIGIN
+              value: http://flyte-binary-http.flyte.svc.cluster.local:8090
+          ports:
+            - name: http
+              containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flyte-console-extracted
+  namespace: flyte
+  labels:
+    app: flyte-console-extracted
+spec:
+  type: NodePort
+  selector:
+    app: flyte-console-extracted
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30081

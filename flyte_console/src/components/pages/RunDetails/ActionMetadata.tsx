@@ -10,6 +10,7 @@ import { TaskSpec } from '@/gen/flyteidl2/task/task_definition_pb'
 import { ActionDetails } from '@/gen/flyteidl2/workflow/run_definition_pb'
 import { useOrg } from '@/hooks/useOrg'
 import { useTaskDetails } from '@/hooks/useTaskDetails'
+import { getUiText } from '@/lib/uiText'
 import { getLocation } from '@/lib/windowUtils'
 import Link from 'next/link'
 
@@ -85,8 +86,8 @@ export const ActionMetadata = ({
         )}
         <CopyButtonWithTooltip
           icon="chain"
-          textInitial="Copy action URL"
-          textCopied="Action URL copied to clipboard"
+          textInitial={getUiText('copyActionUrl')}
+          textCopied="操作链接已复制到剪贴板"
           value={getLocation().href}
           classNameBtn="-ml-1"
         />
@@ -94,7 +95,7 @@ export const ActionMetadata = ({
 
       <div className="flex items-center gap-3 text-2xs text-(--system-gray-5)">
         <div>
-          Action ID: <span>{actionDetails?.id?.name}</span>
+          操作 ID: <span>{actionDetails?.id?.name}</span>
           <CopyButton
             className="!px-1 !py-0"
             size="sm"
@@ -103,7 +104,7 @@ export const ActionMetadata = ({
         </div>
         {taskName && (
           <div>
-            Task:{' '}
+            {getUiText('task')}:{' '}
             {taskHref ? (
               <Link href={taskHref} className="hover:underline">
                 {taskName}
@@ -118,7 +119,7 @@ export const ActionMetadata = ({
             />
           </div>
         )}
-        {cluster && <div>Cluster: {cluster}</div>}
+        {cluster && <div>集群: {cluster}</div>}
       </div>
     </div>
   )

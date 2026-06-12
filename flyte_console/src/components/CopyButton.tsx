@@ -5,6 +5,7 @@
 import React, { ComponentProps, memo, useState } from 'react'
 import { CheckIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/Button'
+import { getUiText } from '@/lib/uiText'
 import { CopyIcon } from './icons/CopyIcon'
 
 type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
@@ -36,7 +37,7 @@ const CopyButtonComponent: React.FC<
   size = 'md',
   plain = true,
   outline,
-  title = 'Copy to clipboard',
+  title = getUiText('copyToClipboard'),
   className,
   color,
 }) => {

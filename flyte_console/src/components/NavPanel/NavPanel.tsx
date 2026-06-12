@@ -65,7 +65,7 @@ export const NavPanel = ({
             >
               <HamburgerIcon className="size-4 text-(--system-gray-5)" />
             </Button>
-            <Link href={logoClickLink} aria-label="Home">
+            <Link href={logoClickLink} aria-label="首页">
               <Logo height={20} width={42} />
             </Link>
             <DomainPicker />

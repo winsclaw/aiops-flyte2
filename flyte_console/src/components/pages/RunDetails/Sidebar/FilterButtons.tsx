@@ -10,6 +10,7 @@ import { useStatusFilterMenuItems } from '@/components/StatusFilter'
 import { Tooltip } from '@/components/Tooltip'
 import { ActionPhase } from '@/gen/flyteidl2/common/phase_pb'
 import { EnrichedAction } from '@/gen/flyteidl2/workflow/run_definition_pb'
+import { getUiText } from '@/lib/uiText'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useMemo } from 'react'
 import { useRunStore } from '../state/RunStore'
@@ -35,7 +36,7 @@ export const SidebarControls = () => {
   const hasCollapsedItems = collapsedItems.size > 0
   const shouldDisableToggle = flatItems.length === 0
   const expandCollapseLabel = useMemo(
-    () => `${collapsedItems.size > 0 ? 'Expand' : 'Collapse'} All Items`,
+    () => `${collapsedItems.size > 0 ? '展开' : '折叠'}全部项目`,
     [collapsedItems],
   )
   const statusMenuItems = useStatusFilterMenuItems()
@@ -98,7 +99,7 @@ export const SidebarControls = () => {
       <SearchControl />
       <div className="flex items-center justify-between">
         <div className="flex h-7 flex-1 gap-1 text-xs font-semibold text-(--system-gray-6)">
-          Filter:
+          {getUiText('filter')}
           <div className="flex flex-1">
             <motion.div className="flex items-center gap-1" layout="position">
               <AnimatePresence>

@@ -3,6 +3,7 @@
  */
 
 import { Button } from '@/components/Button'
+import { getUiText } from '@/lib/uiText'
 import { PlusIcon } from '@heroicons/react/20/solid'
 export const CreateProjectButton: React.FC<{ onClick: VoidFunction }> = ({
   onClick,
@@ -10,7 +11,7 @@ export const CreateProjectButton: React.FC<{ onClick: VoidFunction }> = ({
   return (
     <Button onClick={onClick} color="union">
       <PlusIcon className="h-4 w-4" />
-      New project
+      {getUiText('newProject')}
     </Button>
   )
 }

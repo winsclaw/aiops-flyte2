@@ -5,6 +5,7 @@
 import { PopoverMenu, type MenuItem } from '@/components/Popovers'
 import { StatusDot, StatusDotBadge } from '@/components/StatusDotBadge'
 import { useTriggerStatusFilter } from '@/hooks/filters/useTriggerStatusFilter'
+import { getUiText } from '@/lib/uiText'
 import { useMemo } from 'react'
 
 type FilterConfig = {
@@ -16,13 +17,13 @@ type FilterConfig = {
 
 export const filterConfigs: FilterConfig[] = [
   {
-    label: 'Active',
+    label: '启用',
     value: 'active',
     color: 'green',
     filled: true,
   },
   {
-    label: 'Inactive',
+    label: '停用',
     value: 'inactive',
     color: 'gray',
     filled: false,
@@ -67,7 +68,7 @@ export const TriggerStatusFilter = () => {
 
   return (
     <PopoverMenu
-      label="Status"
+      label={getUiText('status')}
       items={menuItems}
       variant="filter"
       menuClassName="min-w-56"

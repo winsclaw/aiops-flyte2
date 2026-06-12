@@ -3,30 +3,31 @@
  */
 
 import { ActionPhase } from '@/gen/flyteidl2/common/phase_pb'
+import { getPhaseLabel } from '@/lib/uiText'
 
 export type PhaseKey = keyof typeof ActionPhase | null
 
 export function getPhaseString(phase: ActionPhase | undefined) {
   switch (phase) {
     case ActionPhase.QUEUED:
-      return 'Queued'
+      return getPhaseLabel('QUEUED')
     case ActionPhase.WAITING_FOR_RESOURCES:
-      return 'Waiting'
+      return getPhaseLabel('WAITING_FOR_RESOURCES')
     case ActionPhase.INITIALIZING:
-      return 'Initializing'
+      return getPhaseLabel('INITIALIZING')
     case ActionPhase.RUNNING:
-      return 'Running'
+      return getPhaseLabel('RUNNING')
     case ActionPhase.SUCCEEDED:
-      return 'Succeeded'
+      return getPhaseLabel('SUCCEEDED')
     case ActionPhase.FAILED:
-      return 'Failed'
+      return getPhaseLabel('FAILED')
     case ActionPhase.ABORTED:
-      return 'Aborted'
+      return getPhaseLabel('ABORTED')
     case ActionPhase.TIMED_OUT:
-      return 'Timed out'
+      return getPhaseLabel('TIMED_OUT')
     case ActionPhase.UNSPECIFIED:
     default:
-      return 'Unknown'
+      return getPhaseLabel('UNSPECIFIED')
   }
 }
 

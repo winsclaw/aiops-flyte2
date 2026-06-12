@@ -18,6 +18,7 @@ import {
   getFlyteCliEndpointHost,
   getLocation,
 } from '@/lib/windowUtils'
+import { getUiText } from '@/lib/uiText'
 import { ProjectDomainPageParams } from '@/types/pageParams'
 import { python } from '@codemirror/lang-python'
 import { PlusIcon } from '@heroicons/react/24/outline'
@@ -38,7 +39,7 @@ const useCodeSnippets = (taskName: string = 'my_triggered_task') => {
     {
       id: '1',
       label:
-        'If you don’t have a local flyte configuration, first create it with:',
+        '如果本地还没有 Flyte 配置，请先创建配置：',
       code: `flyte create config \\
     --endpoint ${endpointHost} \\
     --project ${params.project} \\
@@ -47,7 +48,7 @@ const useCodeSnippets = (taskName: string = 'my_triggered_task') => {
     },
     {
       id: '2',
-      label: 'Then create a simple script called task_trigger.py:',
+      label: '然后创建一个名为 task_trigger.py 的简单脚本：',
       code: `import flyte
 from datetime import datetime
 
@@ -62,7 +63,7 @@ def example_task(trigger_time: datetime, x: int = 1) -> str:
     },
     {
       id: '3',
-      label: 'Then deploy the task environment with the trigger:',
+      label: '最后部署带触发器的任务环境：',
       code: `flyte deploy task_trigger.py env`,
     },
   ]
@@ -111,8 +112,8 @@ export const ListTriggersPageContent = ({
 
             <TriggerAutomationTypeFilter />
 
-            <RelativeTimeFilter label="Last run" queryKey="triggered_at" />
-            <RelativeTimeFilter label="Last updated" queryKey="updated_at" />
+            <RelativeTimeFilter label={getUiText('lastRun')} queryKey="triggered_at" />
+            <RelativeTimeFilter label={getUiText('lastUpdated')} queryKey="updated_at" />
 
             {hasActiveFilters && (
               <ClearAllFiltersButton onClick={clearAllFilters} />
@@ -121,7 +122,7 @@ export const ListTriggersPageContent = ({
           {shouldShowCreateTrigger && (
             <Button color="union" size="xs" onClick={setShowCreateTrigger}>
               <PlusIcon className="!size-3.5" />
-              Add trigger
+              {getUiText('addTrigger')}
             </Button>
           )}
         </div>
@@ -132,7 +133,7 @@ export const ListTriggersPageContent = ({
         data={triggersQuery.data?.triggers}
         isError={triggersQuery.isError}
         isLoading={triggersQuery.isLoading}
-        subtitle="Triggers let you automate task runs on a schedule or event. Create one in the UI or use the example code below to get started."
+        subtitle="触发器可按计划或事件自动运行任务。你可以在界面中创建，也可以参考下面的示例代码开始。"
         searchQuery={searchTerm}
         content={
           <>

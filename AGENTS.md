@@ -17,6 +17,7 @@ flyteplugins/aione/sshworkspace/   # Custom SSH workspace task plugin
 executor/                          # Flyte task/plugin execution and plugin registration
 charts/flyte-devbox/               # Single-node k3s Helm deployment
 deploy/tests/                      # Local scripts that call Flyte 2 APIs
+deploy/ui/                         # Kubernetes manifests for source-built console deployment
 flyte_console/                     # Flyte 2 Console frontend
 docs/                              # Human-facing project documentation
 ```
@@ -178,6 +179,12 @@ Import the frontend image into k3s containerd:
 ```bash
 docker save "flyte-console-source:${COMMIT}" flyte-console-extracted:latest | k3s ctr images import -
 k3s ctr images ls | grep -E 'flyte-console-(source|extracted)'
+```
+
+Create or update the frontend Kubernetes resources:
+
+```bash
+kubectl apply -f deploy/ui/flyte-console-extracted.yaml
 ```
 
 Current frontend Kubernetes deployment:

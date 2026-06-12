@@ -28,6 +28,7 @@ import { useTaskDetails } from '@/hooks/useTaskDetails'
 import { useWatchActionDetails } from '@/hooks/useWatchActionDetails'
 import { getActionDisplayString, getTaskType } from '@/lib/actionUtils'
 import { toDateFormat } from '@/lib/dateUtils'
+import { getUiText } from '@/lib/uiText'
 import { getLocation } from '@/lib/windowUtils'
 import clsx from 'clsx'
 import dynamic from 'next/dynamic'
@@ -131,7 +132,7 @@ export const RunDetailsPage = () => {
     }
     const tabs: TabType<RunDetailsTab>[] = [
       {
-        label: 'Summary',
+        label: getUiText('summary'),
         content: (
           <RunDetailsSummaryTab
             selectedActionDetailsQuery={selectedActionDetails}
@@ -143,29 +144,29 @@ export const RunDetailsPage = () => {
       {
         content: <RunDetailsLogsTab />,
         icon: <LogsIcon width={16} />,
-        label: 'Logs',
+        label: getUiText('logs'),
         path: RunDetailsTab.LOGS,
       },
       {
         content: <RunMetricsTab />,
         icon: <BarChartIcon />,
-        label: 'Metrics',
+        label: getUiText('metrics'),
         path: RunDetailsTab.METRICS,
       },
       {
-        label: 'Reports',
+        label: getUiText('reports'),
         icon: <ReportsIcon width={14} />,
         content: <RunDetailsReportsTab />,
         path: RunDetailsTab.REPORTS,
       },
       {
-        label: 'Task',
+        label: getUiText('task'),
         icon: <TaskIcon width={14} />,
         content: <RunDetailsTaskTab />,
         path: RunDetailsTab.TASK,
       },
       {
-        label: 'Code',
+        label: getUiText('code'),
         icon: <CodeIcon width={14} />,
         content: <RunDetailsCodeTab />,
         path: RunDetailsTab.CODE,
@@ -249,8 +250,8 @@ export const RunDetailsPage = () => {
           <>
             <CopyButtonWithTooltip
               icon="chain"
-              textInitial="Copy run URL"
-              textCopied="Run URL copied to clipboard"
+              textInitial={getUiText('copyRunUrl')}
+              textCopied="运行链接已复制到剪贴板"
               value={url}
               classNameBtn="-mx-2"
             />
@@ -259,11 +260,11 @@ export const RunDetailsPage = () => {
         ),
       },
       subtitle: [
-        { label: 'Run:', value: run?.id?.run?.name ?? '' },
+        { label: `${getUiText('run')}：`, value: run?.id?.run?.name ?? '' },
         ...(taskDisplayName
           ? [
               {
-                label: 'Task:',
+                label: `${getUiText('task')}：`,
                 value:
                   taskDetailsHref && headerTaskExists ? (
                     <Link href={taskDetailsHref} className="hover:underline">
@@ -279,7 +280,7 @@ export const RunDetailsPage = () => {
       ],
       dataList: [
         {
-          label: 'Duration',
+          label: getUiText('duration'),
           value: (
             <LiveTimestamp
               className="text-sm font-medium"
@@ -288,9 +289,9 @@ export const RunDetailsPage = () => {
             />
           ),
         },
-        { label: 'Start Time', value: toDateFormat({ timestamp: startTime }) },
+        { label: getUiText('startTime'), value: toDateFormat({ timestamp: startTime }) },
         {
-          label: 'Trigger',
+          label: getUiText('trigger'),
           value: <TriggerBadge action={run} />,
         },
       ],
@@ -314,7 +315,7 @@ export const RunDetailsPage = () => {
   return (
     <>
       <GlobalNowTicker />
-      <LaunchFormStateProvider buttonText="Rerun">
+      <LaunchFormStateProvider buttonText={getUiText('rerun')}>
         <DetailsLayout
           metadata={metadata}
           actionBtn={

@@ -26,7 +26,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className="h-full min-h-full" suppressHydrationWarning>
+    <html lang="zh-CN" className="h-full min-h-full" suppressHydrationWarning>
       <head>
         <meta charSet="UTF-8"></meta>
         <EnvScript env={envLoader} disableNextScript />

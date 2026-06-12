@@ -6,6 +6,7 @@ import { Duration } from '@/gen/google/protobuf/duration_pb'
 import { Timestamp } from '@/gen/google/protobuf/timestamp_pb'
 import { format } from 'date-fns'
 import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import duration from 'dayjs/plugin/duration'
 import isToday from 'dayjs/plugin/isToday'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -13,10 +14,11 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 dayjs.extend(isToday)
 dayjs.extend(duration)
+dayjs.locale('zh-cn')
 
-const FORMAT = 'MMM D, YYYY h:mm A'
-const FORMAT_WITH_SECONDS = 'MMM D, YYYY h:mm:ss A'
-const FORMAT_NO_DATE = 'h:mm:ss A'
+const FORMAT = 'YYYY年M月D日 HH:mm'
+const FORMAT_WITH_SECONDS = 'YYYY年M月D日 HH:mm:ss'
+const FORMAT_NO_DATE = 'HH:mm:ss'
 
 export const getLogDateString = (timestamp?: Timestamp) => {
   return timestamp
@@ -224,7 +226,7 @@ export const formatDateWithConditionalYear = (
   const currentYear = new Date().getFullYear()
   const dateYear = dateObj.year()
   const format =
-    dateYear === currentYear ? 'MMM D, h:mm A' : 'MMM D, YYYY, h:mm A'
+    dateYear === currentYear ? 'M月D日 HH:mm' : 'YYYY年M月D日 HH:mm'
   return dateObj.format(format)
 }
 

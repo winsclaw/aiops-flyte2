@@ -6,6 +6,7 @@ import { Input, InputGroup, InputProps } from '@/components/Input'
 import { MagnifyingGlassIcon, XCircleIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { forwardRef } from 'react'
+import { getUiText } from '@/lib/uiText'
 
 type SearchBarProps = {
   placeholder?: string
@@ -22,7 +23,7 @@ type SearchBarProps = {
 export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
   function SearchBar(
     {
-      placeholder = 'Search',
+      placeholder = getUiText('search'),
       className,
       iconClassName,
       inputClassName,
@@ -72,7 +73,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             onMouseDown={(e) => {
               e.preventDefault() // prevent blurring input
             }}
-            aria-label="Clear search"
+            aria-label="清除搜索"
             className="absolute top-1/2 right-2 flex min-h-4 min-w-4 -translate-y-1/2 cursor-pointer items-center justify-center p-0.5 text-(--system-gray-5) hover:text-(--system-gray-7)"
           >
             <XCircleIcon className="size-4" />

@@ -4,6 +4,7 @@
 
 import { FLYTE_DOCS_FLYTE2_URL } from '@/lib/constants'
 import { useDomainStore } from '@/lib/DomainStore'
+import { formatRecentlyViewedLabel, getUiText } from '@/lib/uiText'
 import { FolderIcon } from '@heroicons/react/16/solid'
 import { DocumentTextIcon } from '@heroicons/react/20/solid'
 import { ShareIcon } from '@heroicons/react/24/outline'
@@ -15,7 +16,7 @@ import { NavPanelWidth, NavWidget, type NavLink as NavLinkType } from './types'
 
 export const ProjectsLink: NavLinkType = {
   className: 'semibold text-white',
-  displayText: 'Projects',
+  displayText: getUiText('projects'),
   makeHref: () => `/projects`,
   icon: <FolderIcon />,
   type: 'link',
@@ -29,7 +30,7 @@ const ProjectsHeaderWidget = ({ size }: { size: NavPanelWidth }) => {
   }
   return (
     <span className="pl-2 text-2xs font-semibold dark:text-(--system-gray-5)">
-      Recently viewed in {selectedDomain.name}
+      {formatRecentlyViewedLabel(selectedDomain.name)}
     </span>
   )
 }
@@ -41,7 +42,7 @@ export const ProjectsHeader: NavWidget = {
 }
 
 export const RunsLink: NavLinkType = {
-  displayText: 'Runs',
+  displayText: getUiText('runs'),
   makeHref: ({ project, domain }) =>
     `/domain/${domain}/project/${project}/runs`,
   icon: <RunsIcon className="size-4" />,
@@ -49,7 +50,7 @@ export const RunsLink: NavLinkType = {
 }
 
 export const TasksLink: NavLinkType = {
-  displayText: 'Tasks',
+  displayText: getUiText('tasks'),
   makeHref: ({ project, domain }) =>
     `/domain/${domain}/project/${project}/tasks`,
   icon: <ShareIcon className="size-4 min-w-4" />,
@@ -57,7 +58,7 @@ export const TasksLink: NavLinkType = {
 }
 
 export const TriggersLink: NavLinkType = {
-  displayText: 'Triggers',
+  displayText: getUiText('triggers'),
   makeHref: ({ project, domain }) =>
     `/domain/${domain}/project/${project}/triggers`,
   icon: <TriggersIcon />,
@@ -65,7 +66,7 @@ export const TriggersLink: NavLinkType = {
 }
 
 export const AppsLink: NavLinkType = {
-  displayText: 'Apps',
+  displayText: getUiText('apps'),
   makeHref: ({ project, domain }) =>
     `/domain/${domain}/project/${project}/apps`,
   icon: <AppsIcon />,
@@ -79,7 +80,7 @@ export const useDefaultItems = () => {
 }
 
 export const DocumentationLink: NavLinkType = {
-  displayText: 'Documentation',
+  displayText: getUiText('documentation'),
   makeHref: () => FLYTE_DOCS_FLYTE2_URL,
   icon: <DocumentTextIcon className="h-4" />,
   type: 'link',

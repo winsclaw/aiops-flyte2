@@ -91,9 +91,9 @@ const Timeline = ({
     <div className="flex w-full flex-col items-start gap-5 px-6 pt-6 pb-4">
       <ActionPhasesChart phaseTransitions={phaseTransitions} />
       <div className="flex-start flex gap-4 text-[11px] font-medium text-zinc-500">
-        <span>Start Time: {toDateFormat({ timestamp: bounds.startTime })}</span>
-        <span>End Time: {toDateFormat({ timestamp: bounds.endTime })}</span>
-        {duration && <span>Duration: {duration}</span>}
+        <span>开始时间：{toDateFormat({ timestamp: bounds.startTime })}</span>
+        <span>结束时间：{toDateFormat({ timestamp: bounds.endTime })}</span>
+        {duration && <span>耗时：{duration}</span>}
       </div>
     </div>
   )

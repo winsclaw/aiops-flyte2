@@ -40,5 +40,5 @@ export const detectQuickRangeLabel = (
     }
   }
 
-  return `${format(from, fromFmt)} to ${format(to, toFmt)}`
+  return `${format(from, fromFmt)} 至 ${format(to, toFmt)}`
 }

@@ -20,6 +20,7 @@ import { useLatestProjectDomainPairs } from '@/hooks/useLatestProjects'
 import { useProjects } from '@/hooks/useProjects'
 import { useDomainStore } from '@/lib/DomainStore'
 import { highlightMatches } from '@/lib/highlightMatches'
+import { formatTotalLabel, getUiText } from '@/lib/uiText'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useQueryState } from 'nuqs'
 import React, { useMemo, useState } from 'react'
@@ -77,7 +78,7 @@ export function ProjectsPage() {
             </div>
           )
         },
-        header: () => <div className="text-sm/5">Name</div>,
+        header: () => <div className="text-sm/5">{getUiText('name')}</div>,
       }),
       columnHelper.accessor('labels', {
         maxSize: 300,
@@ -116,9 +117,9 @@ export function ProjectsPage() {
               </div>
             )
           }
-          return <div className="text-sm text-(--system-gray-5)">None</div>
+          return <div className="text-sm text-(--system-gray-5)">无</div>
         },
-        header: () => <div className="text-sm/5">Labels</div>,
+        header: () => <div className="text-sm/5">{getUiText('labels')}</div>,
       }),
       columnHelper.accessor('id', {
         maxSize: 120,
@@ -155,14 +156,14 @@ export function ProjectsPage() {
     <>
       <div className="flex items-center justify-between gap-2 px-10 pt-6 pb-5">
         <div className="flex flex-col">
-          <h1 className="text-xl font-medium">Projects</h1>
+          <h1 className="text-xl font-medium">{getUiText('projects')}</h1>
           <span className="text-2xs font-semibold">
-            {filteredProjects?.length ?? 0} total
+            {formatTotalLabel(filteredProjects?.length)}
           </span>
         </div>
 
         <SearchBar
-          placeholder="Search projects"
+          placeholder={getUiText('searchProjects')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           // to prevent the browser from autofilling the input
@@ -187,7 +188,7 @@ export function ProjectsPage() {
           searchQuery={searchQuery}
           isError={projectQuery.isError}
           isLoading={projectQuery.isLoading}
-          subtitle="Create a project from the CLI"
+          subtitle="请通过 CLI 创建项目"
           // TODO
           // subtitle="Create a project to see it here"
           // content={ CreateProjectButton }

@@ -8,6 +8,7 @@ import {
   createBulkSelectionColumn,
 } from '@/components/Tables/BulkSelectionColumn'
 import { createColumnHelper } from '@tanstack/react-table'
+import { getUiText } from '@/lib/uiText'
 import Link from 'next/link'
 import { useMemo } from 'react'
 import { TriggerSwitchCell } from './TriggersSwitchCell'
@@ -33,7 +34,7 @@ export const useTriggersTableColumns = (
         cell: (info) => (
           <TriggerSwitchCell trigger={info.row.original.actions} />
         ),
-        header: 'Status',
+        header: getUiText('status'),
         minSize: 120,
         size: 120,
       }),
@@ -50,13 +51,13 @@ export const useTriggersTableColumns = (
               </div>
               {nextRun && (
                 <span className="block truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Next Run: {info.getValue().nextRun}
+                  下次运行：{info.getValue().nextRun}
                 </span>
               )}
             </div>
           )
         },
-        header: 'Trigger',
+        header: getUiText('trigger'),
         minSize: 350,
       }),
       helper.accessor('task', {
@@ -74,7 +75,7 @@ export const useTriggersTableColumns = (
             </span>
           </Link>
         ),
-        header: 'Associated Task',
+        header: getUiText('associatedTask'),
         minSize: 250,
       }),
       helper.accessor('triggered', {
@@ -83,7 +84,7 @@ export const useTriggersTableColumns = (
             {info.getValue().date}
           </div>
         ),
-        header: 'Last run',
+        header: getUiText('lastRun'),
         minSize: 200,
         size: 200,
       }),
@@ -96,13 +97,13 @@ export const useTriggersTableColumns = (
               <span className="text-xs">{info.getValue().date}</span>
               <span className="text-[11px]">
                 {isUser
-                  ? `by ${principal.value?.spec?.firstName} ${principal.value?.spec?.lastName}`
+                  ? `由 ${principal.value?.spec?.firstName} ${principal.value?.spec?.lastName} 更新`
                   : ''}
               </span>
             </div>
           )
         },
-        header: 'Last updated',
+        header: getUiText('lastUpdated'),
         minSize: 200,
         size: 200,
       }),

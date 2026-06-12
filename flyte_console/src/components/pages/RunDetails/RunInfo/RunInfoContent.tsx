@@ -17,6 +17,7 @@ import { GetRunDetailsResponse } from '@/gen/flyteidl2/workflow/run_service_pb'
 import { useActionData } from '@/hooks/useActionData'
 import { useTaskDetails } from '@/hooks/useTaskDetails'
 import { toDateFormat } from '@/lib/dateUtils'
+import { getUiText } from '@/lib/uiText'
 import { getLocation } from '@/lib/windowUtils'
 import { UseQueryResult } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -26,7 +27,7 @@ import { useRunStore } from '../state/RunStore'
 const getCacheLookupScopeString: Record<CacheLookupScope, string> = {
   [CacheLookupScope.GLOBAL]: 'GLOBAL',
   [CacheLookupScope.PROJECT_DOMAIN]: 'PROJECT_DOMAIN',
-  [CacheLookupScope.UNSPECIFIED]: 'Unspecified',
+  [CacheLookupScope.UNSPECIFIED]: '未指定',
 }
 
 /** Returns items as-is, or a single placeholder row when the list is empty. */
@@ -98,14 +99,14 @@ export const RunInfoContent = ({
       Object.entries(runSpec?.annotations?.values ?? {}).map(
         ([name, value]) => ({ name, value }),
       ),
-      'No annotations',
+      '无注解',
     )
     const envVars = withEmptyFallback(
       (runSpec?.envs?.values ?? []).map(({ key, value }) => ({
         name: key,
         value,
       })),
-      'No env vars',
+      '无环境变量',
     )
     return { annotations, envVars }
   }, [runSpec?.annotations?.values, runSpec?.envs?.values])
@@ -115,16 +116,16 @@ export const RunInfoContent = ({
       name: key,
       value,
     })),
-    'No context',
+    '无上下文',
   )
 
   if (runDetails.error) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-5 text-center text-(--system-gray-5)">
         <div className="flex items-center gap-2">
-          <ChartIcon /> Error
+          <ChartIcon /> 加载失败
         </div>
-        <div>We’re having trouble loading the run info</div>
+        <div>加载运行信息时遇到问题</div>
       </div>
     )
   }
@@ -143,21 +144,21 @@ export const RunInfoContent = ({
         isRawView={false}
         sections={[
           {
-            id: 'Summary',
-            name: 'Run details',
+            id: 'summary',
+            name: '运行详情',
             items: [
               {
-                name: 'Run name',
+                name: '运行名称',
                 value: runDetails.data?.details?.action?.id?.run?.name,
                 copyBtn: true,
               },
               {
-                name: 'Run url',
+                name: '运行链接',
                 value: runUrl,
                 copyBtn: true,
               },
               {
-                name: 'Root task',
+                name: '根任务',
                 value:
                   taskSpec &&
                   taskDetails?.details &&
@@ -172,16 +173,16 @@ export const RunInfoContent = ({
                   ),
               },
               {
-                name: 'Root task version',
+                name: '根任务版本',
                 value: taskData.taskVersion,
                 copyBtn: taskData.taskVersion !== '-',
               },
               {
-                name: 'Status',
+                name: getUiText('status'),
                 value: <PhaseBadge phase={livePhase} />,
               },
               {
-                name: 'Duration',
+                name: getUiText('duration'),
                 value: (
                   <LiveTimestamp
                     className="text-sm font-medium"
@@ -191,24 +192,24 @@ export const RunInfoContent = ({
                 ),
               },
               {
-                name: 'Start time',
+                name: getUiText('startTime'),
                 value: toDateFormat({
                   timestamp:
                     runDetails.data?.details?.action?.status?.startTime,
                 }),
               },
               {
-                name: 'End time',
+                name: getUiText('endTime'),
                 value: toDateFormat({
                   timestamp: runDetails.data?.details?.action?.status?.endTime,
                 }),
               },
               {
-                name: 'Attempts',
+                name: '尝试次数',
                 value: runDetails.data?.details?.action?.status?.attempts,
               },
               {
-                name: 'Trigger',
+                name: getUiText('trigger'),
                 value: (
                   <TriggerBadge action={runDetails.data?.details?.action} />
                 ),
@@ -222,20 +223,20 @@ export const RunInfoContent = ({
         sections={[
           {
             id: 'runSpec',
-            name: 'Run spec',
+            name: '运行规格',
             items: [
               {
-                name: 'Cluster',
+                name: '集群',
                 value: runSpec?.cluster,
                 copyBtn: true,
               },
               {
-                name: 'Raw data storage',
+                name: '原始数据存储',
                 value: runSpec?.rawDataStorage?.rawDataPrefix,
                 copyBtn: true,
               },
               {
-                name: 'Cache config',
+                name: '缓存配置',
                 value:
                   getCacheLookupScopeString[
                     runSpec?.cacheConfig?.cacheLookupScope ||
@@ -251,7 +252,7 @@ export const RunInfoContent = ({
         sections={[
           {
             id: 'Annotations',
-            name: 'Annotations',
+            name: '注解',
             items: annotations,
           },
         ]}
@@ -261,7 +262,7 @@ export const RunInfoContent = ({
         sections={[
           {
             id: 'EnvVars',
-            name: 'Environment variables',
+            name: '环境变量',
             items: envVars,
           },
         ]}
@@ -271,7 +272,7 @@ export const RunInfoContent = ({
         sections={[
           {
             id: 'CustomContext',
-            name: 'Custom Context',
+            name: '自定义上下文',
             items: customContext,
           },
         ]}

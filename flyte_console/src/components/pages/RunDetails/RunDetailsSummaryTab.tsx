@@ -22,6 +22,7 @@ import {
   isActionTerminal,
 } from '@/lib/actionUtils'
 import { isAbortInfoResult, isErrorInfoResult } from '@/lib/runTypeUtils'
+import { getUiText } from '@/lib/uiText'
 import type { JSONSchema7 } from 'json-schema'
 import { AnimatePresence, motion } from 'motion/react'
 import { useParams } from 'next/navigation'
@@ -248,7 +249,7 @@ export const RunDetailsSummaryTab = ({
             taskType={taskType}
           />
           {shouldShowFanoutTable && (
-            <TabSection heading="Sub actions">
+            <TabSection heading="子操作">
               <ActionFanoutTable
                 childPhaseCounts={fanoutAction}
                 isRunTerminal={isRunTerminal}
@@ -258,7 +259,7 @@ export const RunDetailsSummaryTab = ({
           <ActionDashboardLinks attempt={selectedAttempt} />
           <TabSection
             copyButtonContent={outputsCopyContent}
-            heading="Output"
+            heading={getUiText('output')}
           >
             <IORenderer
               jsonSchema={outputsJsonSchema?.json}
@@ -267,18 +268,18 @@ export const RunDetailsSummaryTab = ({
               isLoading={isOutputsLoading}
               noDataMessage={
                 isActionTerminal(selectedActionDetails)
-                  ? 'No output data'
-                  : 'Waiting for output...'
+                  ? getUiText('noOutputData')
+                  : '等待输出...'
               }
             />
           </TabSection>
-          <TabSection copyButtonContent={inputsCopyContent} heading="Input">
+          <TabSection copyButtonContent={inputsCopyContent} heading={getUiText('input')}>
             <IORenderer
               jsonSchema={inputsJsonSchema?.json}
               formData={inputRawValues}
               formDataProvided
               isLoading={isInputsLoading}
-              noDataMessage="No input data"
+              noDataMessage={getUiText('noInputData')}
             />
           </TabSection>
         </motion.div>

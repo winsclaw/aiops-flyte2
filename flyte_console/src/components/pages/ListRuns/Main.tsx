@@ -9,6 +9,7 @@ import { Header } from '@/components/Header'
 import { listRunsColumns, ListRunsContent } from '@/components/ListRuns'
 import { ListRunsSearch } from '@/components/ListRuns/filters/ListRunsSearch'
 import { NavPanelLayout } from '@/components/NavPanel/NavPanelLayout'
+import { getUiText } from '@/lib/uiText'
 import { Suspense } from 'react'
 
 export function ListRunsPage() {
@@ -23,9 +24,9 @@ export function ListRunsPage() {
 
             <div className="flex items-center justify-between gap-2 px-10 pt-6 pb-3">
               <div className="flex flex-col gap-1">
-                <h1 className="text-xl font-medium">Runs</h1>
+                <h1 className="text-xl font-medium">{getUiText('runs')}</h1>
                 <DatePickerPopover
-                  labelPrefix="Runs"
+                  labelPrefix={getUiText('runs')}
                   maxDaysBack={30}
                   quickRanges={quickRanges30Days}
                 />

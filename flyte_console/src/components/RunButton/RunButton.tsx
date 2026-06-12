@@ -10,6 +10,7 @@ import { RerunIcon } from '@/components/icons/RerunIcon'
 import { LaunchFormDrawer } from '@/components/LaunchForm'
 import { TaskSpec } from '@/gen/flyteidl2/task/task_definition_pb'
 import { useLaunchFormState } from '@/hooks/useLaunchFormState'
+import { getUiText } from '@/lib/uiText'
 import { PlayIcon } from '@heroicons/react/24/solid'
 import { useEffect, useState } from 'react'
 import { useRunLaunchFormData } from '../LaunchForm/hooks/useRunLaunchFormData'
@@ -41,7 +42,7 @@ export const RunButton = () => {
                   name: (
                     <span className="flex items-center">
                       <RerunIcon className="mr-2 size-3" />
-                      Rerun
+                      {getUiText('rerun')}
                     </span>
                   ),
                   onClick: () => setIsOpen(true),
@@ -50,19 +51,19 @@ export const RunButton = () => {
             : [
                 // Per design request, when not in terminal phase, show abort in the dropdown as well
                 {
-                  name: 'Abort run',
+                  name: '中止运行',
                   onClick: () => {
                     setAbortOpen(true)
                   },
                 },
                 {
-                  name: 'Abort run',
+                  name: '中止运行',
                   onClick: () => {
                     setAbortOpen(true)
                   },
                 },
                 {
-                  name: 'Rerun',
+                  name: getUiText('rerun'),
                   onClick: () => setIsOpen(true),
                 },
               ]

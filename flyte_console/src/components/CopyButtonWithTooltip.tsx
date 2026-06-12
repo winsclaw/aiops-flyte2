@@ -7,6 +7,7 @@ import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { Tooltip } from './Tooltip'
 import { useCopyToClipboard } from './CopyButton'
 import { CopyIcon } from './icons/CopyIcon'
+import { getUiText } from '@/lib/uiText'
 
 const classes = {
   chain: `[&_svg]:size-3.5 dark:text-(--system-gray-6) dark:hover:text-(--system-gray-7)`,
@@ -30,7 +31,7 @@ export function CopyButtonWithTooltip({
   icon = 'copy',
   value,
   textInitial,
-  textCopied = 'Copied to clipboard',
+  textCopied = '已复制到剪贴板',
   classNameBtn,
 }: CopyButtonWithTooltipProps) {
   const { copiedValue, handleCopy } = useCopyToClipboard({})
@@ -51,7 +52,7 @@ export function CopyButtonWithTooltip({
             )}
           </span>
           <span className="dark:text-(--system-gray-7)">
-            {copiedValue ? textCopied : (textInitial ?? 'Copy')}
+            {copiedValue ? textCopied : (textInitial ?? getUiText('copy'))}
           </span>
         </div>
       }
@@ -59,7 +60,7 @@ export function CopyButtonWithTooltip({
       <button
         onClick={(e) => handleCopy(e, value)}
         className={`flex cursor-pointer items-center justify-center p-1 ${classes[icon]} ${classNameBtn}`}
-        aria-label={textInitial ?? 'Copy to clipboard'}
+        aria-label={textInitial ?? getUiText('copyToClipboard')}
       >
         <IconComponent aria-hidden="true" />
       </button>

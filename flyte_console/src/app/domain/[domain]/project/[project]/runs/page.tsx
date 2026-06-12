@@ -8,7 +8,7 @@ import React from 'react'
 import ListRunsPage from '@/components/pages/ListRuns/Main'
 
 export const metadata: Metadata = {
-  title: 'Runs',
+  title: '运行',
 }
 
 export default function Home() {

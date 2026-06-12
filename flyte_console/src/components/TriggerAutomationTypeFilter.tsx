@@ -5,6 +5,7 @@
 import { PopoverMenu, type MenuItem } from '@/components/Popovers'
 import { TriggerAutomationSpecType } from '@/gen/flyteidl2/task/common_pb'
 import { useTriggerAutomationTypeFilter } from '@/hooks/filters/useTriggerAutomationTypeFilter'
+import { getUiText } from '@/lib/uiText'
 import { useMemo } from 'react'
 import { CalendarIcon } from './icons/CalendarIcon'
 
@@ -22,7 +23,7 @@ type FilterConfig = {
 
 export const filterConfigs: FilterConfig[] = [
   {
-    label: 'Schedule',
+    label: getUiText('schedule'),
     value: TriggerAutomationSpecType[
       TriggerAutomationSpecType.TYPE_SCHEDULE
     ] as AutomationType,
@@ -30,7 +31,7 @@ export const filterConfigs: FilterConfig[] = [
     icon: <CalendarIcon />,
   },
   {
-    label: 'No automation',
+    label: getUiText('noAutomation'),
     value: TriggerAutomationSpecType[
       TriggerAutomationSpecType.TYPE_NONE
     ] as AutomationType,
@@ -91,7 +92,7 @@ export const TriggerAutomationTypeFilter = () => {
 
   return (
     <PopoverMenu
-      label="Automation type"
+      label={getUiText('automationType')}
       items={menuItems}
       variant="filter"
       menuClassName="min-w-56"

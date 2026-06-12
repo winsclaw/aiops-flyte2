@@ -6,6 +6,7 @@ import { PopoverMenu, type MenuItem } from '@/components/Popovers'
 import { StatusIcon } from '@/components/StatusIcons'
 import { ActionPhase } from '@/gen/flyteidl2/common/phase_pb'
 import { useQueryFilters } from '@/hooks/useQueryFilters'
+import { getPhaseLabel, getUiText } from '@/lib/uiText'
 import { useMemo } from 'react'
 
 type FilterConfig = {
@@ -16,42 +17,42 @@ type FilterConfig = {
 
 export const filterConfigs: FilterConfig[] = [
   {
-    label: 'Completed',
+    label: getPhaseLabel('SUCCEEDED'),
     phase: ActionPhase.SUCCEEDED,
     value: 'SUCCEEDED',
   },
   {
-    label: 'Queued',
+    label: getPhaseLabel('QUEUED'),
     phase: ActionPhase.QUEUED,
     value: 'QUEUED',
   },
   {
-    label: 'Waiting for resources',
+    label: getPhaseLabel('WAITING_FOR_RESOURCES'),
     phase: ActionPhase.WAITING_FOR_RESOURCES,
     value: 'WAITING_FOR_RESOURCES',
   },
   {
-    label: 'Initializing',
+    label: getPhaseLabel('INITIALIZING'),
     phase: ActionPhase.INITIALIZING,
     value: 'INITIALIZING',
   },
   {
-    label: 'Running',
+    label: getPhaseLabel('RUNNING'),
     phase: ActionPhase.RUNNING,
     value: 'RUNNING',
   },
   {
-    label: 'Timed out',
+    label: getPhaseLabel('TIMED_OUT'),
     phase: ActionPhase.TIMED_OUT,
     value: 'TIMED_OUT',
   },
   {
-    label: 'Aborted',
+    label: getPhaseLabel('ABORTED'),
     phase: ActionPhase.ABORTED,
     value: 'ABORTED',
   },
   {
-    label: 'Failed',
+    label: getPhaseLabel('FAILED'),
     phase: ActionPhase.FAILED,
     value: 'FAILED',
   },
@@ -77,7 +78,7 @@ export const StatusFilter = () => {
   const menuItems = useStatusFilterMenuItems()
   return (
     <PopoverMenu
-      label="Status"
+      label={getUiText('status')}
       items={menuItems}
       variant="filter"
       menuClassName="min-w-56"

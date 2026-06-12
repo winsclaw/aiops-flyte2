@@ -4,6 +4,7 @@
 
 import { ChartIcon } from '@/components/icons/ChartIcon'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { translateDataLabel } from '@/lib/uiText'
 import clsx from 'clsx'
 
 const classes = {
@@ -35,6 +36,7 @@ export function TableState<T extends object>({
   className,
 }: TableEmptyProps<T>) {
   let renderContent = undefined
+  const translatedDataLabel = translateDataLabel(dataLabel)
   switch (true) {
     case isLoading:
       renderContent = <LoadingSpinner color="union" />
@@ -42,9 +44,9 @@ export function TableState<T extends object>({
     case isError:
       renderContent = (
         <>
-          <div className={classes.dataLabel}>Error</div>
+          <div className={classes.dataLabel}>加载失败</div>
           <div className={classes.subtitle}>
-            We&apos;re having trouble loading your {dataLabel}
+            加载{translatedDataLabel}时遇到问题
           </div>
         </>
       )
@@ -52,12 +54,13 @@ export function TableState<T extends object>({
     case Boolean(searchQuery):
       renderContent = (
         <>
-          <div className={classes.dataLabel}>No {dataLabel} found</div>
+          <div className={classes.dataLabel}>未找到{translatedDataLabel}</div>
           <div className={classes.subtitle}>
-            No {dataLabel} found matching{' '}
+            未找到匹配{' '}
             <span className="font-bold text-(--system-gray-5)">
               {searchQuery}
             </span>
+            {' '}的{translatedDataLabel}
           </div>
         </>
       )
@@ -68,7 +71,7 @@ export function TableState<T extends object>({
         <>
           <div className="flex gap-2 text-(--system-gray-5)">
             <ChartIcon className="mt-0.5 size-5" />
-            <span className="text-sm">No {dataLabel}</span>
+            <span className="text-sm">暂无{translatedDataLabel}</span>
           </div>
           <div className={`${classes.subtitle} max-w-106 pb-2 text-center`}>
             {subtitle}

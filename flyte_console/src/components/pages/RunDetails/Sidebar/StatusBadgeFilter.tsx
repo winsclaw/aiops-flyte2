@@ -20,6 +20,7 @@ import {
   getPhaseString,
   type PhaseKey,
 } from '@/lib/phaseUtils'
+import { getPhaseLabel } from '@/lib/uiText'
 
 export const StatusBadgeFilter = forwardRef<
   HTMLDivElement,
@@ -211,27 +212,27 @@ export const SetupBadgeFilter = ({
     <div className="flex w-54 flex-col rounded-md bg-(--system-gray-1)">
       <SetupItem
         count={allsetupCounts}
-        label="Set up"
+        label="准备"
         onClick={toggleAllSetupFilters}
         phase={ActionPhase.QUEUED}
       />
       <hr className="mt-2 text-(--system-gray-2)" />
       <SetupItem
         count={phaseCounts[ActionPhase.QUEUED]}
-        label="Queued"
+        label={getPhaseLabel('QUEUED')}
         onClick={() => toggleFilter({ type: 'status', status: 'QUEUED' })}
         phase={ActionPhase.QUEUED}
       />
 
       <SetupItem
         count={phaseCounts[ActionPhase.INITIALIZING]}
-        label="Initializing"
+        label={getPhaseLabel('INITIALIZING')}
         onClick={() => toggleFilter({ type: 'status', status: 'INITIALIZING' })}
         phase={ActionPhase.INITIALIZING}
       />
       <SetupItem
         count={phaseCounts[ActionPhase.WAITING_FOR_RESOURCES]}
-        label="Waiting for resources"
+        label={getPhaseLabel('WAITING_FOR_RESOURCES')}
         onClick={() =>
           toggleFilter({ type: 'status', status: 'WAITING_FOR_RESOURCES' })
         }

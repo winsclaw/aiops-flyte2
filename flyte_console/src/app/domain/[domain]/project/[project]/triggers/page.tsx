@@ -7,7 +7,7 @@ import { type Metadata } from 'next'
 import { ListTriggersPage } from '@/components/pages/ListTriggers'
 
 export const metadata: Metadata = {
-  title: 'Triggers',
+  title: '触发器',
 }
 
 export default function Home() {

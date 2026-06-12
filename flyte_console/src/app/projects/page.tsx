@@ -8,7 +8,7 @@ import React from 'react'
 import { ProjectsClient } from './ProjectsClient'
 
 export const metadata: Metadata = {
-  title: 'Projects',
+  title: '项目',
 }
 
 export default function Page() {

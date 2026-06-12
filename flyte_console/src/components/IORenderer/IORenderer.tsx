@@ -9,13 +9,14 @@ import React from 'react'
 import { LoadingSpinner } from '../LoadingSpinner'
 import ThemedJSONTree from '../ThemedJSONTree'
 import { IORendererProps } from './types'
+import { getUiText } from '@/lib/uiText'
 
 export const IORenderer: React.FC<IORendererProps> = ({
   isLoading,
   jsonSchema,
   formData,
   formDataProvided = false,
-  noDataMessage = 'No data available',
+  noDataMessage = `暂无${getUiText('input')}/${getUiText('output')}数据`,
   expandLevel,
 }) => {
   const hasData =

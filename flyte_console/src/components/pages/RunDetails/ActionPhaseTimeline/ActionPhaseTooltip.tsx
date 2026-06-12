@@ -62,9 +62,9 @@ const SummarySection = ({
 
   return (
     <div className="text-2xs dark:text-(--system-gray-5)">
-      <div>Total Duration: {duration}</div>
+      <div>总耗时：{duration}</div>
       {range.startTime && (
-        <div>Start Time: {toDateFormat({ timestamp: range.startTime })}</div>
+        <div>开始时间：{toDateFormat({ timestamp: range.startTime })}</div>
       )}
       {range.endTime && (
         <div>Stop Time: {toDateFormat({ timestamp: range.endTime })}</div>

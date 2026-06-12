@@ -6,6 +6,7 @@ import { Dispatch, SetStateAction, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import { useRunDetails } from '@/hooks/useRunDetails'
 import Drawer from '@/components/Drawer'
+import { getUiText } from '@/lib/uiText'
 import { RunInfoContent } from './RunInfoContent'
 
 type RunInfoDrawerProps = {
@@ -27,7 +28,7 @@ export const RunInfoDrawer = ({ isOpen, setIsOpen }: RunInfoDrawerProps) => {
       isOpen={isOpen}
       setIsOpen={setIsOpen}
       size={758}
-      title={'Run info'}
+      title={getUiText('runInfo')}
       tabs={<RunInfoContent runDetails={runDetailsQuery} />}
     />
   )

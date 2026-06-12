@@ -3,6 +3,7 @@
  */
 
 import { FLYTE_LICENSED_EDITION_INFO_URL } from '@/lib/constants'
+import { getUiText } from '@/lib/uiText'
 import { AnimatePresence, motion } from 'motion/react'
 import Link from 'next/link'
 import { Tooltip } from '../Tooltip'
@@ -69,7 +70,7 @@ export const EnterpriseCTA = ({ size }: EnterpriseCTAProps) => {
         >
           {isThin ? (
             // Thin mode: just the icon with tooltip
-            <Tooltip content="Upgrade to Enterprise" placement="right">
+            <Tooltip content={getUiText('upgradeToEnterprise')} placement="right">
               <RoundedArrowButton className="mx-auto transition-all duration-200 group-hover:bg-(--union) hover:bg-(--union) hover:shadow-lg" />
             </Tooltip>
           ) : (
@@ -79,10 +80,10 @@ export const EnterpriseCTA = ({ size }: EnterpriseCTAProps) => {
               <div className="relative flex items-center justify-between">
                 <div className="flex flex-1 flex-col">
                   <div className="text-sm leading-[150%] font-semibold text-(--union)">
-                    Upgrade to Enterprise
+                    {getUiText('upgradeToEnterprise')}
                   </div>
                   <div className="mt-0.5 text-xs leading-[150%] font-medium text-(--system-gray-5)">
-                    Unlock more benefits
+                    {getUiText('unlockMoreBenefits')}
                   </div>
                 </div>
 
