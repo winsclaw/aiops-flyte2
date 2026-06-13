@@ -4,15 +4,11 @@
 
 'use client'
 
-import { CopyButton } from '@/components/CopyButton'
-import { DescriptionListWrapper } from '@/components/DescriptionListWrapper'
-import { TabSection } from '@/components/TabSection'
 import { python } from '@codemirror/lang-python'
 import { vscodeDark, vscodeLight } from '@uiw/codemirror-theme-vscode'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { useTheme } from 'next-themes'
 import React from 'react'
-import stringify from 'safe-stable-stringify'
 
 export type CodeTabTarget =
   | {
@@ -48,54 +44,10 @@ const textLikeContentType = (contentType: string) =>
     contentType,
   )
 
-const sourceDisplayName = (link: string) => {
-  try {
-    const url = new URL(link)
-    const lastSegment = url.pathname.split('/').filter(Boolean).pop()
-    return lastSegment || url.hostname
-  } catch {
-    return link
-  }
-}
-
-const rawJson = (value: unknown): Record<string, unknown> => {
-  if (!value) return {}
-  try {
-    return JSON.parse(stringify(value) ?? '{}') as Record<string, unknown>
-  } catch {
-    return {}
-  }
-}
-
-const configurationFor = ({
-  container,
-  taskTemplate,
-}: Pick<CodeTabContentProps, 'container' | 'taskTemplate'>) => {
-  if (taskTemplate) {
-    return {
-      heading: 'Task configuration',
-      value: taskTemplate,
-    }
-  }
-  if (container) {
-    return {
-      heading: 'Container configuration',
-      value: container,
-    }
-  }
-  return {
-    heading: 'Configuration',
-    value: {},
-  }
-}
-
 const CodeViewer = ({ value }: { value: string }) => {
   const { resolvedTheme } = useTheme()
   return (
-    <div className="relative w-full text-[12px] [&_.cm-editor]:!bg-transparent [&_.cm-focused]:!outline-none [&_.cm-gutters]:!bg-transparent [&_.cm-scroller]:!min-h-[220px] [&_.cm-scroller>:where(.cm-content)]:!p-5">
-      <div className="pointer-events-auto absolute top-3 right-3 z-20">
-        <CopyButton value={value} />
-      </div>
+    <div className="relative min-h-[calc(100vh-230px)] w-full overflow-hidden rounded-lg border border-(--system-gray-3) bg-white text-[12px] dark:bg-[#1e1e1e] [&_.cm-editor]:!min-h-[calc(100vh-230px)] [&_.cm-editor]:!bg-transparent [&_.cm-focused]:!outline-none [&_.cm-gutters]:!bg-transparent [&_.cm-scroller]:!min-h-[calc(100vh-230px)] [&_.cm-scroller>:where(.cm-content)]:!p-5">
       <CodeMirror
         readOnly
         editable={false}
@@ -114,7 +66,6 @@ const CodeViewer = ({ value }: { value: string }) => {
 }
 
 export const CodeTabContent: React.FC<CodeTabContentProps> = ({
-  container,
   noPadding = false,
   sourceLink,
   taskTemplate,
@@ -167,58 +118,13 @@ export const CodeTabContent: React.FC<CodeTabContentProps> = ({
     }
   }, [resolvedSourceLink])
 
-  const configuration = configurationFor({ container, taskTemplate })
-  const configurationJson = rawJson(configuration.value)
-  const configurationCopy = stringify(configuration.value || {}, null, 2) ?? '{}'
-
   return (
     <div
-      className={`flex min-w-0 flex-1 flex-col gap-6 ${noPadding ? '' : 'p-8 pt-2.5'}`}
+      className={`flex min-w-0 flex-1 flex-col ${noPadding ? '' : 'p-8 pt-2.5'}`}
     >
-      {resolvedSourceLink ? (
-        <TabSection heading="Source" copyButtonContent={resolvedSourceLink}>
-          <div className="flex flex-col gap-4 bg-white p-4 text-sm dark:bg-(--system-black)">
-            <div className="flex flex-wrap items-center gap-3">
-              <a
-                className="font-medium text-(--union) underline underline-offset-2 hover:no-underline"
-                href={resolvedSourceLink}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {sourceDisplayName(resolvedSourceLink)}
-              </a>
-              <span className="text-xs text-(--system-gray-5)">
-                {resolvedSourceLink}
-              </span>
-            </div>
-            {sourceState.status === 'loading' ? (
-              <div className="text-sm text-(--system-gray-5)">
-                正在加载源码...
-              </div>
-            ) : null}
-            {sourceState.status === 'failed' ? (
-              <div className="text-sm text-(--system-gray-5)">
-                无法内嵌显示源码，请使用上方链接打开。
-                {sourceState.error ? ` (${sourceState.error})` : ''}
-              </div>
-            ) : null}
-            {sourceState.status === 'loaded' ? (
-              <CodeViewer value={sourceState.content} />
-            ) : null}
-          </div>
-        </TabSection>
-      ) : (
-        <div className="rounded-lg border border-(--system-gray-3) bg-white p-4 text-sm text-(--system-gray-5) dark:bg-(--system-black)">
-          未提供源码链接，下面展示可用于排查的任务配置。
-        </div>
-      )}
-
-      <TabSection
-        copyButtonContent={configurationCopy}
-        heading={configuration.heading}
-      >
-        <DescriptionListWrapper rawJson={configurationJson} />
-      </TabSection>
+      <CodeViewer
+        value={sourceState.status === 'loaded' ? sourceState.content : ''}
+      />
     </div>
   )
 }

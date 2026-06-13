@@ -46,7 +46,7 @@ describe('CodeTabContent', () => {
     vi.restoreAllMocks()
   })
 
-  it('shows the source section when a source link is provided', () => {
+  it('shows a VSCode-style editor when a source link is provided', () => {
     vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {}))
 
     render(
@@ -56,11 +56,8 @@ describe('CodeTabContent', () => {
       />,
     )
 
-    expect(screen.getByText('Source')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'source.py' })).toHaveAttribute(
-      'href',
-      'https://example.com/source.py',
-    )
+    expect(screen.getByTestId('code-viewer')).toBeInTheDocument()
+    expect(screen.queryByText('Source')).not.toBeInTheDocument()
     expect(
       screen.queryByText(/Available in the licensed edition/i),
     ).not.toBeInTheDocument()
@@ -83,7 +80,7 @@ describe('CodeTabContent', () => {
     expect(await screen.findByText('print("hello from source")')).toBeInTheDocument()
   })
 
-  it('keeps the source link visible when fetching source text fails', async () => {
+  it('keeps an empty editor when fetching source text fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('cors denied'))
 
     render(
@@ -94,11 +91,11 @@ describe('CodeTabContent', () => {
     )
 
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled())
-    expect(screen.getByRole('link', { name: 'source.py' })).toBeInTheDocument()
-    expect(screen.getByText(/无法内嵌显示源码/)).toBeInTheDocument()
+    expect(screen.getByTestId('code-viewer')).toHaveTextContent('')
+    expect(screen.queryByText(/无法内嵌显示源码/)).not.toBeInTheDocument()
   })
 
-  it('falls back to task configuration when no source link is available', () => {
+  it('shows an empty editor when no source link is available', () => {
     const taskTemplateWithoutSource = {
       ...taskTemplate,
       metadata: {},
@@ -106,9 +103,12 @@ describe('CodeTabContent', () => {
 
     render(<CodeTabContent taskTemplate={taskTemplateWithoutSource} />)
 
-    expect(screen.getByText(/未提供源码链接/)).toBeInTheDocument()
-    expect(screen.getByText('Task configuration')).toBeInTheDocument()
-    expect(screen.getAllByText(/ssh_workspace/).length).toBeGreaterThan(0)
-    expect(screen.getByText(/flyte-ssh-workspace-test:latest/)).toBeInTheDocument()
+    expect(screen.getByTestId('code-viewer')).toHaveTextContent('')
+    expect(screen.queryByText(/未提供源码链接/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Task configuration')).not.toBeInTheDocument()
+    expect(screen.queryByText(/ssh_workspace/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/flyte-ssh-workspace-test:latest/),
+    ).not.toBeInTheDocument()
   })
 })
