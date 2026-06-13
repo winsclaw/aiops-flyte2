@@ -44,13 +44,19 @@ const textLikeContentType = (contentType: string) =>
     contentType,
   )
 
+const editorHeight = 'calc(100vh - 230px)'
+
 const CodeViewer = ({ value }: { value: string }) => {
   const { resolvedTheme } = useTheme()
   return (
-    <div className="relative min-h-[calc(100vh-230px)] w-full overflow-hidden rounded-lg border border-(--system-gray-3) bg-white text-[12px] dark:bg-[#1e1e1e] [&_.cm-editor]:!min-h-[calc(100vh-230px)] [&_.cm-editor]:!bg-transparent [&_.cm-focused]:!outline-none [&_.cm-gutters]:!bg-transparent [&_.cm-scroller]:!min-h-[calc(100vh-230px)] [&_.cm-scroller>:where(.cm-content)]:!p-5">
+    <div
+      className="relative w-full overflow-hidden rounded-lg border border-(--system-gray-3) bg-white text-[12px] dark:bg-[#1e1e1e] [&_.cm-editor]:!bg-transparent [&_.cm-focused]:!outline-none [&_.cm-gutters]:!bg-transparent [&_.cm-scroller>:where(.cm-content)]:!p-5"
+      style={{ minHeight: editorHeight }}
+    >
       <CodeMirror
         readOnly
         editable={false}
+        height={editorHeight}
         theme={resolvedTheme === 'dark' ? vscodeDark : vscodeLight}
         extensions={[python(), EditorView.lineWrapping]}
         basicSetup={{

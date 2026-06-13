@@ -9,8 +9,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CodeTabContent } from './CodeTabContent'
 
 vi.mock('@uiw/react-codemirror', () => ({
-  default: ({ value }: { value: string }) => (
-    <pre data-testid="code-viewer">{value}</pre>
+  default: ({ height, value }: { height?: string; value: string }) => (
+    <pre data-height={height} data-testid="code-viewer">
+      {value}
+    </pre>
   ),
   EditorView: {
     lineWrapping: {},
@@ -57,6 +59,10 @@ describe('CodeTabContent', () => {
     )
 
     expect(screen.getByTestId('code-viewer')).toBeInTheDocument()
+    expect(screen.getByTestId('code-viewer')).toHaveAttribute(
+      'data-height',
+      'calc(100vh - 230px)',
+    )
     expect(screen.queryByText('Source')).not.toBeInTheDocument()
     expect(
       screen.queryByText(/Available in the licensed edition/i),
