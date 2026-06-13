@@ -17,7 +17,7 @@ export const RunDetailsCodeTab: React.FC = () => {
   const selectedActionId = useSelectedActionId()
   const selectedActionDetails = useWatchActionDetails(selectedActionId)
   const { spec } = selectedActionDetails.data || {}
-  const { taskTemplate } = (spec?.value as TaskSpec) || {}
+  const { documentation, taskTemplate } = (spec?.value as TaskSpec) || {}
 
   const actionAttemptId = useMemo(() => {
     const actionDetails = selectedActionDetails.data
@@ -66,6 +66,7 @@ export const RunDetailsCodeTab: React.FC = () => {
 
   return (
     <CodeTabContent
+      sourceLink={documentation?.sourceCode?.link}
       taskTemplate={taskTemplate}
       target={
         actionAttemptId

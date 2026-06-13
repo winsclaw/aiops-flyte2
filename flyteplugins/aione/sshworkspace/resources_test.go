@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	idlcore "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
 )
@@ -132,6 +133,38 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, int32(22), svc.Spec.Ports[0].Port)
 	assert.Equal(t, int32(30222), svc.Spec.Ports[0].NodePort)
 	assert.Equal(t, "run-abc", svc.Spec.Selector[labelWorkspaceName])
+}
+
+func TestBuildResourcesUsesValidKubernetesNamesWhenRunStartsWithDigit(t *testing.T) {
+	nodePort := int32(30222)
+	cfg := WorkspaceConfig{
+		Image:          "ubuntu:22.04",
+		SSHUser:        "dev",
+		AuthorizedKeys: []string{"ssh-rsa AAAA user@example"},
+		WorkspaceSize:  "20Gi",
+		ServiceType:    corev1.ServiceTypeNodePort,
+		NodePort:       &nodePort,
+	}
+	identity := WorkspaceIdentity{
+		Namespace:  "flyte",
+		Name:       "1111-a0-0",
+		RunName:    "1111",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "a0",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	assert.Empty(t, validation.IsDNS1035Label(resources.Service.Name))
+	assert.Empty(t, validation.IsDNS1123Subdomain(resources.StatefulSet.Name))
+	assert.Empty(t, validation.IsDNS1123Subdomain(resources.Secret.Name))
+	assert.Empty(t, validation.IsDNS1123Subdomain(resources.PVC.Name))
+	assert.Equal(t, "1111-a0-0", resources.Service.Spec.Selector[labelWorkspaceName])
+	assert.Equal(t, "1111-a0-0", resources.StatefulSet.Spec.Selector.MatchLabels[labelWorkspaceName])
+	assert.Equal(t, "1111-a0-0", resources.StatefulSet.Spec.Template.Labels[labelWorkspaceName])
 }
 
 func envValue(env []corev1.EnvVar, name string) string {

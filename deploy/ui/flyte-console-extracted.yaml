@@ -1,3 +1,45 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flyte-console-extracted
+  namespace: flyte
+  labels:
+    app: flyte-console-extracted
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flyte-console-extracted-dev-instances
+  namespace: flyte
+  labels:
+    app: flyte-console-extracted
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "secrets"]
+    verbs: ["get", "list", "watch", "delete", "deletecollection"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "delete", "deletecollection"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "delete", "deletecollection"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flyte-console-extracted-dev-instances
+  namespace: flyte
+  labels:
+    app: flyte-console-extracted
+subjects:
+  - kind: ServiceAccount
+    name: flyte-console-extracted
+    namespace: flyte
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: flyte-console-extracted-dev-instances
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,6 +57,7 @@ spec:
       labels:
         app: flyte-console-extracted
     spec:
+      serviceAccountName: flyte-console-extracted
       containers:
         - name: flyte-console-extracted
           image: flyte-console-extracted:latest

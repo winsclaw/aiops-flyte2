@@ -29,7 +29,8 @@ export const TaskDetailsCodeTab: React.FC<{
     enabled: !!versionToRender,
   })
 
-  const taskTemplate = taskDetails.data?.details?.spec?.taskTemplate
+  const taskSpec = taskDetails.data?.details?.spec
+  const taskTemplate = taskSpec?.taskTemplate
 
   const taskId = useMemo(() => {
     if (!versionToRender) return undefined
@@ -45,6 +46,7 @@ export const TaskDetailsCodeTab: React.FC<{
 
   return (
     <CodeTabContent
+      sourceLink={taskSpec?.documentation?.sourceCode?.link}
       taskTemplate={taskTemplate}
       target={taskId ? { type: 'taskId', value: taskId } : undefined}
     />

@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -90,12 +92,30 @@ func TestPluginAbortDeletesWorkloadAndServiceButRetainsPVC(t *testing.T) {
 	_, err := plugin.Handle(ctx, tCtx)
 	require.NoError(t, err)
 
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run-abc-ssh",
+			Namespace: "flyte",
+			Labels: map[string]string{
+				labelWorkspaceName: "run-abc",
+				labelRunName:       "run-abc",
+				labelProject:       "flytesnacks",
+				labelDomain:        "development",
+				labelOrg:           "testorg",
+				labelActionName:    "main",
+			},
+		},
+	}
+	require.NoError(t, k8sClient.Create(ctx, ingress))
+
 	require.NoError(t, plugin.Abort(ctx, tCtx))
 
 	var sts appsv1.StatefulSet
 	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc"}, &sts))
 	var svc corev1.Service
 	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-ssh"}, &svc))
+	var deletedIngress networkingv1.Ingress
+	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-ssh"}, &deletedIngress))
 	var pvc corev1.PersistentVolumeClaim
 	assert.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-workspace"}, &pvc))
 }
@@ -145,5 +165,6 @@ func newFakeClient(t *testing.T) client.Client {
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
 	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, networkingv1.AddToScheme(scheme))
 	return fake.NewClientBuilder().WithScheme(scheme).Build()
 }

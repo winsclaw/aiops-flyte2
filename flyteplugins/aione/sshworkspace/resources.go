@@ -2,8 +2,10 @@ package sshworkspace
 
 import (
 	"fmt"
+	"hash/fnv"
 	"sort"
 	"strings"
+	"unicode"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +21,8 @@ const (
 	labelDomain        = "flyte.org/domain"
 	labelOrg           = "flyte.org/org"
 	labelActionName    = "flyte.org/action-name"
+
+	maxGeneratedNameBaseLength = 63 - len("-workspace")
 )
 
 type WorkspaceIdentity struct {
@@ -47,9 +51,10 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}
 
 	labels := workspaceLabels(identity)
-	secretName := identity.Name + "-ssh"
-	pvcName := identity.Name + "-workspace"
-	serviceName := identity.Name + "-ssh"
+	resourceName := kubernetesNameBase(identity.Name)
+	secretName := resourceName + "-ssh"
+	pvcName := resourceName + "-workspace"
+	serviceName := resourceName + "-ssh"
 
 	var cpu, memory resource.Quantity
 	var err error
@@ -168,7 +173,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      identity.Name,
+			Name:      resourceName,
 			Namespace: identity.Namespace,
 			Labels:    labels,
 		},
@@ -240,6 +245,60 @@ func envVars(values map[string]string) []corev1.EnvVar {
 		env = append(env, corev1.EnvVar{Name: key, Value: values[key]})
 	}
 	return env
+}
+
+func kubernetesNameBase(name string) string {
+	var builder strings.Builder
+	for _, r := range strings.ToLower(name) {
+		switch {
+		case r >= 'a' && r <= 'z':
+			builder.WriteRune(r)
+		case r >= '0' && r <= '9':
+			builder.WriteRune(r)
+		case r == '-':
+			builder.WriteRune(r)
+		default:
+			builder.WriteRune('-')
+		}
+	}
+
+	cleaned := collapseHyphens(strings.Trim(builder.String(), "-"))
+	if cleaned == "" {
+		cleaned = "workspace"
+	}
+	if !unicode.IsLetter(rune(cleaned[0])) {
+		cleaned = "ssh-" + cleaned
+	}
+	if len(cleaned) <= maxGeneratedNameBaseLength {
+		return cleaned
+	}
+
+	hash := shortNameHash(cleaned)
+	prefixLength := maxGeneratedNameBaseLength - len(hash) - 1
+	return strings.TrimRight(cleaned[:prefixLength], "-") + "-" + hash
+}
+
+func collapseHyphens(value string) string {
+	var builder strings.Builder
+	lastHyphen := false
+	for _, r := range value {
+		if r == '-' {
+			if lastHyphen {
+				continue
+			}
+			lastHyphen = true
+		} else {
+			lastHyphen = false
+		}
+		builder.WriteRune(r)
+	}
+	return builder.String()
+}
+
+func shortNameHash(value string) string {
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(value))
+	return fmt.Sprintf("%08x", hash.Sum32())
 }
 
 func workspaceEntrypoint(sshUser string) string {

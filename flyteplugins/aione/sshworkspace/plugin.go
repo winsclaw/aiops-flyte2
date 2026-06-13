@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -97,8 +98,24 @@ func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContex
 	if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.Secret)); err != nil {
 		return err
 	}
+	if err := p.deleteIngresses(ctx, resources.StatefulSet.Namespace, workspaceLabels(identity)); err != nil {
+		return err
+	}
 	if !p.retainPVC && resources.PVC != nil {
 		if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.PVC)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Plugin) deleteIngresses(ctx context.Context, namespace string, labels map[string]string) error {
+	var ingresses networkingv1.IngressList
+	if err := p.kubeClient.List(ctx, &ingresses, client.InNamespace(namespace), client.MatchingLabels(labels)); err != nil {
+		return err
+	}
+	for i := range ingresses.Items {
+		if err := ignoreNotFound(p.kubeClient.Delete(ctx, &ingresses.Items[i])); err != nil {
 			return err
 		}
 	}
