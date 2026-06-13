@@ -38,6 +38,9 @@ export const DEFAULT_NODE_PORT_RANGE = {
   max: 32767,
 };
 
+export const DEFAULT_CODE_SERVER_IMAGE =
+  "flyte-ssh-workspace-code-server:4.19.0";
+
 export type NodePortRange = typeof DEFAULT_NODE_PORT_RANGE;
 
 export type DevelopmentInstanceFormValues = {
@@ -54,6 +57,7 @@ export type DevelopmentInstanceFormValues = {
   memory: string;
   workspaceSize: string;
   nodePort: number;
+  codeServerNodePort: number;
   maxHours: number;
 };
 
@@ -68,6 +72,8 @@ export type DevelopmentInstance = {
   runName: string;
   sshCommand?: string;
   nodePort?: number;
+  codeServerNodePort?: number;
+  codeServerUrl?: string;
   image?: string;
   custom?: Record<string, unknown>;
   run: Run;
@@ -124,6 +130,7 @@ export function buildCreateDevelopmentInstanceRequest(
     workspaceSize: values.workspaceSize.trim(),
     serviceType: "NodePort",
     nodePort: values.nodePort,
+    codeServerNodePort: values.codeServerNodePort,
     description: values.description?.trim() ?? "",
     owner: values.owner?.trim() ?? "",
     maxHours: values.maxHours,
@@ -244,6 +251,10 @@ export function formatDevelopmentInstance(
   const custom = getTaskCustom(run, actionDetails);
   const nodePort =
     typeof custom.nodePort === "number" ? Number(custom.nodePort) : undefined;
+  const codeServerNodePort =
+    typeof custom.codeServerNodePort === "number"
+      ? Number(custom.codeServerNodePort)
+      : undefined;
   const sshUser = typeof custom.sshUser === "string" ? custom.sshUser : "dev";
   const cpu = typeof custom.cpu === "string" ? custom.cpu : "";
   const memory = typeof custom.memory === "string" ? custom.memory : "";
@@ -269,6 +280,10 @@ export function formatDevelopmentInstance(
       ? `ssh -p ${nodePort} ${sshUser}@172.19.65.172`
       : undefined,
     nodePort,
+    codeServerNodePort,
+    codeServerUrl: codeServerNodePort
+      ? `http://172.19.65.172:${codeServerNodePort}/?folder=/workspace`
+      : undefined,
     image: typeof custom.image === "string" ? custom.image : undefined,
     custom,
     run,
@@ -277,7 +292,10 @@ export function formatDevelopmentInstance(
 
 export function getUsedNodePorts(runs: Run[]) {
   return runs
-    .map((run) => formatDevelopmentInstance(run)?.nodePort)
+    .flatMap((run) => {
+      const instance = formatDevelopmentInstance(run);
+      return [instance?.nodePort, instance?.codeServerNodePort];
+    })
     .filter((port): port is number => typeof port === "number");
 }
 

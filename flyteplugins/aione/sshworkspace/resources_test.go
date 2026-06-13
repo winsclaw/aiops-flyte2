@@ -25,14 +25,15 @@ func taskTemplateWithCustom(t *testing.T, values map[string]any) *idlcore.TaskTe
 
 func TestParseConfigUsesCustomPayload(t *testing.T) {
 	tmpl := taskTemplateWithCustom(t, map[string]any{
-		"image":          "ubuntu:22.04",
-		"sshUser":        "dev",
-		"authorizedKeys": []any{"ssh-rsa AAAA user@example"},
-		"cpu":            "1",
-		"memory":         "2Gi",
-		"workspaceSize":  "20Gi",
-		"serviceType":    "NodePort",
-		"nodePort":       float64(30222),
+		"image":              "ubuntu:22.04",
+		"sshUser":            "dev",
+		"authorizedKeys":     []any{"ssh-rsa AAAA user@example"},
+		"cpu":                "1",
+		"memory":             "2Gi",
+		"workspaceSize":      "20Gi",
+		"serviceType":        "NodePort",
+		"nodePort":           float64(30222),
+		"codeServerNodePort": float64(31080),
 		"environment": map[string]any{
 			"EXAMPLE": "value",
 		},
@@ -50,6 +51,8 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	assert.Equal(t, corev1.ServiceTypeNodePort, cfg.ServiceType)
 	require.NotNil(t, cfg.NodePort)
 	assert.Equal(t, int32(30222), *cfg.NodePort)
+	require.NotNil(t, cfg.CodeServerNodePort)
+	assert.Equal(t, int32(31080), *cfg.CodeServerNodePort)
 	assert.Equal(t, map[string]string{"EXAMPLE": "value"}, cfg.Environment)
 }
 
@@ -81,16 +84,18 @@ func TestParseConfigRejectsInvalidServiceType(t *testing.T) {
 
 func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	nodePort := int32(30222)
+	codeServerNodePort := int32(31080)
 	cfg := WorkspaceConfig{
-		Image:          "ubuntu:22.04",
-		SSHUser:        "dev",
-		AuthorizedKeys: []string{"ssh-rsa AAAA user@example"},
-		CPU:            "1",
-		Memory:         "2Gi",
-		WorkspaceSize:  "20Gi",
-		ServiceType:    corev1.ServiceTypeNodePort,
-		NodePort:       &nodePort,
-		Environment:    map[string]string{"EXAMPLE": "value"},
+		Image:              "ubuntu:22.04",
+		SSHUser:            "dev",
+		AuthorizedKeys:     []string{"ssh-rsa AAAA user@example"},
+		CPU:                "1",
+		Memory:             "2Gi",
+		WorkspaceSize:      "20Gi",
+		ServiceType:        corev1.ServiceTypeNodePort,
+		NodePort:           &nodePort,
+		CodeServerNodePort: &codeServerNodePort,
+		Environment:        map[string]string{"EXAMPLE": "value"},
 	}
 	identity := WorkspaceIdentity{
 		Namespace:  "flyte",
@@ -121,17 +126,23 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, "ubuntu:22.04", container.Image)
 	assert.Contains(t, container.Command, "/bin/sh")
 	assert.Contains(t, container.Args[0], "/usr/sbin/sshd -D -e")
+	assert.Contains(t, container.Args[0], "code-server")
 	assert.Contains(t, container.Args[0], "useradd")
 	assert.Equal(t, "value", envValue(container.Env, "EXAMPLE"))
-	require.Len(t, container.Ports, 1)
+	require.Len(t, container.Ports, 2)
 	assert.Equal(t, int32(22), container.Ports[0].ContainerPort)
+	assert.Equal(t, int32(8080), container.Ports[1].ContainerPort)
+	assert.Equal(t, "code-server", container.Ports[1].Name)
 
 	svc := resources.Service
 	assert.Equal(t, "run-abc-ssh", svc.Name)
 	assert.Equal(t, corev1.ServiceTypeNodePort, svc.Spec.Type)
-	require.Len(t, svc.Spec.Ports, 1)
+	require.Len(t, svc.Spec.Ports, 2)
 	assert.Equal(t, int32(22), svc.Spec.Ports[0].Port)
 	assert.Equal(t, int32(30222), svc.Spec.Ports[0].NodePort)
+	assert.Equal(t, "code-server", svc.Spec.Ports[1].Name)
+	assert.Equal(t, int32(8080), svc.Spec.Ports[1].Port)
+	assert.Equal(t, int32(31080), svc.Spec.Ports[1].NodePort)
 	assert.Equal(t, "run-abc", svc.Spec.Selector[labelWorkspaceName])
 }
 

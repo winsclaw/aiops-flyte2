@@ -20,6 +20,7 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   buildCreateDevelopmentInstanceRequest,
+  DEFAULT_CODE_SERVER_IMAGE,
   getConsoleApiPath,
   getNextNodePort,
   getUsedNodePorts,
@@ -43,7 +44,7 @@ export function DevelopmentInstanceCreatePage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState("ljgong");
-  const [image, setImage] = useState("ubuntu:22.04");
+  const [image, setImage] = useState(DEFAULT_CODE_SERVER_IMAGE);
   const [sshUser, setSshUser] = useState("dev");
   const [authorizedKey, setAuthorizedKey] = useState("");
   const [cpu, setCpu] = useState("2");
@@ -117,6 +118,17 @@ export function DevelopmentInstanceCreatePage() {
       return 0;
     }
   }, [runs, usedNodePorts]);
+  const autoCodeServerNodePort = useMemo(() => {
+    try {
+      return getNextNodePort([
+        ...usedNodePorts,
+        ...getUsedNodePorts(runs),
+        autoNodePort,
+      ].filter((port): port is number => Boolean(port)));
+    } catch {
+      return 0;
+    }
+  }, [autoNodePort, runs, usedNodePorts]);
   const listHref = `/domain/${params.domain}/project/${params.project}/development-instances`;
 
   const onSubmit = async (event: FormEvent) => {
@@ -134,7 +146,7 @@ export function DevelopmentInstanceCreatePage() {
       setError("请输入 SSH 公钥");
       return;
     }
-    if (!autoNodePort) {
+    if (!autoNodePort || !autoCodeServerNodePort) {
       setError("没有可用 NodePort");
       return;
     }
@@ -156,6 +168,7 @@ export function DevelopmentInstanceCreatePage() {
           memory,
           workspaceSize,
           nodePort: autoNodePort,
+          codeServerNodePort: autoCodeServerNodePort,
           maxHours,
         }),
       );
@@ -294,6 +307,14 @@ export function DevelopmentInstanceCreatePage() {
                     <input
                       className={`${fieldClass} bg-zinc-50 dark:bg-zinc-900`}
                       value={autoNodePort || "无可用端口"}
+                      readOnly
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    Code Server NodePort
+                    <input
+                      className={`${fieldClass} bg-zinc-50 dark:bg-zinc-900`}
+                      value={autoCodeServerNodePort || "无可用端口"}
                       readOnly
                     />
                   </label>

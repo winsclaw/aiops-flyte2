@@ -115,6 +115,10 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 			Name:          "ssh",
 			ContainerPort: 22,
 			Protocol:      corev1.ProtocolTCP,
+		}, {
+			Name:          "code-server",
+			ContainerPort: 8080,
+			Protocol:      corev1.ProtocolTCP,
 		}},
 		Env: envVars(cfg.Environment),
 		VolumeMounts: []corev1.VolumeMount{{
@@ -193,14 +197,23 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		},
 	}
 
-	servicePort := corev1.ServicePort{
+	sshServicePort := corev1.ServicePort{
 		Name:       "ssh",
 		Port:       22,
 		TargetPort: intstr.FromInt(22),
 		Protocol:   corev1.ProtocolTCP,
 	}
 	if cfg.NodePort != nil {
-		servicePort.NodePort = *cfg.NodePort
+		sshServicePort.NodePort = *cfg.NodePort
+	}
+	codeServerServicePort := corev1.ServicePort{
+		Name:       "code-server",
+		Port:       8080,
+		TargetPort: intstr.FromInt(8080),
+		Protocol:   corev1.ProtocolTCP,
+	}
+	if cfg.CodeServerNodePort != nil {
+		codeServerServicePort.NodePort = *cfg.CodeServerNodePort
 	}
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -211,7 +224,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		Spec: corev1.ServiceSpec{
 			Type:     cfg.ServiceType,
 			Selector: map[string]string{labelWorkspaceName: identity.Name},
-			Ports:    []corev1.ServicePort{servicePort},
+			Ports:    []corev1.ServicePort{sshServicePort, codeServerServicePort},
 		},
 	}
 
@@ -319,6 +332,29 @@ chown -R %[1]s:%[1]s /home/%[1]s /workspace
 chmod 700 /home/%[1]s/.ssh
 chmod 600 /home/%[1]s/.ssh/authorized_keys
 printf 'PasswordAuthentication no\nPermitRootLogin no\nPubkeyAuthentication yes\n' > /etc/ssh/sshd_config.d/flyte-workspace.conf
+CODE_SERVER_BIN=""
+if command -v code-server >/dev/null 2>&1; then
+  CODE_SERVER_BIN="$(command -v code-server)"
+elif [ -x /opt/code-server-4.19.0-linux-amd64/bin/code-server ]; then
+  CODE_SERVER_BIN="/opt/code-server-4.19.0-linux-amd64/bin/code-server"
+elif [ -f /opt/code-server-4.19.0-linux-amd64.tar.gz ]; then
+  tar -xzf /opt/code-server-4.19.0-linux-amd64.tar.gz -C /opt
+  CODE_SERVER_BIN="/opt/code-server-4.19.0-linux-amd64/bin/code-server"
+fi
+if [ -n "$CODE_SERVER_BIN" ] && [ -x "$CODE_SERVER_BIN" ]; then
+  su - %[1]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /workspace" &
+else
+  if ! command -v python3 >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends python3
+  fi
+  mkdir -p /tmp/code-server-missing
+  printf '%%s\n' '<!doctype html><html><head><meta charset="utf-8"><title>code-server 未安装</title><style>body{font-family:system-ui,sans-serif;margin:40px;color:#111827}h1{font-size:20px}</style></head><body><h1>code-server 未安装</h1><p>当前开发实例镜像中没有安装 code-server，请使用包含 code-server 的镜像重新创建实例。</p></body></html>' > /tmp/code-server-missing/index.html
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -m http.server 8080 --directory /tmp/code-server-missing &
+  fi
+fi
 exec /usr/sbin/sshd -D -e
 `, sshUser)
 }

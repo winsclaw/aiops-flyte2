@@ -4,10 +4,6 @@
 
 'use client'
 
-import { python } from '@codemirror/lang-python'
-import { vscodeDark, vscodeLight } from '@uiw/codemirror-theme-vscode'
-import CodeMirror, { EditorView } from '@uiw/react-codemirror'
-import { useTheme } from 'next-themes'
 import React from 'react'
 
 export type CodeTabTarget =
@@ -32,105 +28,60 @@ export interface CodeTabContentProps {
   sourceLink?: string
 }
 
-type SourceFetchState = {
-  status: 'idle' | 'loading' | 'loaded' | 'failed'
-  content: string
-  error: string
+const codeServerFrameHeight = 'calc(100vh - 230px)'
+
+function numericCustomValue(
+  custom: Record<string, unknown> | undefined,
+  key: string,
+) {
+  const value = custom?.[key]
+  if (typeof value === 'number') return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
 }
 
-const textLikeContentType = (contentType: string) =>
-  !contentType ||
-  /text|json|javascript|typescript|python|xml|yaml|octet-stream/i.test(
-    contentType,
-  )
-
-const editorHeight = 'calc(100vh - 230px)'
-
-const CodeViewer = ({ value }: { value: string }) => {
-  const { resolvedTheme } = useTheme()
-  return (
-    <div
-      className="relative w-full overflow-hidden rounded-lg border border-(--system-gray-3) bg-white text-[12px] dark:bg-[#1e1e1e] [&_.cm-editor]:!bg-transparent [&_.cm-focused]:!outline-none [&_.cm-gutters]:!bg-transparent [&_.cm-scroller>:where(.cm-content)]:!p-5"
-      style={{ minHeight: editorHeight }}
-    >
-      <CodeMirror
-        readOnly
-        editable={false}
-        height={editorHeight}
-        theme={resolvedTheme === 'dark' ? vscodeDark : vscodeLight}
-        extensions={[python(), EditorView.lineWrapping]}
-        basicSetup={{
-          lineNumbers: true,
-          foldGutter: false,
-          highlightActiveLine: false,
-          highlightActiveLineGutter: false,
-        }}
-        value={value}
-      />
-    </div>
-  )
+function codeServerUrl(port: number) {
+  const protocol =
+    typeof window === 'undefined' ? 'http:' : window.location.protocol
+  const hostname =
+    typeof window === 'undefined' ? 'localhost' : window.location.hostname
+  return `${protocol}//${hostname}:${port}/?folder=/workspace`
 }
 
 export const CodeTabContent: React.FC<CodeTabContentProps> = ({
   noPadding = false,
-  sourceLink,
   taskTemplate,
 }) => {
-  const resolvedSourceLink =
-    sourceLink || taskTemplate?.metadata?.codeBundleUri || ''
-  const [sourceState, setSourceState] = React.useState<SourceFetchState>({
-    status: 'idle',
-    content: '',
-    error: '',
-  })
-
-  React.useEffect(() => {
-    if (!resolvedSourceLink || !/^https?:\/\//i.test(resolvedSourceLink)) {
-      setSourceState({ status: 'idle', content: '', error: '' })
-      return
-    }
-
-    let cancelled = false
-    setSourceState({ status: 'loading', content: '', error: '' })
-
-    fetch(resolvedSourceLink)
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
-        }
-        const contentType = response.headers.get('content-type') ?? ''
-        if (!textLikeContentType(contentType)) {
-          throw new Error(`Unsupported content type: ${contentType}`)
-        }
-        return response.text()
-      })
-      .then((content) => {
-        if (!cancelled) {
-          setSourceState({ status: 'loaded', content, error: '' })
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setSourceState({
-            status: 'failed',
-            content: '',
-            error: error instanceof Error ? error.message : 'unknown error',
-          })
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [resolvedSourceLink])
+  const custom = taskTemplate?.custom as Record<string, unknown> | undefined
+  const codeServerNodePort = numericCustomValue(custom, 'codeServerNodePort')
 
   return (
     <div
       className={`flex min-w-0 flex-1 flex-col ${noPadding ? '' : 'p-8 pt-2.5'}`}
     >
-      <CodeViewer
-        value={sourceState.status === 'loaded' ? sourceState.content : ''}
-      />
+      {codeServerNodePort ? (
+        <iframe
+          className="w-full rounded-lg border border-(--system-gray-3) bg-white"
+          src={codeServerUrl(codeServerNodePort)}
+          style={{ height: codeServerFrameHeight }}
+          title="code-server"
+        />
+      ) : (
+        <div
+          className="flex w-full flex-col items-center justify-center rounded-lg border border-(--system-gray-3) bg-white p-8 text-center dark:bg-(--system-black)"
+          style={{ minHeight: codeServerFrameHeight }}
+        >
+          <h3 className="text-base font-semibold text-zinc-950 dark:text-white">
+            code-server 未安装
+          </h3>
+          <p className="mt-2 text-sm text-(--system-gray-5)">
+            当前开发实例没有暴露 code-server 端口，请使用包含 code-server 的镜像重新创建实例。
+          </p>
+        </div>
+      )}
     </div>
   )
 }

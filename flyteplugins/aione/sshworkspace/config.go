@@ -13,15 +13,16 @@ import (
 const TaskType = "ssh_workspace"
 
 type WorkspaceConfig struct {
-	Image          string
-	SSHUser        string
-	AuthorizedKeys []string
-	CPU            string
-	Memory         string
-	WorkspaceSize  string
-	ServiceType    corev1.ServiceType
-	NodePort       *int32
-	Environment    map[string]string
+	Image              string
+	SSHUser            string
+	AuthorizedKeys     []string
+	CPU                string
+	Memory             string
+	WorkspaceSize      string
+	ServiceType        corev1.ServiceType
+	NodePort           *int32
+	CodeServerNodePort *int32
+	Environment        map[string]string
 }
 
 func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
@@ -78,8 +79,20 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 		cfg.NodePort = &nodePort
 	}
 
+	if nodePort, ok, err := int32Value(values, "codeServerNodePort"); err != nil {
+		return WorkspaceConfig{}, err
+	} else if ok {
+		if nodePort < 30000 || nodePort > 32767 {
+			return WorkspaceConfig{}, fmt.Errorf("codeServerNodePort must be between 30000 and 32767")
+		}
+		cfg.CodeServerNodePort = &nodePort
+	}
+
 	if cfg.NodePort != nil && cfg.ServiceType != corev1.ServiceTypeNodePort {
 		return WorkspaceConfig{}, fmt.Errorf("nodePort is only valid when serviceType is NodePort")
+	}
+	if cfg.CodeServerNodePort != nil && cfg.ServiceType != corev1.ServiceTypeNodePort {
+		return WorkspaceConfig{}, fmt.Errorf("codeServerNodePort is only valid when serviceType is NodePort")
 	}
 
 	if env, ok := values["environment"].(map[string]any); ok {

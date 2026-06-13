@@ -58,6 +58,7 @@ describe("development instance helpers", () => {
       memory: "4Gi",
       workspaceSize: "20Gi",
       nodePort: 31022,
+      codeServerNodePort: 31023,
       maxHours: 24,
     });
 
@@ -77,6 +78,7 @@ describe("development instance helpers", () => {
       workspaceSize: "20Gi",
       serviceType: "NodePort",
       nodePort: 31022,
+      codeServerNodePort: 31023,
       description: "for notebooks",
       owner: "ljgong",
       maxHours: 24,
