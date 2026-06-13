@@ -42,4 +42,4 @@ RUN curl -fL \
     tar -xzf /opt/code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz -C /opt && \
     ln -sf /opt/code-server-${CODE_SERVER_VERSION}-linux-amd64/bin/code-server /usr/local/bin/code-server
 
-USER flytekit
+USER root
