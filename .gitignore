@@ -48,6 +48,7 @@ empty-config.yaml
 **/flyteidl2.egg-info
 node_modules
 .claude/
+.superpowers/
 
 # Extracted Flyte console project artifacts
 /flyte_console/node_modules/
