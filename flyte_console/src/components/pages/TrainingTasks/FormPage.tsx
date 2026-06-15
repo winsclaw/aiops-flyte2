@@ -6,6 +6,11 @@
 
 import { Header } from "@/components/Header";
 import { NavPanelLayout } from "@/components/NavPanel/NavPanelLayout";
+import { CloudStorage } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
+import {
+  CloudStorageService,
+  ListCloudStoragesRequestSchema,
+} from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_service_pb";
 import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
 import {
   ImageType,
@@ -58,6 +63,7 @@ function emptyValues(): TrainingTaskFormValues {
     officialImageId: DEFAULT_OFFICIAL_IMAGE_ID,
     imageName: "",
     imageUri: DEFAULT_CUSTOM_IMAGE,
+    cloudStorageMounts: [],
   };
 }
 
@@ -72,7 +78,19 @@ function valuesFromTask(task: TrainingTask, copy: boolean): TrainingTaskFormValu
     officialImageId: task.officialImageId || DEFAULT_OFFICIAL_IMAGE_ID,
     imageName: task.imageName,
     imageUri: task.imageUri || DEFAULT_CUSTOM_IMAGE,
+    cloudStorageMounts: (task.cloudStorageMounts ?? []).map((mount) => ({
+      cloudStorageId: mount.cloudStorageId,
+      mountPath: mount.mountPath,
+    })),
   };
+}
+
+function defaultMountPath(storage: CloudStorage) {
+  const base = (storage.name || storage.id?.id || "storage")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `/mnt/${base || "storage"}`;
 }
 
 export function TrainingTaskFormPage() {
@@ -81,9 +99,11 @@ export function TrainingTaskFormPage() {
   const router = useRouter();
   const org = useOrg();
   const client = useConnectRpcClient(TrainingTaskService);
+  const cloudStorageClient = useConnectRpcClient(CloudStorageService);
   const [values, setValues] = useState<TrainingTaskFormValues>(emptyValues);
   const [resourceSpecs, setResourceSpecs] = useState<ResourceSpec[]>([]);
   const [officialImages, setOfficialImages] = useState<OfficialImage[]>([]);
+  const [cloudStorages, setCloudStorages] = useState<CloudStorage[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -138,6 +158,29 @@ export function TrainingTaskFormPage() {
       cancelled = true;
     };
   }, [client]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId) {
+      return;
+    }
+    const loadCloudStorages = async () => {
+      try {
+        const response = await cloudStorageClient.listCloudStorages(
+          create(ListCloudStoragesRequestSchema, { project: projectId }),
+        );
+        if (!cancelled) {
+          setCloudStorages(response.cloudStorages ?? []);
+        }
+      } catch (loadError) {
+        console.error("Error loading cloud storages", loadError);
+      }
+    };
+    loadCloudStorages();
+    return () => {
+      cancelled = true;
+    };
+  }, [cloudStorageClient, projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -411,6 +454,83 @@ export function TrainingTaskFormPage() {
                         />
                       </label>
                     </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="border-b border-zinc-200 px-5 py-3 text-sm font-semibold dark:border-zinc-800">
+                  云存储
+                </div>
+                <div className="space-y-3 p-5">
+                  {cloudStorages.length === 0 ? (
+                    <div className="text-sm text-zinc-500">暂无云存储</div>
+                  ) : (
+                    cloudStorages.map((storage) => {
+                      const storageId = storage.id?.id ?? "";
+                      const selectedMount = values.cloudStorageMounts.find(
+                        (mount) => mount.cloudStorageId === storageId,
+                      );
+                      return (
+                        <div
+                          key={storageId}
+                          className="grid gap-3 border border-zinc-200 p-3 dark:border-zinc-800 md:grid-cols-[1fr_280px]"
+                        >
+                          <label className="flex items-start gap-3 text-sm">
+                            <input
+                              className="mt-1"
+                              type="checkbox"
+                              checked={Boolean(selectedMount)}
+                              onChange={(event) =>
+                                setValues((current) => ({
+                                  ...current,
+                                  cloudStorageMounts: event.target.checked
+                                    ? [
+                                        ...current.cloudStorageMounts,
+                                        {
+                                          cloudStorageId: storageId,
+                                          mountPath: defaultMountPath(storage),
+                                        },
+                                      ]
+                                    : current.cloudStorageMounts.filter(
+                                        (mount) =>
+                                          mount.cloudStorageId !== storageId,
+                                      ),
+                                }))
+                              }
+                            />
+                            <span>
+                              <span className="block font-medium text-zinc-900 dark:text-zinc-100">
+                                {storage.name}
+                              </span>
+                              <span className="block text-zinc-500">
+                                {storage.sizeGb} GB · {storage.storageClassName}
+                              </span>
+                            </span>
+                          </label>
+                          <input
+                            className={fieldClass}
+                            disabled={!selectedMount}
+                            value={selectedMount?.mountPath ?? ""}
+                            onChange={(event) =>
+                              setValues((current) => ({
+                                ...current,
+                                cloudStorageMounts: current.cloudStorageMounts.map(
+                                  (mount) =>
+                                    mount.cloudStorageId === storageId
+                                      ? {
+                                          ...mount,
+                                          mountPath: event.target.value,
+                                        }
+                                      : mount,
+                                ),
+                              }))
+                            }
+                            placeholder="/mnt/storage"
+                          />
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </section>

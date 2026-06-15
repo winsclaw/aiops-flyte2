@@ -75,6 +75,40 @@ func (m *TrainingTaskInput) validate(all bool) error {
 
 	// no validation rules for ImageUri
 
+	for idx, item := range m.GetCloudStorageMounts() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TrainingTaskInputValidationError{
+						field:  fmt.Sprintf("CloudStorageMounts[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TrainingTaskInputValidationError{
+						field:  fmt.Sprintf("CloudStorageMounts[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TrainingTaskInputValidationError{
+					field:  fmt.Sprintf("CloudStorageMounts[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if len(errors) > 0 {
 		return TrainingTaskInputMultiError(errors)
 	}

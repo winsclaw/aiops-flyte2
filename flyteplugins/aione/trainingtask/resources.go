@@ -38,7 +38,8 @@ type TrainingIdentity struct {
 }
 
 type TrainingResources struct {
-	Job *batchv1.Job
+	Job              *batchv1.Job
+	CloudStoragePVCs []*corev1.PersistentVolumeClaim
 }
 
 func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingResources, error) {
@@ -112,6 +113,43 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 		container.Resources.Requests[corev1.ResourceName("nvidia.com/gpu")] = gpu
 		container.Resources.Limits[corev1.ResourceName("nvidia.com/gpu")] = gpu
 	}
+	volumes := make([]corev1.Volume, 0, len(cfg.CloudStorageMounts))
+	cloudPVCs := make([]*corev1.PersistentVolumeClaim, 0, len(cfg.CloudStorageMounts))
+	for i, mount := range cfg.CloudStorageMounts {
+		size, err := resource.ParseQuantity(mount.Size)
+		if err != nil {
+			return TrainingResources{}, fmt.Errorf("invalid cloud storage size: %w", err)
+		}
+		volumeName := fmt.Sprintf("cloud-storage-%d", i)
+		storageClass := mount.StorageClass
+		cloudPVCs = append(cloudPVCs, &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      mount.PVCName,
+				Namespace: identity.Namespace,
+				Labels: mergeLabels(labels, map[string]string{
+					"flyte.org/cloud-storage":    "true",
+					"flyte.org/cloud-storage-id": mount.ID,
+				}),
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				StorageClassName: &storageClass,
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceStorage: size},
+				},
+			},
+		})
+		volumes = append(volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: mount.PVCName},
+			},
+		})
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+			Name:      volumeName,
+			MountPath: mount.MountPath,
+		})
+	}
 
 	backoffLimit := int32(0)
 	var activeDeadlineSeconds *int64
@@ -135,12 +173,13 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
 					Containers:    []corev1.Container{container},
+					Volumes:       volumes,
 				},
 			},
 		},
 	}
 
-	return TrainingResources{Job: job}, nil
+	return TrainingResources{Job: job, CloudStoragePVCs: cloudPVCs}, nil
 }
 
 func trainingLabels(identity TrainingIdentity) map[string]string {
@@ -152,6 +191,17 @@ func trainingLabels(identity TrainingIdentity) map[string]string {
 		labelOrg:              identity.Org,
 		labelActionName:       identity.ActionName,
 	}
+}
+
+func mergeLabels(base map[string]string, extra map[string]string) map[string]string {
+	labels := make(map[string]string, len(base)+len(extra))
+	for key, value := range base {
+		labels[key] = value
+	}
+	for key, value := range extra {
+		labels[key] = value
+	}
+	return labels
 }
 
 func kubernetesNameBase(name string) string {

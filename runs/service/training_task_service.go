@@ -10,6 +10,8 @@ import (
 	"connectrpc.com/connect"
 	"k8s.io/apimachinery/pkg/util/rand"
 
+	pluginutils "github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/pluginmachinery/utils"
+	cloudstoragepb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/cloudstorage"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/common"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/task"
 	trainingtaskpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask"
@@ -161,6 +163,9 @@ func (s *TrainingTaskService) StartTrainingTask(ctx context.Context, req *connec
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
+	if err := s.resolveTrainingTaskCloudStorageMounts(ctx, model); err != nil {
+		return nil, err
+	}
 	spec, err := BuildTrainingTaskSpec(model)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -263,6 +268,14 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 	if id == "" {
 		id = fmt.Sprintf("tt-%s-%d", rand.String(8), time.Now().Unix())
 	}
+	mounts, err := trainingTaskMountsFromProto(input.GetCloudStorageMounts())
+	if err != nil {
+		return nil, err
+	}
+	mountsJSON, err := models.EncodeTrainingTaskCloudStorageMounts(mounts)
+	if err != nil {
+		return nil, fmt.Errorf("cloud storage mounts are invalid: %w", err)
+	}
 	return &models.TrainingTask{
 		TrainingTaskKey: models.TrainingTaskKey{
 			Org:     project.GetOrganization(),
@@ -270,22 +283,24 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 			Domain:  project.GetDomain(),
 			ID:      id,
 		},
-		Name:            strings.TrimSpace(input.GetName()),
-		Description:     truncateShortDescription(input.GetDescription()),
-		ResourceSpecID:  spec.GetId(),
-		ResourceDisplay: spec.GetDisplayLabel(),
-		CPU:             spec.GetCpu(),
-		Memory:          spec.GetMemory(),
-		GPUCount:        spec.GetGpuCount(),
-		GPUModel:        spec.GetGpuModel(),
-		Bandwidth:       spec.GetBandwidth(),
-		Command:         strings.TrimSpace(input.GetCommand()),
-		MaxRuntimeHours: input.GetMaxRuntimeHours(),
-		ImageType:       imageType,
-		OfficialImageID: officialImageID,
-		ImageName:       imageName,
-		ImageURI:        imageURI,
-		Creator:         creator,
+		Name:                   strings.TrimSpace(input.GetName()),
+		Description:            truncateShortDescription(input.GetDescription()),
+		ResourceSpecID:         spec.GetId(),
+		ResourceDisplay:        spec.GetDisplayLabel(),
+		CPU:                    spec.GetCpu(),
+		Memory:                 spec.GetMemory(),
+		GPUCount:               spec.GetGpuCount(),
+		GPUModel:               spec.GetGpuModel(),
+		Bandwidth:              spec.GetBandwidth(),
+		Command:                strings.TrimSpace(input.GetCommand()),
+		MaxRuntimeHours:        input.GetMaxRuntimeHours(),
+		ImageType:              imageType,
+		OfficialImageID:        officialImageID,
+		ImageName:              imageName,
+		ImageURI:               imageURI,
+		Creator:                creator,
+		CloudStorageMountsJSON: mountsJSON,
+		CloudStorageMounts:     mounts,
 	}, nil
 }
 
@@ -331,16 +346,94 @@ func trainingTaskModelToProto(model *models.TrainingTask) *trainingtaskpb.Traini
 			GpuModel:     model.GPUModel,
 			Bandwidth:    model.Bandwidth,
 		},
-		Command:         model.Command,
-		MaxRuntimeHours: model.MaxRuntimeHours,
-		ImageType:       imageType,
-		OfficialImageId: model.OfficialImageID,
-		ImageName:       model.ImageName,
-		ImageUri:        model.ImageURI,
-		Creator:         model.Creator,
-		LatestRunName:   model.LatestRunName,
-		Status:          status,
-		CreatedAt:       timestamppb.New(model.CreatedAt),
-		UpdatedAt:       timestamppb.New(model.UpdatedAt),
+		Command:            model.Command,
+		MaxRuntimeHours:    model.MaxRuntimeHours,
+		ImageType:          imageType,
+		OfficialImageId:    model.OfficialImageID,
+		ImageName:          model.ImageName,
+		ImageUri:           model.ImageURI,
+		Creator:            model.Creator,
+		LatestRunName:      model.LatestRunName,
+		Status:             status,
+		CloudStorageMounts: trainingTaskMountsToProto(model.SelectedCloudStorageMounts()),
+		CreatedAt:          timestamppb.New(model.CreatedAt),
+		UpdatedAt:          timestamppb.New(model.UpdatedAt),
 	}
+}
+
+func (s *TrainingTaskService) resolveTrainingTaskCloudStorageMounts(ctx context.Context, task *models.TrainingTask) error {
+	selected := task.SelectedCloudStorageMounts()
+	if len(selected) == 0 {
+		return nil
+	}
+	if s.repo.CloudStorageRepo() == nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("cloud storage repository is required"))
+	}
+	namespace := cloudStorageNamespace(task.Project, task.Domain)
+	resolved := make([]models.TrainingTaskCloudStorageMount, 0, len(selected))
+	for _, mount := range selected {
+		storage, err := s.repo.CloudStorageRepo().Get(ctx, models.CloudStorageKey{
+			Org:     task.Org,
+			Project: task.Project,
+			Domain:  task.Domain,
+			ID:      mount.CloudStorageID,
+		})
+		if err != nil {
+			return connect.NewError(connect.CodeNotFound, err)
+		}
+		pvcName := cloudStoragePVCName(storage.ID)
+		if err := s.repo.CloudStorageRepo().SetMaterialized(ctx, storage.CloudStorageKey, namespace, pvcName); err != nil {
+			return connect.NewError(connect.CodeInternal, err)
+		}
+		resolved = append(resolved, models.TrainingTaskCloudStorageMount{
+			CloudStorageID:   storage.ID,
+			PVCName:          pvcName,
+			StorageClassName: storage.StorageClass,
+			Size:             fmt.Sprintf("%dGi", storage.SizeGB),
+			MountPath:        mount.MountPath,
+		})
+	}
+	task.CloudStorageMounts = resolved
+	return nil
+}
+
+func trainingTaskMountsFromProto(mounts []*cloudstoragepb.CloudStorageMount) ([]models.TrainingTaskCloudStorageMount, error) {
+	if len(mounts) == 0 {
+		return nil, nil
+	}
+	result := make([]models.TrainingTaskCloudStorageMount, 0, len(mounts))
+	for _, mount := range mounts {
+		cloudStorageID := strings.TrimSpace(mount.GetCloudStorageId())
+		mountPath := strings.TrimSpace(mount.GetMountPath())
+		if cloudStorageID == "" || mountPath == "" {
+			return nil, fmt.Errorf("cloud storage id and mount path are required")
+		}
+		if !strings.HasPrefix(mountPath, "/") {
+			return nil, fmt.Errorf("cloud storage mount path must be absolute")
+		}
+		result = append(result, models.TrainingTaskCloudStorageMount{
+			CloudStorageID: cloudStorageID,
+			MountPath:      mountPath,
+		})
+	}
+	return result, nil
+}
+
+func trainingTaskMountsToProto(mounts []models.TrainingTaskCloudStorageMount) []*cloudstoragepb.CloudStorageMount {
+	result := make([]*cloudstoragepb.CloudStorageMount, 0, len(mounts))
+	for _, mount := range mounts {
+		result = append(result, &cloudstoragepb.CloudStorageMount{
+			CloudStorageId: mount.CloudStorageID,
+			MountPath:      mount.MountPath,
+		})
+	}
+	return result
+}
+
+func cloudStoragePVCName(id string) string {
+	return pluginutils.ConvertToDNS1123SubdomainCompatibleString("cs-" + id)
+}
+
+func cloudStorageNamespace(project, domain string) string {
+	return pluginutils.ConvertToDNS1123SubdomainCompatibleString(project + "-" + domain)
 }

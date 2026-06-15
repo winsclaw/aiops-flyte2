@@ -2120,6 +2120,52 @@ func (_c *Repository_ActionRepo_Call) RunAndReturn(run func() interfaces.ActionR
 	return _c
 }
 
+// CloudStorageRepo provides a mock function for the type Repository
+func (_mock *Repository) CloudStorageRepo() interfaces.CloudStorageRepo {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for CloudStorageRepo")
+	}
+
+	var r0 interfaces.CloudStorageRepo
+	if returnFunc, ok := ret.Get(0).(func() interfaces.CloudStorageRepo); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(interfaces.CloudStorageRepo)
+		}
+	}
+	return r0
+}
+
+// Repository_CloudStorageRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CloudStorageRepo'
+type Repository_CloudStorageRepo_Call struct {
+	*mock.Call
+}
+
+// CloudStorageRepo is a helper method to define mock.On call
+func (_e *Repository_Expecter) CloudStorageRepo() *Repository_CloudStorageRepo_Call {
+	return &Repository_CloudStorageRepo_Call{Call: _e.mock.On("CloudStorageRepo")}
+}
+
+func (_c *Repository_CloudStorageRepo_Call) Run(run func()) *Repository_CloudStorageRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Repository_CloudStorageRepo_Call) Return(cloudStorageRepo interfaces.CloudStorageRepo) *Repository_CloudStorageRepo_Call {
+	_c.Call.Return(cloudStorageRepo)
+	return _c
+}
+
+func (_c *Repository_CloudStorageRepo_Call) RunAndReturn(run func() interfaces.CloudStorageRepo) *Repository_CloudStorageRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // TaskRepo provides a mock function for the type Repository
 func (_mock *Repository) TaskRepo() interfaces.TaskRepo {
 	ret := _mock.Called()

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package flyteidl2.aione.cloudstorage;
+
+import "flyteidl2/aione/cloudstorage/cloud_storage_definition.proto";
+import "flyteidl2/common/identifier.proto";
+import "flyteidl2/common/list.proto";
+
+option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/cloudstorage";
+
+service CloudStorageService {
+  rpc CreateCloudStorage(CreateCloudStorageRequest) returns (CreateCloudStorageResponse) {}
+  rpc GetCloudStorage(GetCloudStorageRequest) returns (GetCloudStorageResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListCloudStorages(ListCloudStoragesRequest) returns (ListCloudStoragesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc DeleteCloudStorage(DeleteCloudStorageRequest) returns (DeleteCloudStorageResponse) {}
+  rpc MaterializeCloudStorage(MaterializeCloudStorageRequest) returns (MaterializeCloudStorageResponse) {}
+}
+
+message CloudStorageInput {
+  string name = 1;
+  string description = 2;
+  uint32 size_gb = 3;
+}
+
+message CreateCloudStorageRequest {
+  common.ProjectIdentifier project = 1;
+  CloudStorageInput cloud_storage = 2;
+  string creator = 3;
+}
+
+message CreateCloudStorageResponse {
+  CloudStorage cloud_storage = 1;
+}
+
+message GetCloudStorageRequest {
+  CloudStorageIdentifier id = 1;
+}
+
+message GetCloudStorageResponse {
+  CloudStorage cloud_storage = 1;
+}
+
+message ListCloudStoragesRequest {
+  common.ListRequest request = 1;
+  common.ProjectIdentifier project = 2;
+}
+
+message ListCloudStoragesResponse {
+  repeated CloudStorage cloud_storages = 1;
+  string token = 2;
+  uint32 total = 3;
+}
+
+message DeleteCloudStorageRequest {
+  CloudStorageIdentifier id = 1;
+}
+
+message DeleteCloudStorageResponse {}
+
+message MaterializeCloudStorageRequest {
+  CloudStorageIdentifier id = 1;
+  string target_namespace = 2;
+  string pvc_name = 3;
+}
+
+message MaterializeCloudStorageResponse {
+  CloudStorage cloud_storage = 1;
+}

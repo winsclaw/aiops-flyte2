@@ -146,6 +146,48 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, "run-abc", svc.Spec.Selector[labelWorkspaceName])
 }
 
+func TestBuildResourcesAddsCloudStoragePVCMounts(t *testing.T) {
+	cfg := WorkspaceConfig{
+		Image:          "ubuntu:22.04",
+		SSHUser:        "dev",
+		AuthorizedKeys: []string{"ssh-rsa AAAA user@example"},
+		ServiceType:    corev1.ServiceTypeClusterIP,
+		CloudStorageMounts: []CloudStorageMount{{
+			ID:           "storage-1",
+			PVCName:      "storage-1-flyte",
+			StorageClass: "bj1-ebs",
+			Size:         "100Gi",
+			MountPath:    "/mnt/cloud/dataset",
+		}},
+	}
+	identity := WorkspaceIdentity{
+		Namespace:  "flyte",
+		Name:       "run-abc",
+		RunName:    "run-abc",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	require.Len(t, resources.CloudStoragePVCs, 1)
+	pvc := resources.CloudStoragePVCs[0]
+	assert.Equal(t, "storage-1-flyte", pvc.Name)
+	assert.Equal(t, "flyte", pvc.Namespace)
+	require.NotNil(t, pvc.Spec.StorageClassName)
+	assert.Equal(t, "bj1-ebs", *pvc.Spec.StorageClassName)
+	assert.Equal(t, "100Gi", pvc.Spec.Resources.Requests.Storage().String())
+	assert.Equal(t, "storage-1", pvc.Labels["flyte.org/cloud-storage-id"])
+
+	podSpec := resources.StatefulSet.Spec.Template.Spec
+	assert.True(t, hasPVCVolume(podSpec.Volumes, "cloud-storage-0", "storage-1-flyte"))
+	container := podSpec.Containers[0]
+	assert.True(t, hasVolumeMount(container.VolumeMounts, "cloud-storage-0", "/mnt/cloud/dataset"))
+}
+
 func TestBuildResourcesUsesValidKubernetesNamesWhenRunStartsWithDigit(t *testing.T) {
 	nodePort := int32(30222)
 	cfg := WorkspaceConfig{
@@ -176,6 +218,24 @@ func TestBuildResourcesUsesValidKubernetesNamesWhenRunStartsWithDigit(t *testing
 	assert.Equal(t, "1111-a0-0", resources.Service.Spec.Selector[labelWorkspaceName])
 	assert.Equal(t, "1111-a0-0", resources.StatefulSet.Spec.Selector.MatchLabels[labelWorkspaceName])
 	assert.Equal(t, "1111-a0-0", resources.StatefulSet.Spec.Template.Labels[labelWorkspaceName])
+}
+
+func hasPVCVolume(volumes []corev1.Volume, name, claimName string) bool {
+	for _, volume := range volumes {
+		if volume.Name == name && volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == claimName {
+			return true
+		}
+	}
+	return false
+}
+
+func hasVolumeMount(mounts []corev1.VolumeMount, name, mountPath string) bool {
+	for _, mount := range mounts {
+		if mount.Name == name && mount.MountPath == mountPath {
+			return true
+		}
+	}
+	return false
 }
 
 func envValue(env []corev1.EnvVar, name string) string {

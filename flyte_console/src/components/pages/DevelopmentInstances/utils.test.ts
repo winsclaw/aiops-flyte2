@@ -60,6 +60,15 @@ describe("development instance helpers", () => {
       nodePort: 31022,
       codeServerNodePort: 31023,
       maxHours: 24,
+      cloudStorageMounts: [
+        {
+          cloudStorageId: "cs-1",
+          pvcName: "cs-cs-1",
+          storageClass: "bj1-ebs",
+          size: "100Gi",
+          mountPath: "/mnt/storage",
+        },
+      ],
     });
 
     expect(request.id.case).toBe("runId");
@@ -82,6 +91,15 @@ describe("development instance helpers", () => {
       description: "for notebooks",
       owner: "ljgong",
       maxHours: 24,
+      cloudStorageMounts: [
+        {
+          cloudStorageId: "cs-1",
+          pvcName: "cs-cs-1",
+          storageClass: "bj1-ebs",
+          size: "100Gi",
+          mountPath: "/mnt/storage",
+        },
+      ],
     });
   });
 

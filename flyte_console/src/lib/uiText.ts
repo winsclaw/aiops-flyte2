@@ -11,6 +11,7 @@ export const uiText = {
   clearAll: "全部清除",
   code: "代码",
   completed: "已完成",
+  cloudStorage: "云存储",
   copy: "复制",
   copyActionId: "复制操作 ID",
   copyActionUrl: "复制操作链接",
@@ -71,6 +72,7 @@ const dataLabelMap: Record<string, string> = {
   projects: uiText.projects,
   runs: uiText.runs,
   triggers: uiText.triggers,
+  cloudStorages: uiText.cloudStorage,
 };
 
 export const translateDataLabel = (dataLabel: string) =>

@@ -140,6 +140,13 @@ func (p *Plugin) ensureResources(ctx context.Context, resources WorkspaceResourc
 			created = true
 		}
 	}
+	for _, pvc := range resources.CloudStoragePVCs {
+		if ok, err := p.ensureObject(ctx, pvc); err != nil {
+			return false, err
+		} else if ok {
+			created = true
+		}
+	}
 	if ok, err := p.ensureObject(ctx, resources.Service); err != nil {
 		return false, err
 	} else if ok {

@@ -36,10 +36,11 @@ type WorkspaceIdentity struct {
 }
 
 type WorkspaceResources struct {
-	Secret      *corev1.Secret
-	PVC         *corev1.PersistentVolumeClaim
-	StatefulSet *appsv1.StatefulSet
-	Service     *corev1.Service
+	Secret           *corev1.Secret
+	PVC              *corev1.PersistentVolumeClaim
+	CloudStoragePVCs []*corev1.PersistentVolumeClaim
+	StatefulSet      *appsv1.StatefulSet
+	Service          *corev1.Service
 }
 
 func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceResources, error) {
@@ -174,6 +175,42 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 			MountPath: "/workspace",
 		})
 	}
+	cloudPVCs := make([]*corev1.PersistentVolumeClaim, 0, len(cfg.CloudStorageMounts))
+	for i, mount := range cfg.CloudStorageMounts {
+		size, err := resource.ParseQuantity(mount.Size)
+		if err != nil {
+			return WorkspaceResources{}, fmt.Errorf("invalid cloud storage size: %w", err)
+		}
+		volumeName := fmt.Sprintf("cloud-storage-%d", i)
+		storageClass := mount.StorageClass
+		cloudPVCs = append(cloudPVCs, &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      mount.PVCName,
+				Namespace: identity.Namespace,
+				Labels: mergeLabels(labels, map[string]string{
+					"flyte.org/cloud-storage":    "true",
+					"flyte.org/cloud-storage-id": mount.ID,
+				}),
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				StorageClassName: &storageClass,
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceStorage: size},
+				},
+			},
+		})
+		volumes = append(volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: mount.PVCName},
+			},
+		})
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+			Name:      volumeName,
+			MountPath: mount.MountPath,
+		})
+	}
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -229,10 +266,11 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}
 
 	return WorkspaceResources{
-		Secret:      secret,
-		PVC:         pvc,
-		StatefulSet: sts,
-		Service:     svc,
+		Secret:           secret,
+		PVC:              pvc,
+		CloudStoragePVCs: cloudPVCs,
+		StatefulSet:      sts,
+		Service:          svc,
 	}, nil
 }
 
@@ -245,6 +283,17 @@ func workspaceLabels(identity WorkspaceIdentity) map[string]string {
 		labelOrg:           identity.Org,
 		labelActionName:    identity.ActionName,
 	}
+}
+
+func mergeLabels(base map[string]string, extra map[string]string) map[string]string {
+	labels := make(map[string]string, len(base)+len(extra))
+	for key, value := range base {
+		labels[key] = value
+	}
+	for key, value := range extra {
+		labels[key] = value
+	}
+	return labels
 }
 
 func envVars(values map[string]string) []corev1.EnvVar {

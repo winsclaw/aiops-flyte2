@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package flyteidl2.aione.cloudstorage;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/cloudstorage";
+
+message CloudStorageIdentifier {
+  string org = 1 [(buf.validate.field).string.min_len = 1];
+  string project = 2 [(buf.validate.field).string.min_len = 1];
+  string domain = 3 [(buf.validate.field).string.min_len = 1];
+  string id = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+enum CloudStorageStatus {
+  CLOUD_STORAGE_STATUS_UNSPECIFIED = 0;
+  CLOUD_STORAGE_STATUS_PENDING = 1;
+  CLOUD_STORAGE_STATUS_MATERIALIZED = 2;
+}
+
+message CloudStorage {
+  CloudStorageIdentifier id = 1 [(buf.validate.field).required = true];
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  string description = 3 [(buf.validate.field).string.max_len = 255];
+  uint32 size_gb = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 1000}];
+  string storage_class_name = 5 [(buf.validate.field).string.min_len = 1];
+  string target_namespace = 6;
+  string pvc_name = 7;
+  string creator = 8;
+  CloudStorageStatus status = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp materialized_at = 12;
+  repeated CloudStorageMaterialization materializations = 13;
+}
+
+message CloudStorageMount {
+  string cloud_storage_id = 1 [(buf.validate.field).string.min_len = 1];
+  string mount_path = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message CloudStorageMaterialization {
+  string target_namespace = 1 [(buf.validate.field).string.min_len = 1];
+  string pvc_name = 2 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp materialized_at = 3;
+}

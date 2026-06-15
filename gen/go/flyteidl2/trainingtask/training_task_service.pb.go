@@ -7,6 +7,7 @@
 package trainingtask
 
 import (
+	cloudstorage "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/cloudstorage"
 	common "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/common"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -26,15 +27,16 @@ type TrainingTaskInput struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name            string    `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description     string    `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	ResourceSpecId  string    `protobuf:"bytes,3,opt,name=resource_spec_id,json=resourceSpecId,proto3" json:"resource_spec_id,omitempty"`
-	Command         string    `protobuf:"bytes,4,opt,name=command,proto3" json:"command,omitempty"`
-	MaxRuntimeHours uint32    `protobuf:"varint,5,opt,name=max_runtime_hours,json=maxRuntimeHours,proto3" json:"max_runtime_hours,omitempty"`
-	ImageType       ImageType `protobuf:"varint,6,opt,name=image_type,json=imageType,proto3,enum=flyteidl2.trainingtask.ImageType" json:"image_type,omitempty"`
-	OfficialImageId string    `protobuf:"bytes,7,opt,name=official_image_id,json=officialImageId,proto3" json:"official_image_id,omitempty"`
-	ImageName       string    `protobuf:"bytes,8,opt,name=image_name,json=imageName,proto3" json:"image_name,omitempty"`
-	ImageUri        string    `protobuf:"bytes,9,opt,name=image_uri,json=imageUri,proto3" json:"image_uri,omitempty"`
+	Name               string                            `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description        string                            `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	ResourceSpecId     string                            `protobuf:"bytes,3,opt,name=resource_spec_id,json=resourceSpecId,proto3" json:"resource_spec_id,omitempty"`
+	Command            string                            `protobuf:"bytes,4,opt,name=command,proto3" json:"command,omitempty"`
+	MaxRuntimeHours    uint32                            `protobuf:"varint,5,opt,name=max_runtime_hours,json=maxRuntimeHours,proto3" json:"max_runtime_hours,omitempty"`
+	ImageType          ImageType                         `protobuf:"varint,6,opt,name=image_type,json=imageType,proto3,enum=flyteidl2.trainingtask.ImageType" json:"image_type,omitempty"`
+	OfficialImageId    string                            `protobuf:"bytes,7,opt,name=official_image_id,json=officialImageId,proto3" json:"official_image_id,omitempty"`
+	ImageName          string                            `protobuf:"bytes,8,opt,name=image_name,json=imageName,proto3" json:"image_name,omitempty"`
+	ImageUri           string                            `protobuf:"bytes,9,opt,name=image_uri,json=imageUri,proto3" json:"image_uri,omitempty"`
+	CloudStorageMounts []*cloudstorage.CloudStorageMount `protobuf:"bytes,10,rep,name=cloud_storage_mounts,json=cloudStorageMounts,proto3" json:"cloud_storage_mounts,omitempty"`
 }
 
 func (x *TrainingTaskInput) Reset() {
@@ -130,6 +132,13 @@ func (x *TrainingTaskInput) GetImageUri() string {
 		return x.ImageUri
 	}
 	return ""
+}
+
+func (x *TrainingTaskInput) GetCloudStorageMounts() []*cloudstorage.CloudStorageMount {
+	if x != nil {
+		return x.CloudStorageMounts
+	}
+	return nil
 }
 
 type ListTrainingTasksRequest struct {
@@ -1026,33 +1035,43 @@ var file_flyteidl2_trainingtask_training_task_service_proto_rawDesc = []byte{
 	0x79, 0x74, 0x65, 0x69, 0x64, 0x6c, 0x32, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x69,
 	0x64, 0x65, 0x6e, 0x74, 0x69, 0x66, 0x69, 0x65, 0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a,
 	0x1b, 0x66, 0x6c, 0x79, 0x74, 0x65, 0x69, 0x64, 0x6c, 0x32, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f,
-	0x6e, 0x2f, 0x6c, 0x69, 0x73, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x35, 0x66, 0x6c,
-	0x79, 0x74, 0x65, 0x69, 0x64, 0x6c, 0x32, 0x2f, 0x74, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67,
-	0x74, 0x61, 0x73, 0x6b, 0x2f, 0x74, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67, 0x5f, 0x74, 0x61,
-	0x73, 0x6b, 0x5f, 0x64, 0x65, 0x66, 0x69, 0x6e, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x22, 0xe3, 0x02, 0x0a, 0x11, 0x54, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67,
-	0x54, 0x61, 0x73, 0x6b, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d,
-	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x20, 0x0a,
-	0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x12,
-	0x28, 0x0a, 0x10, 0x72, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x5f, 0x73, 0x70, 0x65, 0x63,
-	0x5f, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0e, 0x72, 0x65, 0x73, 0x6f, 0x75,
-	0x72, 0x63, 0x65, 0x53, 0x70, 0x65, 0x63, 0x49, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6d,
-	0x6d, 0x61, 0x6e, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f, 0x6d, 0x6d,
-	0x61, 0x6e, 0x64, 0x12, 0x2a, 0x0a, 0x11, 0x6d, 0x61, 0x78, 0x5f, 0x72, 0x75, 0x6e, 0x74, 0x69,
-	0x6d, 0x65, 0x5f, 0x68, 0x6f, 0x75, 0x72, 0x73, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0f,
-	0x6d, 0x61, 0x78, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x48, 0x6f, 0x75, 0x72, 0x73, 0x12,
-	0x40, 0x0a, 0x0a, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x06, 0x20,
-	0x01, 0x28, 0x0e, 0x32, 0x21, 0x2e, 0x66, 0x6c, 0x79, 0x74, 0x65, 0x69, 0x64, 0x6c, 0x32, 0x2e,
-	0x74, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67, 0x74, 0x61, 0x73, 0x6b, 0x2e, 0x49, 0x6d, 0x61,
-	0x67, 0x65, 0x54, 0x79, 0x70, 0x65, 0x52, 0x09, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x54, 0x79, 0x70,
-	0x65, 0x12, 0x2a, 0x0a, 0x11, 0x6f, 0x66, 0x66, 0x69, 0x63, 0x69, 0x61, 0x6c, 0x5f, 0x69, 0x6d,
-	0x61, 0x67, 0x65, 0x5f, 0x69, 0x64, 0x18, 0x07, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0f, 0x6f, 0x66,
-	0x66, 0x69, 0x63, 0x69, 0x61, 0x6c, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x49, 0x64, 0x12, 0x1d, 0x0a,
-	0x0a, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x08, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x09, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x1b, 0x0a, 0x09,
-	0x69, 0x6d, 0x61, 0x67, 0x65, 0x5f, 0x75, 0x72, 0x69, 0x18, 0x09, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x08, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x55, 0x72, 0x69, 0x22, 0x92, 0x01, 0x0a, 0x18, 0x4c, 0x69,
+	0x6e, 0x2f, 0x6c, 0x69, 0x73, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x3b, 0x66, 0x6c,
+	0x79, 0x74, 0x65, 0x69, 0x64, 0x6c, 0x32, 0x2f, 0x61, 0x69, 0x6f, 0x6e, 0x65, 0x2f, 0x63, 0x6c,
+	0x6f, 0x75, 0x64, 0x73, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x2f, 0x63, 0x6c, 0x6f, 0x75, 0x64,
+	0x5f, 0x73, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x5f, 0x64, 0x65, 0x66, 0x69, 0x6e, 0x69, 0x74,
+	0x69, 0x6f, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x35, 0x66, 0x6c, 0x79, 0x74, 0x65,
+	0x69, 0x64, 0x6c, 0x32, 0x2f, 0x74, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67, 0x74, 0x61, 0x73,
+	0x6b, 0x2f, 0x74, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67, 0x5f, 0x74, 0x61, 0x73, 0x6b, 0x5f,
+	0x64, 0x65, 0x66, 0x69, 0x6e, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x22, 0xc6, 0x03, 0x0a, 0x11, 0x54, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67, 0x54, 0x61, 0x73,
+	0x6b, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x20, 0x0a, 0x0b, 0x64, 0x65,
+	0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x28, 0x0a, 0x10,
+	0x72, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x5f, 0x73, 0x70, 0x65, 0x63, 0x5f, 0x69, 0x64,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0e, 0x72, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65,
+	0x53, 0x70, 0x65, 0x63, 0x49, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e,
+	0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64,
+	0x12, 0x2a, 0x0a, 0x11, 0x6d, 0x61, 0x78, 0x5f, 0x72, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x5f,
+	0x68, 0x6f, 0x75, 0x72, 0x73, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0f, 0x6d, 0x61, 0x78,
+	0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x48, 0x6f, 0x75, 0x72, 0x73, 0x12, 0x40, 0x0a, 0x0a,
+	0x69, 0x6d, 0x61, 0x67, 0x65, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0e,
+	0x32, 0x21, 0x2e, 0x66, 0x6c, 0x79, 0x74, 0x65, 0x69, 0x64, 0x6c, 0x32, 0x2e, 0x74, 0x72, 0x61,
+	0x69, 0x6e, 0x69, 0x6e, 0x67, 0x74, 0x61, 0x73, 0x6b, 0x2e, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x54,
+	0x79, 0x70, 0x65, 0x52, 0x09, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x54, 0x79, 0x70, 0x65, 0x12, 0x2a,
+	0x0a, 0x11, 0x6f, 0x66, 0x66, 0x69, 0x63, 0x69, 0x61, 0x6c, 0x5f, 0x69, 0x6d, 0x61, 0x67, 0x65,
+	0x5f, 0x69, 0x64, 0x18, 0x07, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0f, 0x6f, 0x66, 0x66, 0x69, 0x63,
+	0x69, 0x61, 0x6c, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x49, 0x64, 0x12, 0x1d, 0x0a, 0x0a, 0x69, 0x6d,
+	0x61, 0x67, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x08, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09,
+	0x69, 0x6d, 0x61, 0x67, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x1b, 0x0a, 0x09, 0x69, 0x6d, 0x61,
+	0x67, 0x65, 0x5f, 0x75, 0x72, 0x69, 0x18, 0x09, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x69, 0x6d,
+	0x61, 0x67, 0x65, 0x55, 0x72, 0x69, 0x12, 0x61, 0x0a, 0x14, 0x63, 0x6c, 0x6f, 0x75, 0x64, 0x5f,
+	0x73, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x5f, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x73, 0x18, 0x0a,
+	0x20, 0x03, 0x28, 0x0b, 0x32, 0x2f, 0x2e, 0x66, 0x6c, 0x79, 0x74, 0x65, 0x69, 0x64, 0x6c, 0x32,
+	0x2e, 0x61, 0x69, 0x6f, 0x6e, 0x65, 0x2e, 0x63, 0x6c, 0x6f, 0x75, 0x64, 0x73, 0x74, 0x6f, 0x72,
+	0x61, 0x67, 0x65, 0x2e, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65,
+	0x4d, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x12, 0x63, 0x6c, 0x6f, 0x75, 0x64, 0x53, 0x74, 0x6f, 0x72,
+	0x61, 0x67, 0x65, 0x4d, 0x6f, 0x75, 0x6e, 0x74, 0x73, 0x22, 0x92, 0x01, 0x0a, 0x18, 0x4c, 0x69,
 	0x73, 0x74, 0x54, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67, 0x54, 0x61, 0x73, 0x6b, 0x73, 0x52,
 	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x37, 0x0a, 0x07, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1d, 0x2e, 0x66, 0x6c, 0x79, 0x74, 0x65, 0x69,
@@ -1276,76 +1295,78 @@ func file_flyteidl2_trainingtask_training_task_service_proto_rawDescGZIP() []byt
 
 var file_flyteidl2_trainingtask_training_task_service_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_flyteidl2_trainingtask_training_task_service_proto_goTypes = []interface{}{
-	(*TrainingTaskInput)(nil),          // 0: flyteidl2.trainingtask.TrainingTaskInput
-	(*ListTrainingTasksRequest)(nil),   // 1: flyteidl2.trainingtask.ListTrainingTasksRequest
-	(*ListTrainingTasksResponse)(nil),  // 2: flyteidl2.trainingtask.ListTrainingTasksResponse
-	(*GetTrainingTaskRequest)(nil),     // 3: flyteidl2.trainingtask.GetTrainingTaskRequest
-	(*GetTrainingTaskResponse)(nil),    // 4: flyteidl2.trainingtask.GetTrainingTaskResponse
-	(*CreateTrainingTaskRequest)(nil),  // 5: flyteidl2.trainingtask.CreateTrainingTaskRequest
-	(*CreateTrainingTaskResponse)(nil), // 6: flyteidl2.trainingtask.CreateTrainingTaskResponse
-	(*UpdateTrainingTaskRequest)(nil),  // 7: flyteidl2.trainingtask.UpdateTrainingTaskRequest
-	(*UpdateTrainingTaskResponse)(nil), // 8: flyteidl2.trainingtask.UpdateTrainingTaskResponse
-	(*DeleteTrainingTaskRequest)(nil),  // 9: flyteidl2.trainingtask.DeleteTrainingTaskRequest
-	(*DeleteTrainingTaskResponse)(nil), // 10: flyteidl2.trainingtask.DeleteTrainingTaskResponse
-	(*StartTrainingTaskRequest)(nil),   // 11: flyteidl2.trainingtask.StartTrainingTaskRequest
-	(*StartTrainingTaskResponse)(nil),  // 12: flyteidl2.trainingtask.StartTrainingTaskResponse
-	(*StopTrainingTaskRequest)(nil),    // 13: flyteidl2.trainingtask.StopTrainingTaskRequest
-	(*StopTrainingTaskResponse)(nil),   // 14: flyteidl2.trainingtask.StopTrainingTaskResponse
-	(*ListResourceSpecsRequest)(nil),   // 15: flyteidl2.trainingtask.ListResourceSpecsRequest
-	(*ListResourceSpecsResponse)(nil),  // 16: flyteidl2.trainingtask.ListResourceSpecsResponse
-	(*ListOfficialImagesRequest)(nil),  // 17: flyteidl2.trainingtask.ListOfficialImagesRequest
-	(*ListOfficialImagesResponse)(nil), // 18: flyteidl2.trainingtask.ListOfficialImagesResponse
-	(ImageType)(0),                     // 19: flyteidl2.trainingtask.ImageType
-	(*common.ListRequest)(nil),         // 20: flyteidl2.common.ListRequest
-	(*common.ProjectIdentifier)(nil),   // 21: flyteidl2.common.ProjectIdentifier
-	(*TrainingTask)(nil),               // 22: flyteidl2.trainingtask.TrainingTask
-	(*TrainingTaskIdentifier)(nil),     // 23: flyteidl2.trainingtask.TrainingTaskIdentifier
-	(*ResourceSpec)(nil),               // 24: flyteidl2.trainingtask.ResourceSpec
-	(*OfficialImage)(nil),              // 25: flyteidl2.trainingtask.OfficialImage
+	(*TrainingTaskInput)(nil),              // 0: flyteidl2.trainingtask.TrainingTaskInput
+	(*ListTrainingTasksRequest)(nil),       // 1: flyteidl2.trainingtask.ListTrainingTasksRequest
+	(*ListTrainingTasksResponse)(nil),      // 2: flyteidl2.trainingtask.ListTrainingTasksResponse
+	(*GetTrainingTaskRequest)(nil),         // 3: flyteidl2.trainingtask.GetTrainingTaskRequest
+	(*GetTrainingTaskResponse)(nil),        // 4: flyteidl2.trainingtask.GetTrainingTaskResponse
+	(*CreateTrainingTaskRequest)(nil),      // 5: flyteidl2.trainingtask.CreateTrainingTaskRequest
+	(*CreateTrainingTaskResponse)(nil),     // 6: flyteidl2.trainingtask.CreateTrainingTaskResponse
+	(*UpdateTrainingTaskRequest)(nil),      // 7: flyteidl2.trainingtask.UpdateTrainingTaskRequest
+	(*UpdateTrainingTaskResponse)(nil),     // 8: flyteidl2.trainingtask.UpdateTrainingTaskResponse
+	(*DeleteTrainingTaskRequest)(nil),      // 9: flyteidl2.trainingtask.DeleteTrainingTaskRequest
+	(*DeleteTrainingTaskResponse)(nil),     // 10: flyteidl2.trainingtask.DeleteTrainingTaskResponse
+	(*StartTrainingTaskRequest)(nil),       // 11: flyteidl2.trainingtask.StartTrainingTaskRequest
+	(*StartTrainingTaskResponse)(nil),      // 12: flyteidl2.trainingtask.StartTrainingTaskResponse
+	(*StopTrainingTaskRequest)(nil),        // 13: flyteidl2.trainingtask.StopTrainingTaskRequest
+	(*StopTrainingTaskResponse)(nil),       // 14: flyteidl2.trainingtask.StopTrainingTaskResponse
+	(*ListResourceSpecsRequest)(nil),       // 15: flyteidl2.trainingtask.ListResourceSpecsRequest
+	(*ListResourceSpecsResponse)(nil),      // 16: flyteidl2.trainingtask.ListResourceSpecsResponse
+	(*ListOfficialImagesRequest)(nil),      // 17: flyteidl2.trainingtask.ListOfficialImagesRequest
+	(*ListOfficialImagesResponse)(nil),     // 18: flyteidl2.trainingtask.ListOfficialImagesResponse
+	(ImageType)(0),                         // 19: flyteidl2.trainingtask.ImageType
+	(*cloudstorage.CloudStorageMount)(nil), // 20: flyteidl2.aione.cloudstorage.CloudStorageMount
+	(*common.ListRequest)(nil),             // 21: flyteidl2.common.ListRequest
+	(*common.ProjectIdentifier)(nil),       // 22: flyteidl2.common.ProjectIdentifier
+	(*TrainingTask)(nil),                   // 23: flyteidl2.trainingtask.TrainingTask
+	(*TrainingTaskIdentifier)(nil),         // 24: flyteidl2.trainingtask.TrainingTaskIdentifier
+	(*ResourceSpec)(nil),                   // 25: flyteidl2.trainingtask.ResourceSpec
+	(*OfficialImage)(nil),                  // 26: flyteidl2.trainingtask.OfficialImage
 }
 var file_flyteidl2_trainingtask_training_task_service_proto_depIdxs = []int32{
 	19, // 0: flyteidl2.trainingtask.TrainingTaskInput.image_type:type_name -> flyteidl2.trainingtask.ImageType
-	20, // 1: flyteidl2.trainingtask.ListTrainingTasksRequest.request:type_name -> flyteidl2.common.ListRequest
-	21, // 2: flyteidl2.trainingtask.ListTrainingTasksRequest.project:type_name -> flyteidl2.common.ProjectIdentifier
-	22, // 3: flyteidl2.trainingtask.ListTrainingTasksResponse.training_tasks:type_name -> flyteidl2.trainingtask.TrainingTask
-	23, // 4: flyteidl2.trainingtask.GetTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
-	22, // 5: flyteidl2.trainingtask.GetTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
-	21, // 6: flyteidl2.trainingtask.CreateTrainingTaskRequest.project:type_name -> flyteidl2.common.ProjectIdentifier
-	0,  // 7: flyteidl2.trainingtask.CreateTrainingTaskRequest.training_task:type_name -> flyteidl2.trainingtask.TrainingTaskInput
-	22, // 8: flyteidl2.trainingtask.CreateTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
-	23, // 9: flyteidl2.trainingtask.UpdateTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
-	0,  // 10: flyteidl2.trainingtask.UpdateTrainingTaskRequest.training_task:type_name -> flyteidl2.trainingtask.TrainingTaskInput
-	22, // 11: flyteidl2.trainingtask.UpdateTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
-	23, // 12: flyteidl2.trainingtask.DeleteTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
-	23, // 13: flyteidl2.trainingtask.StartTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
-	22, // 14: flyteidl2.trainingtask.StartTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
-	23, // 15: flyteidl2.trainingtask.StopTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
-	22, // 16: flyteidl2.trainingtask.StopTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
-	24, // 17: flyteidl2.trainingtask.ListResourceSpecsResponse.resource_specs:type_name -> flyteidl2.trainingtask.ResourceSpec
-	25, // 18: flyteidl2.trainingtask.ListOfficialImagesResponse.official_images:type_name -> flyteidl2.trainingtask.OfficialImage
-	1,  // 19: flyteidl2.trainingtask.TrainingTaskService.ListTrainingTasks:input_type -> flyteidl2.trainingtask.ListTrainingTasksRequest
-	3,  // 20: flyteidl2.trainingtask.TrainingTaskService.GetTrainingTask:input_type -> flyteidl2.trainingtask.GetTrainingTaskRequest
-	5,  // 21: flyteidl2.trainingtask.TrainingTaskService.CreateTrainingTask:input_type -> flyteidl2.trainingtask.CreateTrainingTaskRequest
-	7,  // 22: flyteidl2.trainingtask.TrainingTaskService.UpdateTrainingTask:input_type -> flyteidl2.trainingtask.UpdateTrainingTaskRequest
-	9,  // 23: flyteidl2.trainingtask.TrainingTaskService.DeleteTrainingTask:input_type -> flyteidl2.trainingtask.DeleteTrainingTaskRequest
-	11, // 24: flyteidl2.trainingtask.TrainingTaskService.StartTrainingTask:input_type -> flyteidl2.trainingtask.StartTrainingTaskRequest
-	13, // 25: flyteidl2.trainingtask.TrainingTaskService.StopTrainingTask:input_type -> flyteidl2.trainingtask.StopTrainingTaskRequest
-	15, // 26: flyteidl2.trainingtask.TrainingTaskService.ListResourceSpecs:input_type -> flyteidl2.trainingtask.ListResourceSpecsRequest
-	17, // 27: flyteidl2.trainingtask.TrainingTaskService.ListOfficialImages:input_type -> flyteidl2.trainingtask.ListOfficialImagesRequest
-	2,  // 28: flyteidl2.trainingtask.TrainingTaskService.ListTrainingTasks:output_type -> flyteidl2.trainingtask.ListTrainingTasksResponse
-	4,  // 29: flyteidl2.trainingtask.TrainingTaskService.GetTrainingTask:output_type -> flyteidl2.trainingtask.GetTrainingTaskResponse
-	6,  // 30: flyteidl2.trainingtask.TrainingTaskService.CreateTrainingTask:output_type -> flyteidl2.trainingtask.CreateTrainingTaskResponse
-	8,  // 31: flyteidl2.trainingtask.TrainingTaskService.UpdateTrainingTask:output_type -> flyteidl2.trainingtask.UpdateTrainingTaskResponse
-	10, // 32: flyteidl2.trainingtask.TrainingTaskService.DeleteTrainingTask:output_type -> flyteidl2.trainingtask.DeleteTrainingTaskResponse
-	12, // 33: flyteidl2.trainingtask.TrainingTaskService.StartTrainingTask:output_type -> flyteidl2.trainingtask.StartTrainingTaskResponse
-	14, // 34: flyteidl2.trainingtask.TrainingTaskService.StopTrainingTask:output_type -> flyteidl2.trainingtask.StopTrainingTaskResponse
-	16, // 35: flyteidl2.trainingtask.TrainingTaskService.ListResourceSpecs:output_type -> flyteidl2.trainingtask.ListResourceSpecsResponse
-	18, // 36: flyteidl2.trainingtask.TrainingTaskService.ListOfficialImages:output_type -> flyteidl2.trainingtask.ListOfficialImagesResponse
-	28, // [28:37] is the sub-list for method output_type
-	19, // [19:28] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	20, // 1: flyteidl2.trainingtask.TrainingTaskInput.cloud_storage_mounts:type_name -> flyteidl2.aione.cloudstorage.CloudStorageMount
+	21, // 2: flyteidl2.trainingtask.ListTrainingTasksRequest.request:type_name -> flyteidl2.common.ListRequest
+	22, // 3: flyteidl2.trainingtask.ListTrainingTasksRequest.project:type_name -> flyteidl2.common.ProjectIdentifier
+	23, // 4: flyteidl2.trainingtask.ListTrainingTasksResponse.training_tasks:type_name -> flyteidl2.trainingtask.TrainingTask
+	24, // 5: flyteidl2.trainingtask.GetTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
+	23, // 6: flyteidl2.trainingtask.GetTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
+	22, // 7: flyteidl2.trainingtask.CreateTrainingTaskRequest.project:type_name -> flyteidl2.common.ProjectIdentifier
+	0,  // 8: flyteidl2.trainingtask.CreateTrainingTaskRequest.training_task:type_name -> flyteidl2.trainingtask.TrainingTaskInput
+	23, // 9: flyteidl2.trainingtask.CreateTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
+	24, // 10: flyteidl2.trainingtask.UpdateTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
+	0,  // 11: flyteidl2.trainingtask.UpdateTrainingTaskRequest.training_task:type_name -> flyteidl2.trainingtask.TrainingTaskInput
+	23, // 12: flyteidl2.trainingtask.UpdateTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
+	24, // 13: flyteidl2.trainingtask.DeleteTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
+	24, // 14: flyteidl2.trainingtask.StartTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
+	23, // 15: flyteidl2.trainingtask.StartTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
+	24, // 16: flyteidl2.trainingtask.StopTrainingTaskRequest.id:type_name -> flyteidl2.trainingtask.TrainingTaskIdentifier
+	23, // 17: flyteidl2.trainingtask.StopTrainingTaskResponse.training_task:type_name -> flyteidl2.trainingtask.TrainingTask
+	25, // 18: flyteidl2.trainingtask.ListResourceSpecsResponse.resource_specs:type_name -> flyteidl2.trainingtask.ResourceSpec
+	26, // 19: flyteidl2.trainingtask.ListOfficialImagesResponse.official_images:type_name -> flyteidl2.trainingtask.OfficialImage
+	1,  // 20: flyteidl2.trainingtask.TrainingTaskService.ListTrainingTasks:input_type -> flyteidl2.trainingtask.ListTrainingTasksRequest
+	3,  // 21: flyteidl2.trainingtask.TrainingTaskService.GetTrainingTask:input_type -> flyteidl2.trainingtask.GetTrainingTaskRequest
+	5,  // 22: flyteidl2.trainingtask.TrainingTaskService.CreateTrainingTask:input_type -> flyteidl2.trainingtask.CreateTrainingTaskRequest
+	7,  // 23: flyteidl2.trainingtask.TrainingTaskService.UpdateTrainingTask:input_type -> flyteidl2.trainingtask.UpdateTrainingTaskRequest
+	9,  // 24: flyteidl2.trainingtask.TrainingTaskService.DeleteTrainingTask:input_type -> flyteidl2.trainingtask.DeleteTrainingTaskRequest
+	11, // 25: flyteidl2.trainingtask.TrainingTaskService.StartTrainingTask:input_type -> flyteidl2.trainingtask.StartTrainingTaskRequest
+	13, // 26: flyteidl2.trainingtask.TrainingTaskService.StopTrainingTask:input_type -> flyteidl2.trainingtask.StopTrainingTaskRequest
+	15, // 27: flyteidl2.trainingtask.TrainingTaskService.ListResourceSpecs:input_type -> flyteidl2.trainingtask.ListResourceSpecsRequest
+	17, // 28: flyteidl2.trainingtask.TrainingTaskService.ListOfficialImages:input_type -> flyteidl2.trainingtask.ListOfficialImagesRequest
+	2,  // 29: flyteidl2.trainingtask.TrainingTaskService.ListTrainingTasks:output_type -> flyteidl2.trainingtask.ListTrainingTasksResponse
+	4,  // 30: flyteidl2.trainingtask.TrainingTaskService.GetTrainingTask:output_type -> flyteidl2.trainingtask.GetTrainingTaskResponse
+	6,  // 31: flyteidl2.trainingtask.TrainingTaskService.CreateTrainingTask:output_type -> flyteidl2.trainingtask.CreateTrainingTaskResponse
+	8,  // 32: flyteidl2.trainingtask.TrainingTaskService.UpdateTrainingTask:output_type -> flyteidl2.trainingtask.UpdateTrainingTaskResponse
+	10, // 33: flyteidl2.trainingtask.TrainingTaskService.DeleteTrainingTask:output_type -> flyteidl2.trainingtask.DeleteTrainingTaskResponse
+	12, // 34: flyteidl2.trainingtask.TrainingTaskService.StartTrainingTask:output_type -> flyteidl2.trainingtask.StartTrainingTaskResponse
+	14, // 35: flyteidl2.trainingtask.TrainingTaskService.StopTrainingTask:output_type -> flyteidl2.trainingtask.StopTrainingTaskResponse
+	16, // 36: flyteidl2.trainingtask.TrainingTaskService.ListResourceSpecs:output_type -> flyteidl2.trainingtask.ListResourceSpecsResponse
+	18, // 37: flyteidl2.trainingtask.TrainingTaskService.ListOfficialImages:output_type -> flyteidl2.trainingtask.ListOfficialImagesResponse
+	29, // [29:38] is the sub-list for method output_type
+	20, // [20:29] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_flyteidl2_trainingtask_training_task_service_proto_init() }

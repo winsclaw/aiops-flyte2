@@ -9,6 +9,7 @@ import { FolderIcon } from "@heroicons/react/16/solid";
 import { DocumentTextIcon } from "@heroicons/react/20/solid";
 import {
   AcademicCapIcon,
+  CircleStackIcon,
   ComputerDesktopIcon,
   ShareIcon,
 } from "@heroicons/react/24/outline";
@@ -69,6 +70,14 @@ export const TrainingTasksLink: NavLinkType = {
   type: "link",
 };
 
+export const CloudStorageLink: NavLinkType = {
+  displayText: getUiText("cloudStorage"),
+  makeHref: ({ project, domain }) =>
+    `/domain/${domain}/project/${project}/cloud-storages`,
+  icon: <CircleStackIcon className="size-4 min-w-4" />,
+  type: "link",
+};
+
 export const TasksLink: NavLinkType = {
   displayText: getUiText("tasks"),
   makeHref: ({ project, domain }) =>
@@ -97,6 +106,7 @@ export const useDefaultItems = () => {
   return [
     RunsLink,
     DevelopmentInstancesLink,
+    CloudStorageLink,
     TrainingTasksLink,
     TriggersLink,
     TasksLink,

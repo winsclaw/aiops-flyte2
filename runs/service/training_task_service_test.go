@@ -36,6 +36,42 @@ func TestBuildTrainingTaskSpecUsesTrainingTaskPlugin(t *testing.T) {
 	require.Equal(t, float64(1), spec.GetTaskTemplate().GetCustom().GetFields()["maxRuntimeHours"].GetNumberValue())
 }
 
+func TestBuildTrainingTaskSpecIncludesCloudStorageMounts(t *testing.T) {
+	spec, err := BuildTrainingTaskSpec(&models.TrainingTask{
+		TrainingTaskKey: models.TrainingTaskKey{
+			ID:      "train-1",
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+		},
+		Name:            "任务1",
+		CPU:             "2",
+		Memory:          "4Gi",
+		Command:         "echo hello",
+		MaxRuntimeHours: 1,
+		ImageURI:        "busybox:1.36",
+		CloudStorageMounts: []models.TrainingTaskCloudStorageMount{
+			{
+				CloudStorageID:   "cs-1",
+				PVCName:          "cs-cs-1",
+				StorageClassName: "bj1-ebs",
+				Size:             "100Gi",
+				MountPath:        "/mnt/storage",
+			},
+		},
+	})
+
+	require.NoError(t, err)
+	values := spec.GetTaskTemplate().GetCustom().GetFields()["cloudStorageMounts"].GetListValue().GetValues()
+	require.Len(t, values, 1)
+	fields := values[0].GetStructValue().GetFields()
+	require.Equal(t, "cs-1", fields["id"].GetStringValue())
+	require.Equal(t, "cs-cs-1", fields["pvcName"].GetStringValue())
+	require.Equal(t, "bj1-ebs", fields["storageClass"].GetStringValue())
+	require.Equal(t, "100Gi", fields["size"].GetStringValue())
+	require.Equal(t, "/mnt/storage", fields["mountPath"].GetStringValue())
+}
+
 func TestTrainingTaskServiceRejectsMissingCommand(t *testing.T) {
 	svc := NewTrainingTaskService(nil, nil)
 

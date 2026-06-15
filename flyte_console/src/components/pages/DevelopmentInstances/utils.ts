@@ -59,6 +59,13 @@ export type DevelopmentInstanceFormValues = {
   nodePort: number;
   codeServerNodePort: number;
   maxHours: number;
+  cloudStorageMounts?: {
+    cloudStorageId: string;
+    pvcName: string;
+    storageClass: string;
+    size: string;
+    mountPath: string;
+  }[];
 };
 
 export type DevelopmentInstance = {
@@ -134,6 +141,7 @@ export function buildCreateDevelopmentInstanceRequest(
     description: values.description?.trim() ?? "",
     owner: values.owner?.trim() ?? "",
     maxHours: values.maxHours,
+    cloudStorageMounts: values.cloudStorageMounts ?? [],
   };
 
   return create(CreateRunRequestSchema, {

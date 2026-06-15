@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { CloudStorageMountSchema } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
 import {
   ImageType,
   TrainingTaskStatus,
@@ -19,6 +20,7 @@ export type TrainingTaskFormValues = {
   officialImageId: string;
   imageName: string;
   imageUri: string;
+  cloudStorageMounts: { cloudStorageId: string; mountPath: string }[];
 };
 
 export function validateTrainingTaskForm(values: TrainingTaskFormValues) {
@@ -33,6 +35,11 @@ export function validateTrainingTaskForm(values: TrainingTaskFormValues) {
   }
   if (values.imageType === ImageType.CUSTOM && !values.imageUri.trim()) {
     return "请输入自定义镜像地址";
+  }
+  for (const mount of values.cloudStorageMounts) {
+    if (!mount.mountPath.trim().startsWith("/")) {
+      return "云存储挂载路径必须为绝对路径";
+    }
   }
   return "";
 }
@@ -54,6 +61,12 @@ export function buildTrainingTaskInput(values: TrainingTaskFormValues) {
         ? values.imageName.trim() || values.imageUri.trim()
         : "",
     imageUri: values.imageType === ImageType.CUSTOM ? values.imageUri.trim() : "",
+    cloudStorageMounts: values.cloudStorageMounts.map((mount) =>
+      create(CloudStorageMountSchema, {
+        cloudStorageId: mount.cloudStorageId,
+        mountPath: mount.mountPath.trim(),
+      }),
+    ),
   });
 }
 

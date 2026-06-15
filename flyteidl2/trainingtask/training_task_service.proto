@@ -4,6 +4,7 @@ package flyteidl2.trainingtask;
 
 import "flyteidl2/common/identifier.proto";
 import "flyteidl2/common/list.proto";
+import "flyteidl2/aione/cloudstorage/cloud_storage_definition.proto";
 import "flyteidl2/trainingtask/training_task_definition.proto";
 
 option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask";
@@ -38,6 +39,7 @@ message TrainingTaskInput {
   string official_image_id = 7;
   string image_name = 8;
   string image_uri = 9;
+  repeated aione.cloudstorage.CloudStorageMount cloud_storage_mounts = 10;
 }
 
 message ListTrainingTasksRequest {

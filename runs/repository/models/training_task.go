@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -29,25 +30,68 @@ type TrainingTaskKey struct {
 type TrainingTask struct {
 	TrainingTaskKey
 
-	Name            string    `db:"name"`
-	Description     string    `db:"description"`
-	ResourceSpecID  string    `db:"resource_spec_id"`
-	ResourceDisplay string    `db:"resource_display"`
-	CPU             string    `db:"cpu"`
-	Memory          string    `db:"memory"`
-	GPUCount        uint32    `db:"gpu_count"`
-	GPUModel        string    `db:"gpu_model"`
-	Bandwidth       string    `db:"bandwidth"`
-	Command         string    `db:"command"`
-	MaxRuntimeHours uint32    `db:"max_runtime_hours"`
-	ImageType       string    `db:"image_type"`
-	OfficialImageID string    `db:"official_image_id"`
-	ImageName       string    `db:"image_name"`
-	ImageURI        string    `db:"image_uri"`
-	Creator         string    `db:"creator"`
-	LatestRunName   string    `db:"latest_run_name"`
-	CreatedAt       time.Time `db:"created_at"`
-	UpdatedAt       time.Time `db:"updated_at"`
+	Name                   string                          `db:"name"`
+	Description            string                          `db:"description"`
+	ResourceSpecID         string                          `db:"resource_spec_id"`
+	ResourceDisplay        string                          `db:"resource_display"`
+	CPU                    string                          `db:"cpu"`
+	Memory                 string                          `db:"memory"`
+	GPUCount               uint32                          `db:"gpu_count"`
+	GPUModel               string                          `db:"gpu_model"`
+	Bandwidth              string                          `db:"bandwidth"`
+	Command                string                          `db:"command"`
+	MaxRuntimeHours        uint32                          `db:"max_runtime_hours"`
+	ImageType              string                          `db:"image_type"`
+	OfficialImageID        string                          `db:"official_image_id"`
+	ImageName              string                          `db:"image_name"`
+	ImageURI               string                          `db:"image_uri"`
+	Creator                string                          `db:"creator"`
+	LatestRunName          string                          `db:"latest_run_name"`
+	CloudStorageMountsJSON string                          `db:"cloud_storage_mounts_json"`
+	CloudStorageMounts     []TrainingTaskCloudStorageMount `db:"-"`
+	CreatedAt              time.Time                       `db:"created_at"`
+	UpdatedAt              time.Time                       `db:"updated_at"`
+}
+
+type TrainingTaskCloudStorageMount struct {
+	CloudStorageID   string `json:"cloudStorageId"`
+	PVCName          string `json:"pvcName,omitempty"`
+	StorageClassName string `json:"storageClassName,omitempty"`
+	Size             string `json:"size,omitempty"`
+	MountPath        string `json:"mountPath"`
+}
+
+func (t *TrainingTask) SelectedCloudStorageMounts() []TrainingTaskCloudStorageMount {
+	if t == nil {
+		return nil
+	}
+	if len(t.CloudStorageMounts) > 0 {
+		return t.CloudStorageMounts
+	}
+	mounts, _ := DecodeTrainingTaskCloudStorageMounts(t.CloudStorageMountsJSON)
+	return mounts
+}
+
+func DecodeTrainingTaskCloudStorageMounts(value string) ([]TrainingTaskCloudStorageMount, error) {
+	if value == "" {
+		return nil, nil
+	}
+	var mounts []TrainingTaskCloudStorageMount
+	if err := json.Unmarshal([]byte(value), &mounts); err != nil {
+		return nil, err
+	}
+	return mounts, nil
+}
+
+func EncodeTrainingTaskCloudStorageMounts(mounts []TrainingTaskCloudStorageMount) (string, error) {
+	if len(mounts) == 0 {
+		return "[]", nil
+	}
+	data, err := json.Marshal(mounts)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 type TrainingTaskListInput struct {

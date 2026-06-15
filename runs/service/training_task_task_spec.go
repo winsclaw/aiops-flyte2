@@ -29,7 +29,21 @@ func BuildTrainingTaskSpec(trainingTask *models.TrainingTask) (*task.TaskSpec, e
 		return nil, fmt.Errorf("max runtime is required")
 	}
 
-	custom, err := structpb.NewStruct(map[string]any{
+	cloudStorageMounts := make([]any, 0, len(trainingTask.SelectedCloudStorageMounts()))
+	for _, mount := range trainingTask.SelectedCloudStorageMounts() {
+		if mount.CloudStorageID == "" || mount.PVCName == "" || mount.StorageClassName == "" || mount.Size == "" || mount.MountPath == "" {
+			return nil, fmt.Errorf("cloud storage mount %q is incomplete", mount.CloudStorageID)
+		}
+		cloudStorageMounts = append(cloudStorageMounts, map[string]any{
+			"id":           mount.CloudStorageID,
+			"pvcName":      mount.PVCName,
+			"storageClass": mount.StorageClassName,
+			"size":         mount.Size,
+			"mountPath":    mount.MountPath,
+		})
+	}
+
+	customPayload := map[string]any{
 		"image":             trainingTask.ImageURI,
 		"command":           trainingTask.Command,
 		"cpu":               trainingTask.CPU,
@@ -42,7 +56,12 @@ func BuildTrainingTaskSpec(trainingTask *models.TrainingTask) (*task.TaskSpec, e
 		"trainingTaskName":  trainingTask.Name,
 		"resourceSpecId":    trainingTask.ResourceSpecID,
 		"resourceSpecLabel": trainingTask.ResourceDisplay,
-	})
+	}
+	if len(cloudStorageMounts) > 0 {
+		customPayload["cloudStorageMounts"] = cloudStorageMounts
+	}
+
+	custom, err := structpb.NewStruct(customPayload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build training task custom payload: %w", err)
 	}

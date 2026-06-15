@@ -6,6 +6,7 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -45,6 +46,9 @@ func (p *Plugin) Handle(ctx context.Context, tCtx pluginsCore.TaskExecutionConte
 		return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure("BadTaskSpecification", err.Error(), nil)), nil
 	}
 
+	if _, err := p.ensurePVCs(ctx, resources.CloudStoragePVCs); err != nil {
+		return pluginsCore.UnknownTransition, err
+	}
 	created, err := p.ensureJob(ctx, resources.Job)
 	if err != nil {
 		return pluginsCore.UnknownTransition, err
@@ -111,6 +115,26 @@ func (p *Plugin) ensureJob(ctx context.Context, job *batchv1.Job) (bool, error) 
 		return false, err
 	}
 	return true, nil
+}
+
+func (p *Plugin) ensurePVCs(ctx context.Context, pvcs []*corev1.PersistentVolumeClaim) (bool, error) {
+	created := false
+	for _, pvc := range pvcs {
+		var existing corev1.PersistentVolumeClaim
+		if err := p.kubeClient.Get(ctx, client.ObjectKeyFromObject(pvc), &existing); err == nil {
+			continue
+		} else if !apierrors.IsNotFound(err) {
+			return false, err
+		}
+		if err := p.kubeClient.Create(ctx, pvc); err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				continue
+			}
+			return false, err
+		}
+		created = true
+	}
+	return created, nil
 }
 
 func trainingIdentityFromMetadata(metadata pluginsCore.TaskExecutionMetadata) TrainingIdentity {

@@ -21,6 +21,7 @@ describe("training task helpers", () => {
         officialImageId: DEFAULT_OFFICIAL_IMAGE_ID,
         imageName: "",
         imageUri: "",
+        cloudStorageMounts: [],
       }),
     ).toBe("请输入执行命令");
   });
@@ -36,6 +37,7 @@ describe("training task helpers", () => {
       officialImageId: "",
       imageName: "",
       imageUri: "",
+      cloudStorageMounts: [],
     });
 
     expect(input.resourceSpecId).toBe(DEFAULT_RESOURCE_SPEC_ID);
@@ -55,6 +57,7 @@ describe("training task helpers", () => {
         officialImageId: DEFAULT_OFFICIAL_IMAGE_ID,
         imageName: "",
         imageUri: "",
+        cloudStorageMounts: [],
       }),
     ).toBe("请输入自定义镜像地址");
   });

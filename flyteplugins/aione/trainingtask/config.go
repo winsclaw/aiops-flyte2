@@ -5,19 +5,29 @@ import (
 	"strings"
 
 	idlcore "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const TaskType = "training_task"
 
 type TrainingConfig struct {
-	Image           string
-	Command         string
-	CPU             string
-	Memory          string
-	GPUCount        int32
-	GPUModel        string
-	Bandwidth       string
-	MaxRuntimeHours int32
+	Image              string
+	Command            string
+	CPU                string
+	Memory             string
+	GPUCount           int32
+	GPUModel           string
+	Bandwidth          string
+	MaxRuntimeHours    int32
+	CloudStorageMounts []CloudStorageMount
+}
+
+type CloudStorageMount struct {
+	ID           string
+	PVCName      string
+	StorageClass string
+	Size         string
+	MountPath    string
 }
 
 func ParseConfig(taskTemplate *idlcore.TaskTemplate) (TrainingConfig, error) {
@@ -61,6 +71,11 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (TrainingConfig, error) {
 		}
 		cfg.MaxRuntimeHours = maxRuntimeHours
 	}
+	mounts, err := cloudStorageMountsValue(custom)
+	if err != nil {
+		return TrainingConfig{}, err
+	}
+	cfg.CloudStorageMounts = mounts
 
 	return cfg, nil
 }
@@ -87,4 +102,31 @@ func int32Value(values map[string]any, key string) (int32, bool, error) {
 	default:
 		return 0, false, fmt.Errorf("%s must be an integer", key)
 	}
+}
+
+func cloudStorageMountsValue(custom *structpb.Struct) ([]CloudStorageMount, error) {
+	raw := custom.GetFields()["cloudStorageMounts"]
+	if raw == nil {
+		return nil, nil
+	}
+	list := raw.GetListValue()
+	if list == nil {
+		return nil, fmt.Errorf("cloudStorageMounts must be an array")
+	}
+	mounts := make([]CloudStorageMount, 0, len(list.Values))
+	for _, item := range list.Values {
+		fields := item.GetStructValue().GetFields()
+		mount := CloudStorageMount{
+			ID:           strings.TrimSpace(fields["id"].GetStringValue()),
+			PVCName:      strings.TrimSpace(fields["pvcName"].GetStringValue()),
+			StorageClass: strings.TrimSpace(fields["storageClass"].GetStringValue()),
+			Size:         strings.TrimSpace(fields["size"].GetStringValue()),
+			MountPath:    strings.TrimSpace(fields["mountPath"].GetStringValue()),
+		}
+		if mount.ID == "" || mount.PVCName == "" || mount.StorageClass == "" || mount.Size == "" || mount.MountPath == "" {
+			return nil, fmt.Errorf("cloudStorageMounts entries require id, pvcName, storageClass, size, and mountPath")
+		}
+		mounts = append(mounts, mount)
+	}
+	return mounts, nil
 }

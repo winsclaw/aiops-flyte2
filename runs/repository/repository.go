@@ -16,6 +16,7 @@ type repository struct {
 	taskRepo         interfaces.TaskRepo
 	triggerRepo      interfaces.TriggerRepo
 	trainingTaskRepo interfaces.TrainingTaskRepo
+	cloudStorageRepo interfaces.CloudStorageRepo
 }
 
 // NewRepository creates a new Repository instance
@@ -29,6 +30,7 @@ func NewRepository(db *sqlx.DB, dbConfig database.DbConfig) (interfaces.Reposito
 		taskRepo:         impl.NewTaskRepo(db),
 		triggerRepo:      impl.NewTriggerRepo(db),
 		trainingTaskRepo: impl.NewTrainingTaskRepo(db),
+		cloudStorageRepo: impl.NewCloudStorageRepo(db),
 	}, nil
 }
 
@@ -50,4 +52,9 @@ func (r *repository) TriggerRepo() interfaces.TriggerRepo {
 // TrainingTaskRepo returns the training task repository
 func (r *repository) TrainingTaskRepo() interfaces.TrainingTaskRepo {
 	return r.trainingTaskRepo
+}
+
+// CloudStorageRepo returns the Aione cloud storage repository.
+func (r *repository) CloudStorageRepo() interfaces.CloudStorageRepo {
+	return r.cloudStorageRepo
 }

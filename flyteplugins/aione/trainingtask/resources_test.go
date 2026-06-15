@@ -105,3 +105,62 @@ func TestBuildResourcesCreatesTrainingJob(t *testing.T) {
 	assert.Equal(t, "NVIDIA T4", resources.Job.Annotations[annotationGPUModel])
 	assert.Equal(t, "1Gbps", resources.Job.Annotations[annotationBandwidth])
 }
+
+func TestBuildResourcesAddsCloudStoragePVCMounts(t *testing.T) {
+	cfg := TrainingConfig{
+		Image:   "busybox:1.36",
+		Command: "echo hello",
+		CPU:     "2",
+		Memory:  "4Gi",
+		CloudStorageMounts: []CloudStorageMount{{
+			ID:           "storage-1",
+			PVCName:      "storage-1-flyte",
+			StorageClass: "bj1-ebs",
+			Size:         "100Gi",
+			MountPath:    "/mnt/cloud/dataset",
+		}},
+	}
+	identity := TrainingIdentity{
+		Namespace:  "flyte",
+		Name:       "run-abc",
+		RunName:    "run-abc",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	require.Len(t, resources.CloudStoragePVCs, 1)
+	pvc := resources.CloudStoragePVCs[0]
+	assert.Equal(t, "storage-1-flyte", pvc.Name)
+	assert.Equal(t, "flyte", pvc.Namespace)
+	require.NotNil(t, pvc.Spec.StorageClassName)
+	assert.Equal(t, "bj1-ebs", *pvc.Spec.StorageClassName)
+	assert.Equal(t, "100Gi", pvc.Spec.Resources.Requests.Storage().String())
+
+	podSpec := resources.Job.Spec.Template.Spec
+	assert.True(t, hasPVCVolume(podSpec.Volumes, "cloud-storage-0", "storage-1-flyte"))
+	container := podSpec.Containers[0]
+	assert.True(t, hasVolumeMount(container.VolumeMounts, "cloud-storage-0", "/mnt/cloud/dataset"))
+}
+
+func hasPVCVolume(volumes []corev1.Volume, name, claimName string) bool {
+	for _, volume := range volumes {
+		if volume.Name == name && volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == claimName {
+			return true
+		}
+	}
+	return false
+}
+
+func hasVolumeMount(mounts []corev1.VolumeMount, name, mountPath string) bool {
+	for _, mount := range mounts {
+		if mount.Name == name && mount.MountPath == mountPath {
+			return true
+		}
+	}
+	return false
+}
