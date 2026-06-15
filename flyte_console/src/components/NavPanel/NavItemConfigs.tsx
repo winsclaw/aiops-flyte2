@@ -7,7 +7,11 @@ import { useDomainStore } from "@/lib/DomainStore";
 import { formatRecentlyViewedLabel, getUiText } from "@/lib/uiText";
 import { FolderIcon } from "@heroicons/react/16/solid";
 import { DocumentTextIcon } from "@heroicons/react/20/solid";
-import { ComputerDesktopIcon, ShareIcon } from "@heroicons/react/24/outline";
+import {
+  AcademicCapIcon,
+  ComputerDesktopIcon,
+  ShareIcon,
+} from "@heroicons/react/24/outline";
 import { AppsIcon } from "../icons/AppsIcon";
 import { RunsIcon } from "../icons/RunsIcon";
 import { TriggersIcon } from "../icons/TriggersIcon";
@@ -57,6 +61,14 @@ export const DevelopmentInstancesLink: NavLinkType = {
   type: "link",
 };
 
+export const TrainingTasksLink: NavLinkType = {
+  displayText: getUiText("trainingTasks"),
+  makeHref: ({ project, domain }) =>
+    `/domain/${domain}/project/${project}/training-tasks`,
+  icon: <AcademicCapIcon className="size-4 min-w-4" />,
+  type: "link",
+};
+
 export const TasksLink: NavLinkType = {
   displayText: getUiText("tasks"),
   makeHref: ({ project, domain }) =>
@@ -85,6 +97,7 @@ export const useDefaultItems = () => {
   return [
     RunsLink,
     DevelopmentInstancesLink,
+    TrainingTasksLink,
     TriggersLink,
     TasksLink,
     AppsLink,

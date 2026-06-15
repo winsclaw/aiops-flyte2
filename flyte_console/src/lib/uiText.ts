@@ -57,6 +57,7 @@ export const uiText = {
   tasks: "任务",
   trigger: "触发器",
   triggers: "触发器",
+  trainingTasks: "训练任务",
   unlockMoreBenefits: "解锁更多权益",
   upgradeToEnterprise: "升级到企业版",
   viewRunDetails: "查看运行详情",
