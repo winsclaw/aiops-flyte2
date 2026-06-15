@@ -10,6 +10,7 @@ export const uiText = {
   automationType: "自动化类型",
   clearAll: "全部清除",
   code: "代码",
+  codeRepositories: "代码库",
   completed: "已完成",
   cloudStorage: "云存储",
   copy: "复制",
@@ -73,6 +74,7 @@ const dataLabelMap: Record<string, string> = {
   runs: uiText.runs,
   triggers: uiText.triggers,
   cloudStorages: uiText.cloudStorage,
+  codeRepositories: uiText.codeRepositories,
 };
 
 export const translateDataLabel = (dataLabel: string) =>

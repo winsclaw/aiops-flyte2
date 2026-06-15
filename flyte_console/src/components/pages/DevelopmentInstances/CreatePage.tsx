@@ -10,6 +10,12 @@ import {
   CloudStorage,
   CloudStorageIdentifierSchema,
 } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
+import { CodeRepository } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
+import {
+  CodeRepositoryService,
+  GetCodeRepositoryRequestSchema,
+  ListCodeRepositoriesRequestSchema,
+} from "@/gen/flyteidl2/aione/coderepository/code_repository_service_pb";
 import {
   CloudStorageService,
   ListCloudStoragesRequestSchema,
@@ -51,6 +57,7 @@ export function DevelopmentInstanceCreatePage() {
   const org = useOrg();
   const runClient = useConnectRpcClient(RunService);
   const cloudStorageClient = useConnectRpcClient(CloudStorageService);
+  const codeRepositoryClient = useConnectRpcClient(CodeRepositoryService);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState("ljgong");
@@ -65,6 +72,9 @@ export function DevelopmentInstanceCreatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usedNodePorts, setUsedNodePorts] = useState<number[]>([]);
   const [cloudStorages, setCloudStorages] = useState<CloudStorage[]>([]);
+  const [codeRepositories, setCodeRepositories] = useState<CodeRepository[]>(
+    [],
+  );
   const [cloudStorageMounts, setCloudStorageMounts] = useState<
     {
       cloudStorageId: string;
@@ -73,6 +83,9 @@ export function DevelopmentInstanceCreatePage() {
       size: string;
       mountPath: string;
     }[]
+  >([]);
+  const [codeRepositoryMounts, setCodeRepositoryMounts] = useState<
+    { codeRepositoryId: string; mountPath: string }[]
   >([]);
 
   const projectId = useMemo(
@@ -130,6 +143,29 @@ export function DevelopmentInstanceCreatePage() {
 
   useEffect(() => {
     let cancelled = false;
+    if (!projectId) {
+      return;
+    }
+    const loadCodeRepositories = async () => {
+      try {
+        const response = await codeRepositoryClient.listCodeRepositories(
+          create(ListCodeRepositoriesRequestSchema, { project: projectId }),
+        );
+        if (!cancelled) {
+          setCodeRepositories(response.codeRepositories ?? []);
+        }
+      } catch (loadError) {
+        console.error("Error loading code repositories", loadError);
+      }
+    };
+    loadCodeRepositories();
+    return () => {
+      cancelled = true;
+    };
+  }, [codeRepositoryClient, projectId]);
+
+  useEffect(() => {
+    let cancelled = false;
     const loadNodePorts = async () => {
       try {
         const response = await fetch(
@@ -163,11 +199,11 @@ export function DevelopmentInstanceCreatePage() {
   }, [runs, usedNodePorts]);
   const autoCodeServerNodePort = useMemo(() => {
     try {
-      return getNextNodePort([
-        ...usedNodePorts,
-        ...getUsedNodePorts(runs),
-        autoNodePort,
-      ].filter((port): port is number => Boolean(port)));
+      return getNextNodePort(
+        [...usedNodePorts, ...getUsedNodePorts(runs), autoNodePort].filter(
+          (port): port is number => Boolean(port),
+        ),
+      );
     } catch {
       return 0;
     }
@@ -197,9 +233,35 @@ export function DevelopmentInstanceCreatePage() {
       setError("云存储挂载路径必须为绝对路径");
       return;
     }
+    if (
+      codeRepositoryMounts.some((mount) => !mount.mountPath.startsWith("/"))
+    ) {
+      setError("代码库挂载路径必须为绝对路径");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      const selectedCodeRepositories = await Promise.all(
+        codeRepositoryMounts.map(async (mount) => {
+          const repository = codeRepositories.find(
+            (item) => item.id?.id === mount.codeRepositoryId,
+          );
+          const detail = repository?.id
+            ? await codeRepositoryClient.getCodeRepository(
+                create(GetCodeRepositoryRequestSchema, { id: repository.id }),
+              )
+            : undefined;
+          const resolved = detail?.codeRepository ?? repository;
+          return {
+            id: mount.codeRepositoryId,
+            repoUrl: resolved?.repoUrl ?? "",
+            branch: resolved?.branch ?? "master",
+            mountPath: mount.mountPath,
+            token: resolved?.token ?? "",
+          };
+        }),
+      );
       await runClient.createRun(
         buildCreateDevelopmentInstanceRequest({
           org: projectId.organization,
@@ -218,6 +280,7 @@ export function DevelopmentInstanceCreatePage() {
           codeServerNodePort: autoCodeServerNodePort,
           maxHours,
           cloudStorageMounts,
+          codeRepositories: selectedCodeRepositories,
         }),
       );
       await Promise.all(
@@ -337,6 +400,83 @@ export function DevelopmentInstanceCreatePage() {
 
               <section className="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
                 <div className="border-b border-zinc-200 px-5 py-3 text-sm font-semibold dark:border-zinc-800">
+                  代码库
+                </div>
+                <div className="space-y-3 p-5">
+                  {codeRepositories.length === 0 ? (
+                    <div className="text-sm text-zinc-500">暂无代码库</div>
+                  ) : (
+                    codeRepositories.map((repository) => {
+                      const repositoryId = repository.id?.id ?? "";
+                      const selectedMount = codeRepositoryMounts.find(
+                        (mount) => mount.codeRepositoryId === repositoryId,
+                      );
+                      return (
+                        <div
+                          key={repositoryId}
+                          className="grid gap-3 border border-zinc-200 p-3 dark:border-zinc-800 md:grid-cols-[1fr_260px]"
+                        >
+                          <label className="flex items-start gap-3 text-sm">
+                            <input
+                              className="mt-1"
+                              type="checkbox"
+                              checked={Boolean(selectedMount)}
+                              onChange={(event) =>
+                                setCodeRepositoryMounts((current) =>
+                                  event.target.checked
+                                    ? [
+                                        ...current,
+                                        {
+                                          codeRepositoryId: repositoryId,
+                                          mountPath:
+                                            repository.mountPath ||
+                                            "/workspace/code",
+                                        },
+                                      ]
+                                    : current.filter(
+                                        (mount) =>
+                                          mount.codeRepositoryId !==
+                                          repositoryId,
+                                      ),
+                                )
+                              }
+                            />
+                            <span>
+                              <span className="block font-medium text-zinc-900 dark:text-zinc-100">
+                                {repository.repoUrl}
+                              </span>
+                              <span className="block text-zinc-500">
+                                {repository.branch}
+                              </span>
+                            </span>
+                          </label>
+                          <input
+                            className={fieldClass}
+                            disabled={!selectedMount}
+                            value={selectedMount?.mountPath ?? ""}
+                            onChange={(event) =>
+                              setCodeRepositoryMounts((current) =>
+                                current.map((mount) =>
+                                  mount.codeRepositoryId === repositoryId
+                                    ? {
+                                        ...mount,
+                                        mountPath: event.target.value,
+                                      }
+                                    : mount,
+                                ),
+                              )
+                            }
+                            placeholder="/workspace/code"
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
+
+              <section className="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="border-b border-zinc-200 px-5 py-3 text-sm font-semibold dark:border-zinc-800">
                   选择镜像
                 </div>
                 <div className="space-y-4 p-5">
@@ -449,7 +589,10 @@ export function DevelopmentInstanceCreatePage() {
                               setCloudStorageMounts((current) =>
                                 current.map((mount) =>
                                   mount.cloudStorageId === storageId
-                                    ? { ...mount, mountPath: event.target.value }
+                                    ? {
+                                        ...mount,
+                                        mountPath: event.target.value,
+                                      }
                                     : mount,
                                 ),
                               )

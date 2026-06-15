@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { CloudStorageMountSchema } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
+import { CodeRepositoryMountSchema } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
 import {
   ImageType,
   TrainingTaskStatus,
@@ -21,6 +22,7 @@ export type TrainingTaskFormValues = {
   imageName: string;
   imageUri: string;
   cloudStorageMounts: { cloudStorageId: string; mountPath: string }[];
+  codeRepositoryMounts: { codeRepositoryId: string; mountPath: string }[];
 };
 
 export function validateTrainingTaskForm(values: TrainingTaskFormValues) {
@@ -39,6 +41,11 @@ export function validateTrainingTaskForm(values: TrainingTaskFormValues) {
   for (const mount of values.cloudStorageMounts) {
     if (!mount.mountPath.trim().startsWith("/")) {
       return "云存储挂载路径必须为绝对路径";
+    }
+  }
+  for (const mount of values.codeRepositoryMounts) {
+    if (!mount.mountPath.trim().startsWith("/")) {
+      return "代码库挂载路径必须为绝对路径";
     }
   }
   return "";
@@ -60,10 +67,17 @@ export function buildTrainingTaskInput(values: TrainingTaskFormValues) {
       values.imageType === ImageType.CUSTOM
         ? values.imageName.trim() || values.imageUri.trim()
         : "",
-    imageUri: values.imageType === ImageType.CUSTOM ? values.imageUri.trim() : "",
+    imageUri:
+      values.imageType === ImageType.CUSTOM ? values.imageUri.trim() : "",
     cloudStorageMounts: values.cloudStorageMounts.map((mount) =>
       create(CloudStorageMountSchema, {
         cloudStorageId: mount.cloudStorageId,
+        mountPath: mount.mountPath.trim(),
+      }),
+    ),
+    codeRepositoryMounts: values.codeRepositoryMounts.map((mount) =>
+      create(CodeRepositoryMountSchema, {
+        codeRepositoryId: mount.codeRepositoryId,
         mountPath: mount.mountPath.trim(),
       }),
     ),

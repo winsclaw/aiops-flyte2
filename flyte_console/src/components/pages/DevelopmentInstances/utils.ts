@@ -66,6 +66,13 @@ export type DevelopmentInstanceFormValues = {
     size: string;
     mountPath: string;
   }[];
+  codeRepositories?: {
+    id: string;
+    repoUrl: string;
+    branch: string;
+    mountPath: string;
+    token?: string;
+  }[];
 };
 
 export type DevelopmentInstance = {
@@ -142,6 +149,7 @@ export function buildCreateDevelopmentInstanceRequest(
     owner: values.owner?.trim() ?? "",
     maxHours: values.maxHours,
     cloudStorageMounts: values.cloudStorageMounts ?? [],
+    codeRepositories: values.codeRepositories ?? [],
   };
 
   return create(CreateRunRequestSchema, {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ImageType, TrainingTaskStatus } from "@/gen/flyteidl2/trainingtask/training_task_definition_pb";
+import {
+  ImageType,
+  TrainingTaskStatus,
+} from "@/gen/flyteidl2/trainingtask/training_task_definition_pb";
 import {
   DEFAULT_OFFICIAL_IMAGE_ID,
   DEFAULT_RESOURCE_SPEC_ID,
@@ -22,6 +25,7 @@ describe("training task helpers", () => {
         imageName: "",
         imageUri: "",
         cloudStorageMounts: [],
+        codeRepositoryMounts: [],
       }),
     ).toBe("请输入执行命令");
   });
@@ -38,11 +42,18 @@ describe("training task helpers", () => {
       imageName: "",
       imageUri: "",
       cloudStorageMounts: [],
+      codeRepositoryMounts: [
+        { codeRepositoryId: "repo-1", mountPath: "/workspace/aione" },
+      ],
     });
 
     expect(input.resourceSpecId).toBe(DEFAULT_RESOURCE_SPEC_ID);
     expect(input.officialImageId).toBe(DEFAULT_OFFICIAL_IMAGE_ID);
     expect(input.maxRuntimeHours).toBe(1);
+    expect(input.codeRepositoryMounts[0]).toMatchObject({
+      codeRepositoryId: "repo-1",
+      mountPath: "/workspace/aione",
+    });
   });
 
   it("requires custom image uri when custom image is selected", () => {
@@ -58,6 +69,7 @@ describe("training task helpers", () => {
         imageName: "",
         imageUri: "",
         cloudStorageMounts: [],
+        codeRepositoryMounts: [],
       }),
     ).toBe("请输入自定义镜像地址");
   });
@@ -66,7 +78,9 @@ describe("training task helpers", () => {
     expect(getTrainingTaskStatusText(TrainingTaskStatus.NOT_STARTED)).toBe(
       "未启动",
     );
-    expect(getTrainingTaskStatusText(TrainingTaskStatus.RUNNING)).toBe("运行中");
+    expect(getTrainingTaskStatusText(TrainingTaskStatus.RUNNING)).toBe(
+      "运行中",
+    );
     expect(getTrainingTaskStatusText(TrainingTaskStatus.FAILED)).toBe("失败");
   });
 });

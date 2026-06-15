@@ -7,6 +7,11 @@
 import { Header } from "@/components/Header";
 import { NavPanelLayout } from "@/components/NavPanel/NavPanelLayout";
 import { CloudStorage } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
+import { CodeRepository } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
+import {
+  CodeRepositoryService,
+  ListCodeRepositoriesRequestSchema,
+} from "@/gen/flyteidl2/aione/coderepository/code_repository_service_pb";
 import {
   CloudStorageService,
   ListCloudStoragesRequestSchema,
@@ -64,10 +69,14 @@ function emptyValues(): TrainingTaskFormValues {
     imageName: "",
     imageUri: DEFAULT_CUSTOM_IMAGE,
     cloudStorageMounts: [],
+    codeRepositoryMounts: [],
   };
 }
 
-function valuesFromTask(task: TrainingTask, copy: boolean): TrainingTaskFormValues {
+function valuesFromTask(
+  task: TrainingTask,
+  copy: boolean,
+): TrainingTaskFormValues {
   return {
     name: copy ? `${task.name} [副本]` : task.name,
     description: task.description,
@@ -80,6 +89,10 @@ function valuesFromTask(task: TrainingTask, copy: boolean): TrainingTaskFormValu
     imageUri: task.imageUri || DEFAULT_CUSTOM_IMAGE,
     cloudStorageMounts: (task.cloudStorageMounts ?? []).map((mount) => ({
       cloudStorageId: mount.cloudStorageId,
+      mountPath: mount.mountPath,
+    })),
+    codeRepositoryMounts: (task.codeRepositoryMounts ?? []).map((mount) => ({
+      codeRepositoryId: mount.codeRepositoryId,
       mountPath: mount.mountPath,
     })),
   };
@@ -100,10 +113,14 @@ export function TrainingTaskFormPage() {
   const org = useOrg();
   const client = useConnectRpcClient(TrainingTaskService);
   const cloudStorageClient = useConnectRpcClient(CloudStorageService);
+  const codeRepositoryClient = useConnectRpcClient(CodeRepositoryService);
   const [values, setValues] = useState<TrainingTaskFormValues>(emptyValues);
   const [resourceSpecs, setResourceSpecs] = useState<ResourceSpec[]>([]);
   const [officialImages, setOfficialImages] = useState<OfficialImage[]>([]);
   const [cloudStorages, setCloudStorages] = useState<CloudStorage[]>([]);
+  const [codeRepositories, setCodeRepositories] = useState<CodeRepository[]>(
+    [],
+  );
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -143,7 +160,9 @@ export function TrainingTaskFormPage() {
       try {
         const [specs, images] = await Promise.all([
           client.listResourceSpecs(create(ListResourceSpecsRequestSchema, {})),
-          client.listOfficialImages(create(ListOfficialImagesRequestSchema, {})),
+          client.listOfficialImages(
+            create(ListOfficialImagesRequestSchema, {}),
+          ),
         ]);
         if (!cancelled) {
           setResourceSpecs(specs.resourceSpecs ?? []);
@@ -181,6 +200,29 @@ export function TrainingTaskFormPage() {
       cancelled = true;
     };
   }, [cloudStorageClient, projectId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId) {
+      return;
+    }
+    const loadCodeRepositories = async () => {
+      try {
+        const response = await codeRepositoryClient.listCodeRepositories(
+          create(ListCodeRepositoriesRequestSchema, { project: projectId }),
+        );
+        if (!cancelled) {
+          setCodeRepositories(response.codeRepositories ?? []);
+        }
+      } catch (loadError) {
+        console.error("Error loading code repositories", loadError);
+      }
+    };
+    loadCodeRepositories();
+    return () => {
+      cancelled = true;
+    };
+  }, [codeRepositoryClient, projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -307,7 +349,13 @@ export function TrainingTaskFormPage() {
                     >
                       {(resourceSpecs.length > 0
                         ? resourceSpecs
-                        : [{ id: DEFAULT_RESOURCE_SPEC_ID, displayLabel: "8vCPU, 16GiB RAM, 1*NVIDIA T4, 1Gbps" }]
+                        : [
+                            {
+                              id: DEFAULT_RESOURCE_SPEC_ID,
+                              displayLabel:
+                                "8vCPU, 16GiB RAM, 1*NVIDIA T4, 1Gbps",
+                            },
+                          ]
                       ).map((spec) => (
                         <option key={spec.id} value={spec.id}>
                           {spec.displayLabel}
@@ -367,6 +415,86 @@ export function TrainingTaskFormPage() {
 
               <section className="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
                 <div className="border-b border-zinc-200 px-5 py-3 text-sm font-semibold dark:border-zinc-800">
+                  代码库
+                </div>
+                <div className="space-y-3 p-5">
+                  {codeRepositories.length === 0 ? (
+                    <div className="text-sm text-zinc-500">暂无代码库</div>
+                  ) : (
+                    codeRepositories.map((repository) => {
+                      const repositoryId = repository.id?.id ?? "";
+                      const selectedMount = values.codeRepositoryMounts.find(
+                        (mount) => mount.codeRepositoryId === repositoryId,
+                      );
+                      return (
+                        <div
+                          key={repositoryId}
+                          className="grid gap-3 border border-zinc-200 p-3 dark:border-zinc-800 md:grid-cols-[1fr_280px]"
+                        >
+                          <label className="flex items-start gap-3 text-sm">
+                            <input
+                              className="mt-1"
+                              type="checkbox"
+                              checked={Boolean(selectedMount)}
+                              onChange={(event) =>
+                                setValues((current) => ({
+                                  ...current,
+                                  codeRepositoryMounts: event.target.checked
+                                    ? [
+                                        ...current.codeRepositoryMounts,
+                                        {
+                                          codeRepositoryId: repositoryId,
+                                          mountPath:
+                                            repository.mountPath ||
+                                            "/workspace/code",
+                                        },
+                                      ]
+                                    : current.codeRepositoryMounts.filter(
+                                        (mount) =>
+                                          mount.codeRepositoryId !==
+                                          repositoryId,
+                                      ),
+                                }))
+                              }
+                            />
+                            <span>
+                              <span className="block font-medium text-zinc-900 dark:text-zinc-100">
+                                {repository.repoUrl}
+                              </span>
+                              <span className="block text-zinc-500">
+                                {repository.branch}
+                              </span>
+                            </span>
+                          </label>
+                          <input
+                            className={fieldClass}
+                            disabled={!selectedMount}
+                            value={selectedMount?.mountPath ?? ""}
+                            onChange={(event) =>
+                              setValues((current) => ({
+                                ...current,
+                                codeRepositoryMounts:
+                                  current.codeRepositoryMounts.map((mount) =>
+                                    mount.codeRepositoryId === repositoryId
+                                      ? {
+                                          ...mount,
+                                          mountPath: event.target.value,
+                                        }
+                                      : mount,
+                                  ),
+                              }))
+                            }
+                            placeholder="/workspace/code"
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
+
+              <section className="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="border-b border-zinc-200 px-5 py-3 text-sm font-semibold dark:border-zinc-800">
                   选择镜像
                 </div>
                 <div className="space-y-4 p-5">
@@ -415,7 +543,13 @@ export function TrainingTaskFormPage() {
                       >
                         {(officialImages.length > 0
                           ? officialImages
-                          : [{ id: DEFAULT_OFFICIAL_IMAGE_ID, name: "BusyBox 1.36", imageUri: DEFAULT_CUSTOM_IMAGE }]
+                          : [
+                              {
+                                id: DEFAULT_OFFICIAL_IMAGE_ID,
+                                name: "BusyBox 1.36",
+                                imageUri: DEFAULT_CUSTOM_IMAGE,
+                              },
+                            ]
                         ).map((image) => (
                           <option key={image.id} value={image.id}>
                             {image.name} - {image.imageUri}
@@ -515,15 +649,15 @@ export function TrainingTaskFormPage() {
                             onChange={(event) =>
                               setValues((current) => ({
                                 ...current,
-                                cloudStorageMounts: current.cloudStorageMounts.map(
-                                  (mount) =>
+                                cloudStorageMounts:
+                                  current.cloudStorageMounts.map((mount) =>
                                     mount.cloudStorageId === storageId
                                       ? {
                                           ...mount,
                                           mountPath: event.target.value,
                                         }
                                       : mount,
-                                ),
+                                  ),
                               }))
                             }
                             placeholder="/mnt/storage"

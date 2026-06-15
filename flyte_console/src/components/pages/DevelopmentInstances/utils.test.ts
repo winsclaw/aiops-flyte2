@@ -69,6 +69,15 @@ describe("development instance helpers", () => {
           mountPath: "/mnt/storage",
         },
       ],
+      codeRepositories: [
+        {
+          id: "repo-1",
+          repoUrl: "https://git.fzyun.io/serverless/aione.git",
+          branch: "main",
+          mountPath: "/workspace/aione",
+          token: "",
+        },
+      ],
     });
 
     expect(request.id.case).toBe("runId");
@@ -98,6 +107,15 @@ describe("development instance helpers", () => {
           storageClass: "bj1-ebs",
           size: "100Gi",
           mountPath: "/mnt/storage",
+        },
+      ],
+      codeRepositories: [
+        {
+          id: "repo-1",
+          repoUrl: "https://git.fzyun.io/serverless/aione.git",
+          branch: "main",
+          mountPath: "/workspace/aione",
+          token: "",
         },
       ],
     });
