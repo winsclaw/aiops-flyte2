@@ -9,7 +9,7 @@ if [[ ! -f "$SCRIPT" ]]; then
   exit 1
 fi
 
-output="$(DRY_RUN=1 REMOTE_HOST=aiops-deploy PROXY_URL=http://172.19.210.24:7890 bash "$SCRIPT")"
+output="$(DRY_RUN=1 REMOTE_HOST=aione-flyte2 PROXY_URL=http://172.19.210.24:7890 bash "$SCRIPT")"
 
 assert_contains() {
   local needle="$1"
@@ -22,7 +22,7 @@ assert_contains() {
 
 assert_contains 'git archive --format=tar HEAD -o'
 assert_contains 'scp'
-assert_contains 'aiops-deploy'
+assert_contains 'aione-flyte2'
 assert_contains 'REMOTE_ARCHIVE='
 assert_contains 'tar -xf "$REMOTE_ARCHIVE"'
 assert_contains "PROXY_URL='http://172.19.210.24:7890'"

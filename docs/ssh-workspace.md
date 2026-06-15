@@ -42,9 +42,9 @@
 }
 ```
 
-## 部署到 aiops-deploy
+## 部署到 aione-flyte2
 
-默认部署目标是 `aiops-deploy`，远端安装单节点 k3s、Helm 和 Docker，并部署 `charts/flyte-devbox`。
+默认部署目标是 `aione-flyte2`，远端安装单节点 k3s、Helm 和 Docker，并部署 `charts/flyte-devbox`。
 
 ```bash
 bash scripts/deploy-aiops-flyte.sh
@@ -59,7 +59,7 @@ PROXY_URL=http://172.19.210.24:7897 bash scripts/deploy-aiops-flyte.sh
 常用环境变量：
 
 ```bash
-REMOTE_HOST=aiops-deploy
+REMOTE_HOST=aione-flyte2
 REMOTE_DIR=flyte-work
 NAMESPACE=flyte
 RELEASE=flyte-devbox

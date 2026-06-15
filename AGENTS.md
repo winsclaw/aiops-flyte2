@@ -28,7 +28,7 @@ Current deployment defaults:
 Backend API and original console ingress: http://172.19.65.172:30080
 Source-built console NodePort:           http://172.19.65.172:30081/v2/projects
 Kubernetes namespace:                    flyte
-Remote host:                             aiops-deploy
+Remote host:                             aione-flyte2
 Remote checkout:                         /opt/aiops-flyte2
 Active branch:                           codex/flyte-ssh-workspace
 ```
@@ -88,7 +88,7 @@ Remote deployment steps must start from committed code already pushed to `origin
 Pull current code on the remote server:
 
 ```bash
-ssh aiops-deploy
+ssh aione-flyte2
 cd /opt/aiops-flyte2
 git pull --ff-only origin codex/flyte-ssh-workspace
 git log -1 --oneline
@@ -119,7 +119,7 @@ Ingress:   http://172.19.65.172:30080
 For incremental backend-only rebuilds after k3s and Helm are already installed:
 
 ```bash
-ssh aiops-deploy
+ssh aione-flyte2
 cd /opt/aiops-flyte2
 git pull --ff-only origin codex/flyte-ssh-workspace
 
@@ -168,7 +168,7 @@ The Dockerfile builds from source, runs `pnpm run build:prod`, copies `.next/sta
 Remote frontend build:
 
 ```bash
-ssh aiops-deploy
+ssh aione-flyte2
 cd /opt/aiops-flyte2
 git pull --ff-only origin codex/flyte-ssh-workspace
 
@@ -246,7 +246,7 @@ ListProjects request: 200
 
 ## Operational Notes
 
-- `aiops-deploy` now supports direct root SSH. `kubectl` should work directly after `ssh aiops-deploy`.
+- `aione-flyte2` now supports direct root SSH. `kubectl` should work directly after `ssh aione-flyte2`.
 - If `kubectl` connects to `localhost:8080`, the current user does not have kubeconfig. Use `sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl ...` or SSH as root.
 - SSH NodePort login must use `ssh -p <port> user@host`; do not use `ssh host:port`.
 - Long-running ML tasks stay running if their command contains `sleep 3600` or similar.

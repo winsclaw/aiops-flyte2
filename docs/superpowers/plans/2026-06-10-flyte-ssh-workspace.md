@@ -4,7 +4,7 @@
 
 **Goal:** Implement and deploy the Flyte SSH workspace plugin, user scripts, documentation, and tests described by `docs/superpowers/specs/2026-06-10-flyte-ssh-workspace-design.md`.
 
-**Architecture:** Add a core Flyte plugin for task type `ssh_workspace` that reconciles Secret, PVC, StatefulSet, and Service resources through `SetupContext.KubeClient()`. Add local `tests/` scripts that call the Flyte 2 Connect API with `buf curl`, return run ids, and format status JSON. Add deployment automation for k3s, Helm, image build/import, and Flyte chart install on `aiops-deploy`.
+**Architecture:** Add a core Flyte plugin for task type `ssh_workspace` that reconciles Secret, PVC, StatefulSet, and Service resources through `SetupContext.KubeClient()`. Add local `tests/` scripts that call the Flyte 2 Connect API with `buf curl`, return run ids, and format status JSON. Add deployment automation for k3s, Helm, image build/import, and Flyte chart install on `aione-flyte2`.
 
 **Tech Stack:** Go, Kubernetes controller-runtime client, Flyte pluginmachinery core plugin API, Bash, `buf curl`, `jq`, k3s, Helm.
 
@@ -156,7 +156,7 @@ Expected: FAIL because deployment script does not exist.
 
 - [ ] **Step 3: Implement deployment script and docs**
 
-Implement SSH-based deployment for host `aiops-deploy` with configurable `PROXY_URL`, `REMOTE_DIR`, `NAMESPACE`, `RELEASE`, and `IMAGE_TAG`. Add `DRY_RUN=1` mode. Document usage, web console URL, API endpoint, SSH workspace usage, status query, and cleanup.
+Implement SSH-based deployment for host `aione-flyte2` with configurable `PROXY_URL`, `REMOTE_DIR`, `NAMESPACE`, `RELEASE`, and `IMAGE_TAG`. Add `DRY_RUN=1` mode. Document usage, web console URL, API endpoint, SSH workspace usage, status query, and cleanup.
 
 - [ ] **Step 4: Verify tests pass**
 
@@ -191,7 +191,7 @@ go test ./executor/pkg/plugin ./executor/pkg/controller -count=1
 
 Expected: PASS.
 
-- [ ] **Step 3: Deploy to `aiops-deploy`**
+- [ ] **Step 3: Deploy to `aione-flyte2`**
 
 Run:
 
@@ -206,9 +206,9 @@ Expected: k3s and Helm are present, Flyte release is deployed, Flyte API and con
 Run the user-facing scripts against the deployed endpoint:
 
 ```bash
-ENDPOINT=http://<aiops-deploy-host>:30080 tests/start_ssh_workspace.sh
-ENDPOINT=http://<aiops-deploy-host>:30080 tests/start_ml_task.sh
-ENDPOINT=http://<aiops-deploy-host>:30080 tests/get_run_status.sh <run_id>
+ENDPOINT=http://<aione-flyte2-host>:30080 tests/start_ssh_workspace.sh
+ENDPOINT=http://<aione-flyte2-host>:30080 tests/start_ml_task.sh
+ENDPOINT=http://<aione-flyte2-host>:30080 tests/get_run_status.sh <run_id>
 ```
 
 Expected: start scripts return run ids, status returns JSON, and the web console is reachable.

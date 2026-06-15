@@ -2,7 +2,7 @@
 
 ## Goal
 
-Deploy Flyte 2 on `aiops-deploy` and add a custom Flyte task plugin that can create long-lived SSH development workspaces from Flyte runs. The caller starts work through the Flyte 2 `RunService/CreateRun` API and receives a Flyte run id. The caller can also start a long-running machine learning task and query a run's current state with a stable JSON response.
+Deploy Flyte 2 on `aione-flyte2` and add a custom Flyte task plugin that can create long-lived SSH development workspaces from Flyte runs. The caller starts work through the Flyte 2 `RunService/CreateRun` API and receives a Flyte run id. The caller can also start a long-running machine learning task and query a run's current state with a stable JSON response.
 
 ## Current Context
 
@@ -21,7 +21,7 @@ An SSH workspace needs several Kubernetes objects: a workload, a Secret for cred
 
 ### Deployment
 
-`aiops-deploy` will run a single-node Kubernetes cluster using k3s and Helm. The deployment automation will:
+`aione-flyte2` will run a single-node Kubernetes cluster using k3s and Helm. The deployment automation will:
 
 1. Install k3s when `kubectl` has no active context.
 2. Install Helm when it is missing.
@@ -176,7 +176,7 @@ Integration verification will cover:
 
 Add a deployment and usage guide under `docs/ssh-workspace.md` covering:
 
-- k3s and Helm deployment on `aiops-deploy`.
+- k3s and Helm deployment on `aione-flyte2`.
 - Proxy usage with `PROXY_URL`.
 - Flyte web console URL.
 - How to start an SSH workspace.

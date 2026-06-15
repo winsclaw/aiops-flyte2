@@ -858,7 +858,7 @@ Expected: push succeeds.
 
 - [ ] **Step 4: Deploy backend and frontend remotely**
 
-Run the backend and frontend deployment commands from the design spec and `AGENTS.md`, using only `git pull --ff-only` on `aiops-deploy`.
+Run the backend and frontend deployment commands from the design spec and `AGENTS.md`, using only `git pull --ff-only` on `aione-flyte2`.
 
 - [ ] **Step 5: Verify deployed API**
 

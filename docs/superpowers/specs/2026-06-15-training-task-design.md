@@ -15,7 +15,7 @@ Training tasks are not exposed as generic Flyte Task templates in the existing T
 - Implement the custom Flyte plugin type `training_task`.
 - Run uploaded or pre-existing images by executing a required command inside the image.
 - Reuse existing Run/Action status and log capabilities where possible.
-- Deploy backend/chart changes and frontend service changes to `aiops-deploy`.
+- Deploy backend/chart changes and frontend service changes to `aione-flyte2`.
 - Verify remotely with API checks, Playwright browser checks, and screenshots.
 
 ## Non-Goals
@@ -305,7 +305,7 @@ All source changes must be committed and pushed before remote deployment. Remote
 Backend deployment:
 
 ```bash
-ssh aiops-deploy
+ssh aione-flyte2
 cd /opt/aiops-flyte2
 git pull --ff-only origin codex/flyte-ssh-workspace
 
@@ -318,7 +318,7 @@ kubectl -n flyte rollout status deploy/flyte-binary --timeout=10m
 Frontend deployment:
 
 ```bash
-ssh aiops-deploy
+ssh aione-flyte2
 cd /opt/aiops-flyte2
 git pull --ff-only origin codex/flyte-ssh-workspace
 
@@ -348,5 +348,5 @@ kubectl -n flyte rollout status deploy/flyte-console-extracted --timeout=180s
 - Copy opens the create page with pre-filled values.
 - Delete removes the training task configuration after it is not running.
 - View logs opens the existing Run/Action log view.
-- Remote backend and frontend are deployed on `aiops-deploy`.
+- Remote backend and frontend are deployed on `aione-flyte2`.
 - Playwright verifies the deployed UI with zero console errors and saves screenshots under `D:\flyte-work\output\playwright\`.

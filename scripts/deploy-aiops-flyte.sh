@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REMOTE_HOST="${REMOTE_HOST:-aiops-deploy}"
+REMOTE_HOST="${REMOTE_HOST:-aione-flyte2}"
 REMOTE_DIR="${REMOTE_DIR:-flyte-work}"
 NAMESPACE="${NAMESPACE:-flyte}"
 RELEASE="${RELEASE:-flyte-devbox}"
