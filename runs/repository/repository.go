@@ -12,11 +12,12 @@ import (
 
 // repository implements the Repository interface
 type repository struct {
-	actionRepo       interfaces.ActionRepo
-	taskRepo         interfaces.TaskRepo
-	triggerRepo      interfaces.TriggerRepo
-	trainingTaskRepo interfaces.TrainingTaskRepo
-	cloudStorageRepo interfaces.CloudStorageRepo
+	actionRepo         interfaces.ActionRepo
+	taskRepo           interfaces.TaskRepo
+	triggerRepo        interfaces.TriggerRepo
+	trainingTaskRepo   interfaces.TrainingTaskRepo
+	cloudStorageRepo   interfaces.CloudStorageRepo
+	codeRepositoryRepo interfaces.CodeRepositoryRepo
 }
 
 // NewRepository creates a new Repository instance
@@ -26,11 +27,12 @@ func NewRepository(db *sqlx.DB, dbConfig database.DbConfig) (interfaces.Reposito
 		return nil, fmt.Errorf("failed to create action repo: %w", err)
 	}
 	return &repository{
-		actionRepo:       actionRepo,
-		taskRepo:         impl.NewTaskRepo(db),
-		triggerRepo:      impl.NewTriggerRepo(db),
-		trainingTaskRepo: impl.NewTrainingTaskRepo(db),
-		cloudStorageRepo: impl.NewCloudStorageRepo(db),
+		actionRepo:         actionRepo,
+		taskRepo:           impl.NewTaskRepo(db),
+		triggerRepo:        impl.NewTriggerRepo(db),
+		trainingTaskRepo:   impl.NewTrainingTaskRepo(db),
+		cloudStorageRepo:   impl.NewCloudStorageRepo(db),
+		codeRepositoryRepo: impl.NewCodeRepositoryRepo(db),
 	}, nil
 }
 
@@ -57,4 +59,9 @@ func (r *repository) TrainingTaskRepo() interfaces.TrainingTaskRepo {
 // CloudStorageRepo returns the Aione cloud storage repository.
 func (r *repository) CloudStorageRepo() interfaces.CloudStorageRepo {
 	return r.cloudStorageRepo
+}
+
+// CodeRepositoryRepo returns the Aione code repository repository.
+func (r *repository) CodeRepositoryRepo() interfaces.CodeRepositoryRepo {
+	return r.codeRepositoryRepo
 }
