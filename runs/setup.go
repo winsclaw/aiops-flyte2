@@ -20,6 +20,7 @@ import (
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trigger/triggerconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow/workflowconnect"
 	aionecloudstorage "github.com/flyteorg/flyte/v2/runs/aione/cloudstorage"
+	aionecoderepository "github.com/flyteorg/flyte/v2/runs/aione/coderepository"
 	"github.com/flyteorg/flyte/v2/runs/config"
 	"github.com/flyteorg/flyte/v2/runs/migrations"
 	"github.com/flyteorg/flyte/v2/runs/repository"
@@ -115,6 +116,7 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 	logger.Infof(ctx, "Mounted TrainingTaskService at %s", trainingTaskPath)
 
 	aionecloudstorage.Setup(ctx, sc, repo.CloudStorageRepo(), otelInterceptor)
+	aionecoderepository.Setup(ctx, sc, repo.CodeRepositoryRepo(), otelInterceptor)
 
 	identitySvc := service.NewIdentityService()
 	identityPath, identityHandler := authconnect.NewIdentityServiceHandler(identitySvc, connect.WithInterceptors(otelInterceptor))
