@@ -2212,6 +2212,52 @@ func (_c *Repository_TriggerRepo_Call) RunAndReturn(run func() interfaces.Trigge
 	return _c
 }
 
+// TrainingTaskRepo provides a mock function for the type Repository
+func (_mock *Repository) TrainingTaskRepo() interfaces.TrainingTaskRepo {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for TrainingTaskRepo")
+	}
+
+	var r0 interfaces.TrainingTaskRepo
+	if returnFunc, ok := ret.Get(0).(func() interfaces.TrainingTaskRepo); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(interfaces.TrainingTaskRepo)
+		}
+	}
+	return r0
+}
+
+// Repository_TrainingTaskRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TrainingTaskRepo'
+type Repository_TrainingTaskRepo_Call struct {
+	*mock.Call
+}
+
+// TrainingTaskRepo is a helper method to define mock.On call
+func (_e *Repository_Expecter) TrainingTaskRepo() *Repository_TrainingTaskRepo_Call {
+	return &Repository_TrainingTaskRepo_Call{Call: _e.mock.On("TrainingTaskRepo")}
+}
+
+func (_c *Repository_TrainingTaskRepo_Call) Run(run func()) *Repository_TrainingTaskRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Repository_TrainingTaskRepo_Call) Return(trainingTaskRepo interfaces.TrainingTaskRepo) *Repository_TrainingTaskRepo_Call {
+	_c.Call.Return(trainingTaskRepo)
+	return _c
+}
+
+func (_c *Repository_TrainingTaskRepo_Call) RunAndReturn(run func() interfaces.TrainingTaskRepo) *Repository_TrainingTaskRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewSortParameter creates a new instance of SortParameter. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewSortParameter(t interface {

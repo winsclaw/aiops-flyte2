@@ -16,6 +16,7 @@ import (
 	projectpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/project"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/project/projectconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/task/taskconnect"
+	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask/trainingtaskconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trigger/triggerconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow/workflowconnect"
 	"github.com/flyteorg/flyte/v2/runs/config"
@@ -94,6 +95,7 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 
 	runsSvc := service.NewRunService(repo, actionsClient, dataProxyClient, projectClient, cfg.StoragePrefix, sc.DataStore, abortReconciler)
 	taskSvc := service.NewTaskService(repo, projectClient)
+	trainingTaskSvc := service.NewTrainingTaskService(repo, runsSvc)
 
 	runsPath, runsHandler := workflowconnect.NewRunServiceHandler(runsSvc, connect.WithInterceptors(otelInterceptor))
 	sc.Mux.Handle(runsPath, runsHandler)
@@ -106,6 +108,10 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 	taskPath, taskHandler := taskconnect.NewTaskServiceHandler(taskSvc, connect.WithInterceptors(otelInterceptor))
 	sc.Mux.Handle(taskPath, taskHandler)
 	logger.Infof(ctx, "Mounted TaskService at %s", taskPath)
+
+	trainingTaskPath, trainingTaskHandler := trainingtaskconnect.NewTrainingTaskServiceHandler(trainingTaskSvc, connect.WithInterceptors(otelInterceptor))
+	sc.Mux.Handle(trainingTaskPath, trainingTaskHandler)
+	logger.Infof(ctx, "Mounted TrainingTaskService at %s", trainingTaskPath)
 
 	identitySvc := service.NewIdentityService()
 	identityPath, identityHandler := authconnect.NewIdentityServiceHandler(identitySvc, connect.WithInterceptors(otelInterceptor))
