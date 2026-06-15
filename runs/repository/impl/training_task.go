@@ -27,17 +27,17 @@ INSERT INTO training_tasks (
 	id, org, project, domain, name, description,
 	resource_spec_id, resource_display, cpu, memory, gpu_count, gpu_model, bandwidth,
 	command, max_runtime_hours, image_type, official_image_id, image_name, image_uri,
-	creator, latest_run_name, cloud_storage_mounts_json
+	creator, latest_run_name, cloud_storage_mounts_json, code_repository_mounts_json
 ) VALUES (
 	$1, $2, $3, $4, $5, $6,
 	$7, $8, $9, $10, $11, $12, $13,
 	$14, $15, $16, $17, $18, $19,
-	$20, $21, $22
+	$20, $21, $22, $23
 )`,
 		task.ID, task.Org, task.Project, task.Domain, task.Name, task.Description,
 		task.ResourceSpecID, task.ResourceDisplay, task.CPU, task.Memory, task.GPUCount, task.GPUModel, task.Bandwidth,
 		task.Command, task.MaxRuntimeHours, task.ImageType, task.OfficialImageID, task.ImageName, task.ImageURI,
-		task.Creator, task.LatestRunName, task.CloudStorageMountsJSON)
+		task.Creator, task.LatestRunName, task.CloudStorageMountsJSON, task.CodeRepositoryMountsJSON)
 	if err != nil {
 		return fmt.Errorf("failed to create training task %s/%s/%s/%s: %w", task.Org, task.Project, task.Domain, task.ID, err)
 	}
@@ -76,12 +76,13 @@ UPDATE training_tasks SET
 	image_name = $18,
 	image_uri = $19,
 	cloud_storage_mounts_json = $20,
+	code_repository_mounts_json = $21,
 	updated_at = NOW()
 WHERE org = $1 AND project = $2 AND domain = $3 AND id = $4`,
 		task.Org, task.Project, task.Domain, task.ID,
 		task.Name, task.Description, task.ResourceSpecID, task.ResourceDisplay,
 		task.CPU, task.Memory, task.GPUCount, task.GPUModel, task.Bandwidth,
-		task.Command, task.MaxRuntimeHours, task.ImageType, task.OfficialImageID, task.ImageName, task.ImageURI, task.CloudStorageMountsJSON)
+		task.Command, task.MaxRuntimeHours, task.ImageType, task.OfficialImageID, task.ImageName, task.ImageURI, task.CloudStorageMountsJSON, task.CodeRepositoryMountsJSON)
 	if err != nil {
 		return fmt.Errorf("failed to update training task %s/%s/%s/%s: %w", task.Org, task.Project, task.Domain, task.ID, err)
 	}

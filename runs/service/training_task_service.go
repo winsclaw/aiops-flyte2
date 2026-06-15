@@ -12,6 +12,7 @@ import (
 
 	pluginutils "github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/pluginmachinery/utils"
 	cloudstoragepb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/cloudstorage"
+	coderepositorypb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/coderepository"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/common"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/task"
 	trainingtaskpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask"
@@ -276,6 +277,14 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 	if err != nil {
 		return nil, fmt.Errorf("cloud storage mounts are invalid: %w", err)
 	}
+	codeRepositoryMounts, err := trainingTaskCodeRepositoryMountsFromProto(input.GetCodeRepositoryMounts())
+	if err != nil {
+		return nil, err
+	}
+	codeRepositoryMountsJSON, err := models.EncodeTrainingTaskCodeRepositoryMounts(codeRepositoryMounts)
+	if err != nil {
+		return nil, fmt.Errorf("code repository mounts are invalid: %w", err)
+	}
 	return &models.TrainingTask{
 		TrainingTaskKey: models.TrainingTaskKey{
 			Org:     project.GetOrganization(),
@@ -283,24 +292,26 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 			Domain:  project.GetDomain(),
 			ID:      id,
 		},
-		Name:                   strings.TrimSpace(input.GetName()),
-		Description:            truncateShortDescription(input.GetDescription()),
-		ResourceSpecID:         spec.GetId(),
-		ResourceDisplay:        spec.GetDisplayLabel(),
-		CPU:                    spec.GetCpu(),
-		Memory:                 spec.GetMemory(),
-		GPUCount:               spec.GetGpuCount(),
-		GPUModel:               spec.GetGpuModel(),
-		Bandwidth:              spec.GetBandwidth(),
-		Command:                strings.TrimSpace(input.GetCommand()),
-		MaxRuntimeHours:        input.GetMaxRuntimeHours(),
-		ImageType:              imageType,
-		OfficialImageID:        officialImageID,
-		ImageName:              imageName,
-		ImageURI:               imageURI,
-		Creator:                creator,
-		CloudStorageMountsJSON: mountsJSON,
-		CloudStorageMounts:     mounts,
+		Name:                     strings.TrimSpace(input.GetName()),
+		Description:              truncateShortDescription(input.GetDescription()),
+		ResourceSpecID:           spec.GetId(),
+		ResourceDisplay:          spec.GetDisplayLabel(),
+		CPU:                      spec.GetCpu(),
+		Memory:                   spec.GetMemory(),
+		GPUCount:                 spec.GetGpuCount(),
+		GPUModel:                 spec.GetGpuModel(),
+		Bandwidth:                spec.GetBandwidth(),
+		Command:                  strings.TrimSpace(input.GetCommand()),
+		MaxRuntimeHours:          input.GetMaxRuntimeHours(),
+		ImageType:                imageType,
+		OfficialImageID:          officialImageID,
+		ImageName:                imageName,
+		ImageURI:                 imageURI,
+		Creator:                  creator,
+		CloudStorageMountsJSON:   mountsJSON,
+		CodeRepositoryMountsJSON: codeRepositoryMountsJSON,
+		CloudStorageMounts:       mounts,
+		CodeRepositoryMounts:     codeRepositoryMounts,
 	}, nil
 }
 
@@ -346,18 +357,19 @@ func trainingTaskModelToProto(model *models.TrainingTask) *trainingtaskpb.Traini
 			GpuModel:     model.GPUModel,
 			Bandwidth:    model.Bandwidth,
 		},
-		Command:            model.Command,
-		MaxRuntimeHours:    model.MaxRuntimeHours,
-		ImageType:          imageType,
-		OfficialImageId:    model.OfficialImageID,
-		ImageName:          model.ImageName,
-		ImageUri:           model.ImageURI,
-		Creator:            model.Creator,
-		LatestRunName:      model.LatestRunName,
-		Status:             status,
-		CloudStorageMounts: trainingTaskMountsToProto(model.SelectedCloudStorageMounts()),
-		CreatedAt:          timestamppb.New(model.CreatedAt),
-		UpdatedAt:          timestamppb.New(model.UpdatedAt),
+		Command:              model.Command,
+		MaxRuntimeHours:      model.MaxRuntimeHours,
+		ImageType:            imageType,
+		OfficialImageId:      model.OfficialImageID,
+		ImageName:            model.ImageName,
+		ImageUri:             model.ImageURI,
+		Creator:              model.Creator,
+		LatestRunName:        model.LatestRunName,
+		Status:               status,
+		CloudStorageMounts:   trainingTaskMountsToProto(model.SelectedCloudStorageMounts()),
+		CodeRepositoryMounts: trainingTaskCodeRepositoryMountsToProto(model.SelectedCodeRepositoryMounts()),
+		CreatedAt:            timestamppb.New(model.CreatedAt),
+		UpdatedAt:            timestamppb.New(model.UpdatedAt),
 	}
 }
 
@@ -425,6 +437,39 @@ func trainingTaskMountsToProto(mounts []models.TrainingTaskCloudStorageMount) []
 		result = append(result, &cloudstoragepb.CloudStorageMount{
 			CloudStorageId: mount.CloudStorageID,
 			MountPath:      mount.MountPath,
+		})
+	}
+	return result
+}
+
+func trainingTaskCodeRepositoryMountsFromProto(mounts []*coderepositorypb.CodeRepositoryMount) ([]models.TrainingTaskCodeRepositoryMount, error) {
+	if len(mounts) == 0 {
+		return nil, nil
+	}
+	result := make([]models.TrainingTaskCodeRepositoryMount, 0, len(mounts))
+	for _, mount := range mounts {
+		codeRepositoryID := strings.TrimSpace(mount.GetCodeRepositoryId())
+		mountPath := strings.TrimSpace(mount.GetMountPath())
+		if codeRepositoryID == "" || mountPath == "" {
+			return nil, fmt.Errorf("code repository id and mount path are required")
+		}
+		if !strings.HasPrefix(mountPath, "/") {
+			return nil, fmt.Errorf("code repository mount path must be absolute")
+		}
+		result = append(result, models.TrainingTaskCodeRepositoryMount{
+			CodeRepositoryID: codeRepositoryID,
+			MountPath:        mountPath,
+		})
+	}
+	return result, nil
+}
+
+func trainingTaskCodeRepositoryMountsToProto(mounts []models.TrainingTaskCodeRepositoryMount) []*coderepositorypb.CodeRepositoryMount {
+	result := make([]*coderepositorypb.CodeRepositoryMount, 0, len(mounts))
+	for _, mount := range mounts {
+		result = append(result, &coderepositorypb.CodeRepositoryMount{
+			CodeRepositoryId: mount.CodeRepositoryID,
+			MountPath:        mount.MountPath,
 		})
 	}
 	return result

@@ -2166,6 +2166,52 @@ func (_c *Repository_CloudStorageRepo_Call) RunAndReturn(run func() interfaces.C
 	return _c
 }
 
+// CodeRepositoryRepo provides a mock function for the type Repository
+func (_mock *Repository) CodeRepositoryRepo() interfaces.CodeRepositoryRepo {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for CodeRepositoryRepo")
+	}
+
+	var r0 interfaces.CodeRepositoryRepo
+	if returnFunc, ok := ret.Get(0).(func() interfaces.CodeRepositoryRepo); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(interfaces.CodeRepositoryRepo)
+		}
+	}
+	return r0
+}
+
+// Repository_CodeRepositoryRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CodeRepositoryRepo'
+type Repository_CodeRepositoryRepo_Call struct {
+	*mock.Call
+}
+
+// CodeRepositoryRepo is a helper method to define mock.On call
+func (_e *Repository_Expecter) CodeRepositoryRepo() *Repository_CodeRepositoryRepo_Call {
+	return &Repository_CodeRepositoryRepo_Call{Call: _e.mock.On("CodeRepositoryRepo")}
+}
+
+func (_c *Repository_CodeRepositoryRepo_Call) Run(run func()) *Repository_CodeRepositoryRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Repository_CodeRepositoryRepo_Call) Return(codeRepositoryRepo interfaces.CodeRepositoryRepo) *Repository_CodeRepositoryRepo_Call {
+	_c.Call.Return(codeRepositoryRepo)
+	return _c
+}
+
+func (_c *Repository_CodeRepositoryRepo_Call) RunAndReturn(run func() interfaces.CodeRepositoryRepo) *Repository_CodeRepositoryRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // TaskRepo provides a mock function for the type Repository
 func (_mock *Repository) TaskRepo() interfaces.TaskRepo {
 	ret := _mock.Called()

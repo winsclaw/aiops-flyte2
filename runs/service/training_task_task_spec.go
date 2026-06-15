@@ -43,6 +43,20 @@ func BuildTrainingTaskSpec(trainingTask *models.TrainingTask) (*task.TaskSpec, e
 		})
 	}
 
+	codeRepositoryMounts := make([]any, 0, len(trainingTask.SelectedCodeRepositoryMounts()))
+	for _, mount := range trainingTask.SelectedCodeRepositoryMounts() {
+		if mount.CodeRepositoryID == "" || mount.MountPath == "" {
+			return nil, fmt.Errorf("code repository mount %q is incomplete", mount.CodeRepositoryID)
+		}
+		codeRepositoryMounts = append(codeRepositoryMounts, map[string]any{
+			"id":        mount.CodeRepositoryID,
+			"repoUrl":   mount.RepoURL,
+			"branch":    mount.Branch,
+			"mountPath": mount.MountPath,
+			"token":     mount.Token,
+		})
+	}
+
 	customPayload := map[string]any{
 		"image":             trainingTask.ImageURI,
 		"command":           trainingTask.Command,
@@ -59,6 +73,9 @@ func BuildTrainingTaskSpec(trainingTask *models.TrainingTask) (*task.TaskSpec, e
 	}
 	if len(cloudStorageMounts) > 0 {
 		customPayload["cloudStorageMounts"] = cloudStorageMounts
+	}
+	if len(codeRepositoryMounts) > 0 {
+		customPayload["codeRepositories"] = codeRepositoryMounts
 	}
 
 	custom, err := structpb.NewStruct(customPayload)
