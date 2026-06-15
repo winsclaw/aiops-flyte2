@@ -618,6 +618,40 @@ func (m *TrainingTask) validate(all bool) error {
 
 	}
 
+	for idx, item := range m.GetCodeRepositoryMounts() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TrainingTaskValidationError{
+						field:  fmt.Sprintf("CodeRepositoryMounts[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TrainingTaskValidationError{
+						field:  fmt.Sprintf("CodeRepositoryMounts[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TrainingTaskValidationError{
+					field:  fmt.Sprintf("CodeRepositoryMounts[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if len(errors) > 0 {
 		return TrainingTaskMultiError(errors)
 	}

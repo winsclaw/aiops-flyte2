@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package flyteidl2.aione.coderepository;
+
+import "flyteidl2/aione/coderepository/code_repository_definition.proto";
+import "flyteidl2/common/identifier.proto";
+import "flyteidl2/common/list.proto";
+
+option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/coderepository";
+
+service CodeRepositoryService {
+  rpc CreateCodeRepository(CreateCodeRepositoryRequest) returns (CreateCodeRepositoryResponse) {}
+  rpc UpdateCodeRepository(UpdateCodeRepositoryRequest) returns (UpdateCodeRepositoryResponse) {}
+  rpc GetCodeRepository(GetCodeRepositoryRequest) returns (GetCodeRepositoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListCodeRepositories(ListCodeRepositoriesRequest) returns (ListCodeRepositoriesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc DeleteCodeRepository(DeleteCodeRepositoryRequest) returns (DeleteCodeRepositoryResponse) {}
+}
+
+message CodeRepositoryInput {
+  string repo_url = 1;
+  string branch = 2;
+  string mount_path = 3;
+  string token = 4;
+}
+
+message CreateCodeRepositoryRequest {
+  common.ProjectIdentifier project = 1;
+  CodeRepositoryInput code_repository = 2;
+  string creator = 3;
+}
+
+message CreateCodeRepositoryResponse {
+  CodeRepository code_repository = 1;
+}
+
+message UpdateCodeRepositoryRequest {
+  CodeRepositoryIdentifier id = 1;
+  CodeRepositoryInput code_repository = 2;
+}
+
+message UpdateCodeRepositoryResponse {
+  CodeRepository code_repository = 1;
+}
+
+message GetCodeRepositoryRequest {
+  CodeRepositoryIdentifier id = 1;
+}
+
+message GetCodeRepositoryResponse {
+  CodeRepository code_repository = 1;
+}
+
+message ListCodeRepositoriesRequest {
+  common.ListRequest request = 1;
+  common.ProjectIdentifier project = 2;
+}
+
+message ListCodeRepositoriesResponse {
+  repeated CodeRepository code_repositories = 1;
+  string token = 2;
+  uint32 total = 3;
+}
+
+message DeleteCodeRepositoryRequest {
+  CodeRepositoryIdentifier id = 1;
+}
+
+message DeleteCodeRepositoryResponse {}
