@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package flyteidl2.trainingtask;
+
+import "flyteidl2/common/identifier.proto";
+import "flyteidl2/common/list.proto";
+import "flyteidl2/trainingtask/training_task_definition.proto";
+
+option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask";
+
+service TrainingTaskService {
+  rpc ListTrainingTasks(ListTrainingTasksRequest) returns (ListTrainingTasksResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetTrainingTask(GetTrainingTaskRequest) returns (GetTrainingTaskResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc CreateTrainingTask(CreateTrainingTaskRequest) returns (CreateTrainingTaskResponse) {}
+  rpc UpdateTrainingTask(UpdateTrainingTaskRequest) returns (UpdateTrainingTaskResponse) {}
+  rpc DeleteTrainingTask(DeleteTrainingTaskRequest) returns (DeleteTrainingTaskResponse) {}
+  rpc StartTrainingTask(StartTrainingTaskRequest) returns (StartTrainingTaskResponse) {}
+  rpc StopTrainingTask(StopTrainingTaskRequest) returns (StopTrainingTaskResponse) {}
+  rpc ListResourceSpecs(ListResourceSpecsRequest) returns (ListResourceSpecsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListOfficialImages(ListOfficialImagesRequest) returns (ListOfficialImagesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message TrainingTaskInput {
+  string name = 1;
+  string description = 2;
+  string resource_spec_id = 3;
+  string command = 4;
+  uint32 max_runtime_hours = 5;
+  ImageType image_type = 6;
+  string official_image_id = 7;
+  string image_name = 8;
+  string image_uri = 9;
+}
+
+message ListTrainingTasksRequest {
+  common.ListRequest request = 1;
+  common.ProjectIdentifier project = 2;
+}
+
+message ListTrainingTasksResponse {
+  repeated TrainingTask training_tasks = 1;
+  string token = 2;
+  uint32 total = 3;
+}
+
+message GetTrainingTaskRequest {
+  TrainingTaskIdentifier id = 1;
+}
+
+message GetTrainingTaskResponse {
+  TrainingTask training_task = 1;
+}
+
+message CreateTrainingTaskRequest {
+  common.ProjectIdentifier project = 1;
+  TrainingTaskInput training_task = 2;
+  string creator = 3;
+}
+
+message CreateTrainingTaskResponse {
+  TrainingTask training_task = 1;
+}
+
+message UpdateTrainingTaskRequest {
+  TrainingTaskIdentifier id = 1;
+  TrainingTaskInput training_task = 2;
+}
+
+message UpdateTrainingTaskResponse {
+  TrainingTask training_task = 1;
+}
+
+message DeleteTrainingTaskRequest {
+  TrainingTaskIdentifier id = 1;
+}
+
+message DeleteTrainingTaskResponse {}
+
+message StartTrainingTaskRequest {
+  TrainingTaskIdentifier id = 1;
+}
+
+message StartTrainingTaskResponse {
+  TrainingTask training_task = 1;
+  string run_name = 2;
+}
+
+message StopTrainingTaskRequest {
+  TrainingTaskIdentifier id = 1;
+  string reason = 2;
+}
+
+message StopTrainingTaskResponse {
+  TrainingTask training_task = 1;
+}
+
+message ListResourceSpecsRequest {}
+
+message ListResourceSpecsResponse {
+  repeated ResourceSpec resource_specs = 1;
+}
+
+message ListOfficialImagesRequest {}
+
+message ListOfficialImagesResponse {
+  repeated OfficialImage official_images = 1;
+}
