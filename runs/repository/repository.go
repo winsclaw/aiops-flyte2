@@ -12,9 +12,10 @@ import (
 
 // repository implements the Repository interface
 type repository struct {
-	actionRepo  interfaces.ActionRepo
-	taskRepo    interfaces.TaskRepo
-	triggerRepo interfaces.TriggerRepo
+	actionRepo       interfaces.ActionRepo
+	taskRepo         interfaces.TaskRepo
+	triggerRepo      interfaces.TriggerRepo
+	trainingTaskRepo interfaces.TrainingTaskRepo
 }
 
 // NewRepository creates a new Repository instance
@@ -24,9 +25,10 @@ func NewRepository(db *sqlx.DB, dbConfig database.DbConfig) (interfaces.Reposito
 		return nil, fmt.Errorf("failed to create action repo: %w", err)
 	}
 	return &repository{
-		actionRepo:  actionRepo,
-		taskRepo:    impl.NewTaskRepo(db),
-		triggerRepo: impl.NewTriggerRepo(db),
+		actionRepo:       actionRepo,
+		taskRepo:         impl.NewTaskRepo(db),
+		triggerRepo:      impl.NewTriggerRepo(db),
+		trainingTaskRepo: impl.NewTrainingTaskRepo(db),
 	}, nil
 }
 
@@ -43,4 +45,9 @@ func (r *repository) TaskRepo() interfaces.TaskRepo {
 // TriggerRepo returns the trigger repository
 func (r *repository) TriggerRepo() interfaces.TriggerRepo {
 	return r.triggerRepo
+}
+
+// TrainingTaskRepo returns the training task repository
+func (r *repository) TrainingTaskRepo() interfaces.TrainingTaskRepo {
+	return r.trainingTaskRepo
 }
