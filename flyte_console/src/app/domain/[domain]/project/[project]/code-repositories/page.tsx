@@ -1,5 +1,5 @@
-import { CodeRepositoryListPage } from "@/components/pages/CodeRepositories/ListPage";
+import { CodeRepositoryFormPage } from "@/components/pages/CodeRepositories/FormPage";
 
 export default function Page() {
-  return <CodeRepositoryListPage />;
+  return <CodeRepositoryFormPage />;
 }

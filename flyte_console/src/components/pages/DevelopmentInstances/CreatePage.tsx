@@ -239,6 +239,13 @@ export function DevelopmentInstanceCreatePage() {
       setError("代码库挂载路径必须为绝对路径");
       return;
     }
+    const codeRepositoryMountPaths = new Set(
+      codeRepositoryMounts.map((mount) => mount.mountPath.trim()),
+    );
+    if (codeRepositoryMountPaths.size !== codeRepositoryMounts.length) {
+      setError("代码库挂载路径不能重复");
+      return;
+    }
 
     setIsSubmitting(true);
     try {

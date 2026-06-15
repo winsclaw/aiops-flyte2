@@ -43,10 +43,16 @@ export function validateTrainingTaskForm(values: TrainingTaskFormValues) {
       return "云存储挂载路径必须为绝对路径";
     }
   }
+  const codeRepositoryMountPaths = new Set<string>();
   for (const mount of values.codeRepositoryMounts) {
-    if (!mount.mountPath.trim().startsWith("/")) {
+    const mountPath = mount.mountPath.trim();
+    if (!mountPath.startsWith("/")) {
       return "代码库挂载路径必须为绝对路径";
     }
+    if (codeRepositoryMountPaths.has(mountPath)) {
+      return "代码库挂载路径不能重复";
+    }
+    codeRepositoryMountPaths.add(mountPath);
   }
   return "";
 }

@@ -74,6 +74,27 @@ describe("training task helpers", () => {
     ).toBe("请输入自定义镜像地址");
   });
 
+  it("rejects duplicate code repository mount paths", () => {
+    expect(
+      validateTrainingTaskForm({
+        name: "任务1",
+        description: "",
+        resourceSpecId: DEFAULT_RESOURCE_SPEC_ID,
+        command: "echo hello",
+        maxRuntimeHours: 1,
+        imageType: ImageType.OFFICIAL,
+        officialImageId: DEFAULT_OFFICIAL_IMAGE_ID,
+        imageName: "",
+        imageUri: "",
+        cloudStorageMounts: [],
+        codeRepositoryMounts: [
+          { codeRepositoryId: "repo-1", mountPath: "/workspace/aione" },
+          { codeRepositoryId: "repo-2", mountPath: "/workspace/aione" },
+        ],
+      }),
+    ).toBe("代码库挂载路径不能重复");
+  });
+
   it("maps training task status to Chinese labels", () => {
     expect(getTrainingTaskStatusText(TrainingTaskStatus.NOT_STARTED)).toBe(
       "未启动",
