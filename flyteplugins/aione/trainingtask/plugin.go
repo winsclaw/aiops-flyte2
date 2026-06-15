@@ -46,6 +46,11 @@ func (p *Plugin) Handle(ctx context.Context, tCtx pluginsCore.TaskExecutionConte
 		return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure("BadTaskSpecification", err.Error(), nil)), nil
 	}
 
+	if resources.CodeRepositorySecret != nil {
+		if _, err := p.ensureSecret(ctx, resources.CodeRepositorySecret); err != nil {
+			return pluginsCore.UnknownTransition, err
+		}
+	}
 	if _, err := p.ensurePVCs(ctx, resources.CloudStoragePVCs); err != nil {
 		return pluginsCore.UnknownTransition, err
 	}
@@ -94,6 +99,11 @@ func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContex
 	if err != nil {
 		return nil
 	}
+	if resources.CodeRepositorySecret != nil {
+		if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.CodeRepositorySecret)); err != nil {
+			return err
+		}
+	}
 	return ignoreNotFound(p.kubeClient.Delete(ctx, resources.Job))
 }
 
@@ -135,6 +145,22 @@ func (p *Plugin) ensurePVCs(ctx context.Context, pvcs []*corev1.PersistentVolume
 		created = true
 	}
 	return created, nil
+}
+
+func (p *Plugin) ensureSecret(ctx context.Context, secret *corev1.Secret) (bool, error) {
+	var existing corev1.Secret
+	if err := p.kubeClient.Get(ctx, client.ObjectKeyFromObject(secret), &existing); err == nil {
+		return false, nil
+	} else if !apierrors.IsNotFound(err) {
+		return false, err
+	}
+	if err := p.kubeClient.Create(ctx, secret); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func trainingIdentityFromMetadata(metadata pluginsCore.TaskExecutionMetadata) TrainingIdentity {

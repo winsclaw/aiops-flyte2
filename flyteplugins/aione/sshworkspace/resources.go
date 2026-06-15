@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	aionecoderepository "github.com/flyteorg/flyte/v2/flyteplugins/aione/coderepository"
 )
 
 const (
@@ -83,6 +85,13 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 			"authorized_keys": []byte(strings.Join(cfg.AuthorizedKeys, "\n") + "\n"),
 		},
 	}
+	if len(cfg.CodeRepositories) > 0 {
+		data, err := aionecoderepository.SecretValue(cfg.CodeRepositories)
+		if err != nil {
+			return WorkspaceResources{}, err
+		}
+		secret.Data[aionecoderepository.SecretKey] = data
+	}
 
 	var pvc *corev1.PersistentVolumeClaim
 	if cfg.WorkspaceSize != "" {
@@ -106,12 +115,16 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}
 
 	replicas := int32(1)
+	entrypoint := workspaceEntrypoint(cfg.SSHUser)
+	if len(cfg.CodeRepositories) > 0 {
+		entrypoint = aionecoderepository.CommandWithDownload(entrypoint)
+	}
 	container := corev1.Container{
 		Name:            "ssh",
 		Image:           cfg.Image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command:         []string{"/bin/sh", "-c"},
-		Args:            []string{workspaceEntrypoint(cfg.SSHUser)},
+		Args:            []string{entrypoint},
 		Ports: []corev1.ContainerPort{{
 			Name:          "ssh",
 			ContainerPort: 22,
@@ -134,6 +147,9 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 			InitialDelaySeconds: 3,
 			PeriodSeconds:       5,
 		},
+	}
+	if len(cfg.CodeRepositories) > 0 {
+		container.Env = append(container.Env, aionecoderepository.EnvVar(secretName))
 	}
 	if !cpu.IsZero() {
 		if container.Resources.Requests == nil {

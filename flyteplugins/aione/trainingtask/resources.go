@@ -10,6 +10,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	aionecoderepository "github.com/flyteorg/flyte/v2/flyteplugins/aione/coderepository"
 )
 
 const (
@@ -38,8 +40,9 @@ type TrainingIdentity struct {
 }
 
 type TrainingResources struct {
-	Job              *batchv1.Job
-	CloudStoragePVCs []*corev1.PersistentVolumeClaim
+	Job                  *batchv1.Job
+	CloudStoragePVCs     []*corev1.PersistentVolumeClaim
+	CodeRepositorySecret *corev1.Secret
 }
 
 func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingResources, error) {
@@ -83,12 +86,32 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 		annotations[annotationGPUModel] = cfg.GPUModel
 	}
 
+	resourceName := kubernetesNameBase(identity.Name)
+	codeRepositorySecretName := resourceName + "-code-repositories"
 	container := corev1.Container{
 		Name:            "training",
 		Image:           cfg.Image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command:         []string{"/bin/sh", "-c"},
 		Args:            []string{cfg.Command},
+	}
+	var codeRepositorySecret *corev1.Secret
+	if len(cfg.CodeRepositories) > 0 {
+		data, err := aionecoderepository.SecretValue(cfg.CodeRepositories)
+		if err != nil {
+			return TrainingResources{}, err
+		}
+		codeRepositorySecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      codeRepositorySecretName,
+				Namespace: identity.Namespace,
+				Labels:    labels,
+			},
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{aionecoderepository.SecretKey: data},
+		}
+		container.Env = append(container.Env, aionecoderepository.EnvVar(codeRepositorySecretName))
+		container.Args = []string{aionecoderepository.CommandWithDownload(cfg.Command)}
 	}
 	if !cpu.IsZero() {
 		if container.Resources.Requests == nil {
@@ -157,7 +180,6 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 		seconds := int64(cfg.MaxRuntimeHours) * 3600
 		activeDeadlineSeconds = &seconds
 	}
-	resourceName := kubernetesNameBase(identity.Name)
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        resourceName,
@@ -179,7 +201,7 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 		},
 	}
 
-	return TrainingResources{Job: job, CloudStoragePVCs: cloudPVCs}, nil
+	return TrainingResources{Job: job, CloudStoragePVCs: cloudPVCs, CodeRepositorySecret: codeRepositorySecret}, nil
 }
 
 func trainingLabels(identity TrainingIdentity) map[string]string {

@@ -7,6 +7,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 
+	aionecoderepository "github.com/flyteorg/flyte/v2/flyteplugins/aione/coderepository"
 	idlcore "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
 )
 
@@ -24,6 +25,7 @@ type WorkspaceConfig struct {
 	CodeServerNodePort *int32
 	Environment        map[string]string
 	CloudStorageMounts []CloudStorageMount
+	CodeRepositories   []CodeRepositoryMount
 }
 
 type CloudStorageMount struct {
@@ -33,6 +35,8 @@ type CloudStorageMount struct {
 	Size         string
 	MountPath    string
 }
+
+type CodeRepositoryMount = aionecoderepository.Mount
 
 func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 	if taskTemplate == nil {
@@ -114,6 +118,11 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 		return WorkspaceConfig{}, err
 	}
 	cfg.CloudStorageMounts = mounts
+	codeRepositories, err := aionecoderepository.ParseMounts(custom)
+	if err != nil {
+		return WorkspaceConfig{}, err
+	}
+	cfg.CodeRepositories = codeRepositories
 
 	return cfg, nil
 }

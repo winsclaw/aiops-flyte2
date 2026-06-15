@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -137,6 +138,35 @@ func TestBuildTrainingTaskModelIncludesCodeRepositoryMounts(t *testing.T) {
 	require.Equal(t, "repo-1", proto.GetCodeRepositoryMounts()[0].GetCodeRepositoryId())
 }
 
+func TestResolveTrainingTaskCodeRepositoryMounts(t *testing.T) {
+	repo := &fakeCodeRepositoryRepo{
+		items: map[string]*models.CodeRepository{
+			"repo-1": {
+				CodeRepositoryKey: models.CodeRepositoryKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "repo-1"},
+				RepoURL:           "https://git.fzyun.io/serverless/aione.git",
+				Branch:            "main",
+				MountPath:         "/workspace/default",
+				AccessToken:       "secret-token",
+			},
+		},
+	}
+	task := &models.TrainingTask{
+		TrainingTaskKey: models.TrainingTaskKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "train-1"},
+		CodeRepositoryMounts: []models.TrainingTaskCodeRepositoryMount{
+			{CodeRepositoryID: "repo-1", MountPath: "/workspace/override"},
+		},
+	}
+
+	err := resolveTrainingTaskCodeRepositoryMounts(context.Background(), repo, task)
+
+	require.NoError(t, err)
+	require.Len(t, task.CodeRepositoryMounts, 1)
+	require.Equal(t, "https://git.fzyun.io/serverless/aione.git", task.CodeRepositoryMounts[0].RepoURL)
+	require.Equal(t, "main", task.CodeRepositoryMounts[0].Branch)
+	require.Equal(t, "secret-token", task.CodeRepositoryMounts[0].Token)
+	require.Equal(t, "/workspace/override", task.CodeRepositoryMounts[0].MountPath)
+}
+
 func TestTrainingTaskServiceRejectsMissingCommand(t *testing.T) {
 	svc := NewTrainingTaskService(nil, nil)
 
@@ -155,4 +185,33 @@ func TestTrainingTaskServiceRejectsMissingCommand(t *testing.T) {
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "command")
+}
+
+type fakeCodeRepositoryRepo struct {
+	items map[string]*models.CodeRepository
+}
+
+func (r *fakeCodeRepositoryRepo) Create(context.Context, *models.CodeRepository) error {
+	return nil
+}
+
+func (r *fakeCodeRepositoryRepo) Get(_ context.Context, key models.CodeRepositoryKey) (*models.CodeRepository, error) {
+	repo := r.items[key.ID]
+	if repo == nil {
+		return nil, fmt.Errorf("not found")
+	}
+	copy := *repo
+	return &copy, nil
+}
+
+func (r *fakeCodeRepositoryRepo) Update(context.Context, *models.CodeRepository) error {
+	return nil
+}
+
+func (r *fakeCodeRepositoryRepo) Delete(context.Context, models.CodeRepositoryKey) error {
+	return nil
+}
+
+func (r *fakeCodeRepositoryRepo) List(context.Context, models.CodeRepositoryListInput) (*models.CodeRepositoryListResult, error) {
+	return nil, nil
 }

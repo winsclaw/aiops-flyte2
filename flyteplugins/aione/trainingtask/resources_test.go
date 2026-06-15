@@ -31,6 +31,13 @@ func TestParseConfigUsesTrainingTaskPayload(t *testing.T) {
 		"gpuModel":        "NVIDIA T4",
 		"bandwidth":       "1Gbps",
 		"maxRuntimeHours": float64(2),
+		"codeRepositories": []any{map[string]any{
+			"id":        "repo-1",
+			"repoUrl":   "https://git.fzyun.io/serverless/aione.git",
+			"branch":    "main",
+			"mountPath": "/workspace/aione",
+			"token":     "secret-token",
+		}},
 	})
 
 	cfg, err := ParseConfig(tmpl)
@@ -44,6 +51,9 @@ func TestParseConfigUsesTrainingTaskPayload(t *testing.T) {
 	assert.Equal(t, "NVIDIA T4", cfg.GPUModel)
 	assert.Equal(t, "1Gbps", cfg.Bandwidth)
 	assert.Equal(t, int32(2), cfg.MaxRuntimeHours)
+	require.Len(t, cfg.CodeRepositories, 1)
+	assert.Equal(t, "repo-1", cfg.CodeRepositories[0].ID)
+	assert.Equal(t, "/workspace/aione", cfg.CodeRepositories[0].MountPath)
 }
 
 func TestParseConfigRejectsMissingCommand(t *testing.T) {
@@ -145,6 +155,43 @@ func TestBuildResourcesAddsCloudStoragePVCMounts(t *testing.T) {
 	assert.True(t, hasPVCVolume(podSpec.Volumes, "cloud-storage-0", "storage-1-flyte"))
 	container := podSpec.Containers[0]
 	assert.True(t, hasVolumeMount(container.VolumeMounts, "cloud-storage-0", "/mnt/cloud/dataset"))
+}
+
+func TestBuildResourcesAddsCodeRepositoryDownloader(t *testing.T) {
+	cfg := TrainingConfig{
+		Image:   "busybox:1.36",
+		Command: "echo hello",
+		CPU:     "2",
+		Memory:  "4Gi",
+		CodeRepositories: []CodeRepositoryMount{{
+			ID:        "repo-1",
+			RepoURL:   "https://git.fzyun.io/serverless/aione.git",
+			Branch:    "main",
+			MountPath: "/workspace/aione",
+			Token:     "secret-token",
+		}},
+	}
+	identity := TrainingIdentity{
+		Namespace:  "flyte",
+		Name:       "run-abc",
+		RunName:    "run-abc",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	require.NotNil(t, resources.CodeRepositorySecret)
+	assert.Equal(t, "run-abc-code-repositories", resources.CodeRepositorySecret.Name)
+	assert.Contains(t, string(resources.CodeRepositorySecret.Data["code_repositories"]), "secret-token")
+
+	container := resources.Job.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, "AIONE_CODE_REPOSITORIES", container.Env[0].Name)
+	assert.Contains(t, container.Args[0], "download GitLab archive repositories")
+	assert.Contains(t, container.Args[0], "echo hello")
 }
 
 func hasPVCVolume(volumes []corev1.Volume, name, claimName string) bool {

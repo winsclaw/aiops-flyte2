@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	aionecoderepository "github.com/flyteorg/flyte/v2/flyteplugins/aione/coderepository"
 	idlcore "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -20,6 +21,7 @@ type TrainingConfig struct {
 	Bandwidth          string
 	MaxRuntimeHours    int32
 	CloudStorageMounts []CloudStorageMount
+	CodeRepositories   []CodeRepositoryMount
 }
 
 type CloudStorageMount struct {
@@ -29,6 +31,8 @@ type CloudStorageMount struct {
 	Size         string
 	MountPath    string
 }
+
+type CodeRepositoryMount = aionecoderepository.Mount
 
 func ParseConfig(taskTemplate *idlcore.TaskTemplate) (TrainingConfig, error) {
 	if taskTemplate == nil {
@@ -76,6 +80,11 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (TrainingConfig, error) {
 		return TrainingConfig{}, err
 	}
 	cfg.CloudStorageMounts = mounts
+	codeRepositories, err := aionecoderepository.ParseMounts(custom)
+	if err != nil {
+		return TrainingConfig{}, err
+	}
+	cfg.CodeRepositories = codeRepositories
 
 	return cfg, nil
 }

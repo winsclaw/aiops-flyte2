@@ -37,6 +37,13 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 		"environment": map[string]any{
 			"EXAMPLE": "value",
 		},
+		"codeRepositories": []any{map[string]any{
+			"id":        "repo-1",
+			"repoUrl":   "https://git.fzyun.io/serverless/aione.git",
+			"branch":    "main",
+			"mountPath": "/workspace/aione",
+			"token":     "secret-token",
+		}},
 	})
 
 	cfg, err := ParseConfig(tmpl)
@@ -54,6 +61,9 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	require.NotNil(t, cfg.CodeServerNodePort)
 	assert.Equal(t, int32(31080), *cfg.CodeServerNodePort)
 	assert.Equal(t, map[string]string{"EXAMPLE": "value"}, cfg.Environment)
+	require.Len(t, cfg.CodeRepositories, 1)
+	assert.Equal(t, "repo-1", cfg.CodeRepositories[0].ID)
+	assert.Equal(t, "/workspace/aione", cfg.CodeRepositories[0].MountPath)
 }
 
 func TestParseConfigRejectsMissingAuthorizedKeys(t *testing.T) {
@@ -188,6 +198,39 @@ func TestBuildResourcesAddsCloudStoragePVCMounts(t *testing.T) {
 	assert.True(t, hasVolumeMount(container.VolumeMounts, "cloud-storage-0", "/mnt/cloud/dataset"))
 }
 
+func TestBuildResourcesAddsCodeRepositoryDownloader(t *testing.T) {
+	cfg := WorkspaceConfig{
+		Image:          "ubuntu:22.04",
+		SSHUser:        "dev",
+		AuthorizedKeys: []string{"ssh-rsa AAAA user@example"},
+		ServiceType:    corev1.ServiceTypeClusterIP,
+		CodeRepositories: []CodeRepositoryMount{{
+			ID:        "repo-1",
+			RepoURL:   "https://git.fzyun.io/serverless/aione.git",
+			Branch:    "main",
+			MountPath: "/workspace/aione",
+			Token:     "secret-token",
+		}},
+	}
+	identity := WorkspaceIdentity{
+		Namespace:  "flyte",
+		Name:       "run-abc",
+		RunName:    "run-abc",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	assert.Contains(t, string(resources.Secret.Data["code_repositories"]), "secret-token")
+	container := resources.StatefulSet.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, "AIONE_CODE_REPOSITORIES", envName(container.Env, "AIONE_CODE_REPOSITORIES"))
+	assert.Contains(t, container.Args[0], "download GitLab archive repositories")
+}
+
 func TestBuildResourcesUsesValidKubernetesNamesWhenRunStartsWithDigit(t *testing.T) {
 	nodePort := int32(30222)
 	cfg := WorkspaceConfig{
@@ -242,6 +285,15 @@ func envValue(env []corev1.EnvVar, name string) string {
 	for _, e := range env {
 		if e.Name == name {
 			return e.Value
+		}
+	}
+	return ""
+}
+
+func envName(env []corev1.EnvVar, name string) string {
+	for _, e := range env {
+		if e.Name == name {
+			return e.Name
 		}
 	}
 	return ""

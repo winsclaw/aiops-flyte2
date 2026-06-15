@@ -167,6 +167,11 @@ func (s *TrainingTaskService) StartTrainingTask(ctx context.Context, req *connec
 	if err := s.resolveTrainingTaskCloudStorageMounts(ctx, model); err != nil {
 		return nil, err
 	}
+	if len(model.SelectedCodeRepositoryMounts()) > 0 {
+		if err := resolveTrainingTaskCodeRepositoryMounts(ctx, s.repo.CodeRepositoryRepo(), model); err != nil {
+			return nil, err
+		}
+	}
 	spec, err := BuildTrainingTaskSpec(model)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -473,6 +478,41 @@ func trainingTaskCodeRepositoryMountsToProto(mounts []models.TrainingTaskCodeRep
 		})
 	}
 	return result
+}
+
+func resolveTrainingTaskCodeRepositoryMounts(ctx context.Context, repo interfaces.CodeRepositoryRepo, task *models.TrainingTask) error {
+	selected := task.SelectedCodeRepositoryMounts()
+	if len(selected) == 0 {
+		return nil
+	}
+	if repo == nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("code repository repository is required"))
+	}
+	resolved := make([]models.TrainingTaskCodeRepositoryMount, 0, len(selected))
+	for _, mount := range selected {
+		codeRepo, err := repo.Get(ctx, models.CodeRepositoryKey{
+			Org:     task.Org,
+			Project: task.Project,
+			Domain:  task.Domain,
+			ID:      mount.CodeRepositoryID,
+		})
+		if err != nil {
+			return connect.NewError(connect.CodeNotFound, err)
+		}
+		mountPath := strings.TrimSpace(mount.MountPath)
+		if mountPath == "" {
+			mountPath = codeRepo.MountPath
+		}
+		resolved = append(resolved, models.TrainingTaskCodeRepositoryMount{
+			CodeRepositoryID: codeRepo.ID,
+			RepoURL:          codeRepo.RepoURL,
+			Branch:           codeRepo.Branch,
+			MountPath:        mountPath,
+			Token:            codeRepo.AccessToken,
+		})
+	}
+	task.CodeRepositoryMounts = resolved
+	return nil
 }
 
 func cloudStoragePVCName(id string) string {
