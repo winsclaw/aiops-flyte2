@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_NODE_PORT_RANGE,
+  DELETED_DEVELOPMENT_INSTANCE_REASON,
   buildCreateDevelopmentInstanceRequest,
   buildRunIdentifier,
   formatDevelopmentInstance,
@@ -10,6 +11,8 @@ import {
 import { ActionPhase } from "@/gen/flyteidl2/common/phase_pb";
 import { create } from "@bufbuild/protobuf";
 import {
+  AbortInfoSchema,
+  ActionDetailsSchema,
   ActionMetadataSchema,
   ActionSchema,
   RunSchema,
@@ -155,6 +158,31 @@ describe("development instance helpers", () => {
     expect(instance?.name).toBe("devbox-a");
     expect(instance?.owner).toBe("ljgong");
     expect(instance?.status).toBe(ActionPhase.RUNNING);
+  });
+
+  it("hides runs marked as deleted by the development instance console", () => {
+    const run = create(RunSchema, {
+      action: create(ActionSchema, {
+        id: {
+          run: create(RunIdentifierSchema, {
+            org: "testorg",
+            project: "flytesnacks",
+            domain: "development",
+            name: "devbox-a",
+          }),
+        },
+      }),
+    });
+    const actionDetails = create(ActionDetailsSchema, {
+      result: {
+        case: "abortInfo",
+        value: create(AbortInfoSchema, {
+          reason: DELETED_DEVELOPMENT_INSTANCE_REASON,
+        }),
+      },
+    });
+
+    expect(formatDevelopmentInstance(run, actionDetails)).toBeNull();
   });
 
   it("detects terminal phases and builds run identifiers", () => {

@@ -41,6 +41,9 @@ export const DEFAULT_NODE_PORT_RANGE = {
 export const DEFAULT_CODE_SERVER_IMAGE =
   "flyte-ssh-workspace-code-server:4.19.0";
 
+export const DELETED_DEVELOPMENT_INSTANCE_REASON =
+  "Deleted from development instance console";
+
 export type NodePortRange = typeof DEFAULT_NODE_PORT_RANGE;
 
 export type DevelopmentInstanceFormValues = {
@@ -261,6 +264,12 @@ export function formatDevelopmentInstance(
 ): DevelopmentInstance | null {
   const runId = run.action?.id?.run;
   if (!runId?.name) {
+    return null;
+  }
+  if (
+    actionDetails?.result.case === "abortInfo" &&
+    actionDetails.result.value.reason === DELETED_DEVELOPMENT_INSTANCE_REASON
+  ) {
     return null;
   }
 

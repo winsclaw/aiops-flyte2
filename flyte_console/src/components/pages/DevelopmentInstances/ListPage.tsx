@@ -32,6 +32,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DevelopmentInstance,
+  DELETED_DEVELOPMENT_INSTANCE_REASON,
   buildCreateDevelopmentInstanceRequest,
   buildRunIdentifier,
   formatDevelopmentInstance,
@@ -255,7 +256,7 @@ export function DevelopmentInstancesListPage() {
                   projectId.domain,
                   instance.runName,
                 ),
-                reason: "Deleted from development instance console",
+                reason: "Stopped before development instance deletion",
               }),
             )
             .catch(() => undefined);
@@ -276,6 +277,17 @@ export function DevelopmentInstancesListPage() {
           if (!response.ok) {
             throw new Error(await response.text());
           }
+          await runClient.abortRun(
+            create(AbortRunRequestSchema, {
+              runId: buildRunIdentifier(
+                projectId.organization,
+                projectId.name,
+                projectId.domain,
+                instance.runName,
+              ),
+              reason: DELETED_DEVELOPMENT_INSTANCE_REASON,
+            }),
+          );
         }),
       );
       setDeletedRuns((current) => new Set([...current, ...selected]));
