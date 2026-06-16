@@ -25,8 +25,8 @@ docs/                              # Human-facing project documentation
 Current deployment defaults:
 
 ```text
-Backend API and original console ingress: http://172.19.65.172:30080
-Source-built console NodePort:           http://172.19.65.172:30081/v2/projects
+Backend API and original console ingress: http://172.19.65.230:30080
+Source-built console NodePort:           http://172.19.65.230:30081/v2/projects
 Kubernetes namespace:                    flyte
 Remote host:                             aione-flyte2
 Remote checkout:                         /opt/aiops-flyte2
@@ -113,7 +113,7 @@ The full deployment script builds and deploys:
 Image:     flyte-binary-v2:ssh-workspace
 Release:   flyte-devbox
 Namespace: flyte
-Ingress:   http://172.19.65.172:30080
+Ingress:   http://172.19.65.230:30080
 ```
 
 For incremental backend-only rebuilds after k3s and Helm are already installed:
@@ -133,7 +133,7 @@ Backend verification:
 
 ```bash
 kubectl -n flyte get pod,svc
-curl -I http://172.19.65.172:30080/v2/projects
+curl -I http://172.19.65.230:30080/v2/projects
 ```
 
 API script checks from the local workspace:
@@ -211,7 +211,7 @@ kubectl -n flyte rollout restart deploy/flyte-console-extracted
 kubectl -n flyte rollout status deploy/flyte-console-extracted --timeout=180s
 kubectl -n flyte get pod -l app=flyte-console-extracted -o wide
 kubectl -n flyte logs deploy/flyte-console-extracted --tail=80
-curl -I http://172.19.65.172:30081/v2/projects
+curl -I http://172.19.65.230:30081/v2/projects
 ```
 
 Expected HTTP result:
@@ -227,7 +227,7 @@ Use Playwright CLI for visual checks. Save screenshots under `output/playwright/
 ```powershell
 cd D:\flyte-work
 
-npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify open http://172.19.65.172:30081/v2/projects
+npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify open http://172.19.65.230:30081/v2/projects
 npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify snapshot
 npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify console error
 npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify requests

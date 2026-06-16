@@ -302,12 +302,12 @@ export function formatDevelopmentInstance(
     statusLabel: getPhaseText(run.action?.status?.phase),
     runName: runId.name,
     sshCommand: nodePort
-      ? `ssh -p ${nodePort} ${sshUser}@172.19.65.172`
+      ? `ssh -p ${nodePort} ${sshUser}@172.19.65.230`
       : undefined,
     nodePort,
     codeServerNodePort,
     codeServerUrl: codeServerNodePort
-      ? `http://172.19.65.172:${codeServerNodePort}/?folder=/workspace`
+      ? `http://172.19.65.230:${codeServerNodePort}/?folder=/workspace`
       : undefined,
     image: typeof custom.image === "string" ? custom.image : undefined,
     custom,
