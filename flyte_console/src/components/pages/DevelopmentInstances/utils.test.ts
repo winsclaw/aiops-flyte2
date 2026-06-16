@@ -105,7 +105,7 @@ describe("development instance helpers", () => {
       maxHours: 24,
       cloudStorageMounts: [
         {
-          cloudStorageId: "cs-1",
+          id: "cs-1",
           pvcName: "cs-cs-1",
           storageClass: "bj1-ebs",
           size: "100Gi",

@@ -138,6 +138,16 @@ export function buildCreateDevelopmentInstanceRequest(
   values: DevelopmentInstanceFormValues,
 ) {
   const name = normalizeRunName(values.name);
+  const cloudStorageMounts = (values.cloudStorageMounts ?? []).map(
+    (mount) => ({
+      id: mount.cloudStorageId,
+      pvcName: mount.pvcName,
+      storageClass: mount.storageClass,
+      size: mount.size,
+      mountPath: mount.mountPath,
+    }),
+  );
+
   const custom = {
     image: values.image.trim(),
     sshUser: values.sshUser.trim(),
@@ -151,7 +161,7 @@ export function buildCreateDevelopmentInstanceRequest(
     description: values.description?.trim() ?? "",
     owner: values.owner?.trim() ?? "",
     maxHours: values.maxHours,
-    cloudStorageMounts: values.cloudStorageMounts ?? [],
+    cloudStorageMounts,
     codeRepositories: values.codeRepositories ?? [],
   };
 
