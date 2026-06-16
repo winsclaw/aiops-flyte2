@@ -38,6 +38,30 @@ func TestBuildTrainingTaskSpecUsesTrainingTaskPlugin(t *testing.T) {
 	require.Equal(t, float64(1), spec.GetTaskTemplate().GetCustom().GetFields()["maxRuntimeHours"].GetNumberValue())
 }
 
+func TestListResourceSpecsIncludesSmallCPUAndT4Specs(t *testing.T) {
+	svc := NewTrainingTaskService(nil, nil)
+
+	response, err := svc.ListResourceSpecs(context.Background(), connect.NewRequest(&trainingtaskpb.ListResourceSpecsRequest{}))
+
+	require.NoError(t, err)
+	specs := response.Msg.GetResourceSpecs()
+	require.Contains(t, resourceSpecLabels(specs), "1vCPU, 2GiB RAM, 1Gbps")
+	require.Contains(t, resourceSpecLabels(specs), "1vCPU, 2GiB RAM, 1*NVIDIA T4, 1Gbps")
+
+	cpuSpec := resourceSpecByIDForTest(specs, "cpu-1c-2g")
+	require.NotNil(t, cpuSpec)
+	require.Equal(t, "1", cpuSpec.GetCpu())
+	require.Equal(t, "2Gi", cpuSpec.GetMemory())
+	require.Equal(t, uint32(0), cpuSpec.GetGpuCount())
+
+	t4Spec := resourceSpecByIDForTest(specs, "t4-1c-2g-1x")
+	require.NotNil(t, t4Spec)
+	require.Equal(t, "1", t4Spec.GetCpu())
+	require.Equal(t, "2Gi", t4Spec.GetMemory())
+	require.Equal(t, uint32(1), t4Spec.GetGpuCount())
+	require.Equal(t, "NVIDIA T4", t4Spec.GetGpuModel())
+}
+
 func TestBuildTrainingTaskSpecIncludesCloudStorageMounts(t *testing.T) {
 	spec, err := BuildTrainingTaskSpec(&models.TrainingTask{
 		TrainingTaskKey: models.TrainingTaskKey{
@@ -72,6 +96,23 @@ func TestBuildTrainingTaskSpecIncludesCloudStorageMounts(t *testing.T) {
 	require.Equal(t, "bj1-ebs", fields["storageClass"].GetStringValue())
 	require.Equal(t, "100Gi", fields["size"].GetStringValue())
 	require.Equal(t, "/mnt/storage", fields["mountPath"].GetStringValue())
+}
+
+func resourceSpecLabels(specs []*trainingtaskpb.ResourceSpec) []string {
+	labels := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		labels = append(labels, spec.GetDisplayLabel())
+	}
+	return labels
+}
+
+func resourceSpecByIDForTest(specs []*trainingtaskpb.ResourceSpec, id string) *trainingtaskpb.ResourceSpec {
+	for _, spec := range specs {
+		if spec.GetId() == id {
+			return spec
+		}
+	}
+	return nil
 }
 
 func TestBuildTrainingTaskSpecIncludesCodeRepositories(t *testing.T) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_NODE_PORT_RANGE,
+  DEVELOPMENT_INSTANCE_RESOURCE_SPECS,
   DELETED_DEVELOPMENT_INSTANCE_REASON,
   buildCreateDevelopmentInstanceRequest,
   buildRunIdentifier,
@@ -28,6 +29,28 @@ import {
 } from "@/gen/flyteidl2/common/identity_pb";
 
 describe("development instance helpers", () => {
+  it("offers small 1c2g resource specs with and without T4", () => {
+    expect(DEVELOPMENT_INSTANCE_RESOURCE_SPECS).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          cpu: "1",
+          memory: "2Gi",
+          workspaceSize: "20Gi",
+          gpuCount: 0,
+          label: "1vCPU, 2GiB RAM, 20Gi 工作区",
+        }),
+        expect.objectContaining({
+          cpu: "1",
+          memory: "2Gi",
+          workspaceSize: "20Gi",
+          gpuCount: 1,
+          gpuModel: "NVIDIA T4",
+          label: "1vCPU, 2GiB RAM, 1*NVIDIA T4, 20Gi 工作区",
+        }),
+      ]),
+    );
+  });
+
   it("allocates the first unused default NodePort", () => {
     expect(getNextNodePort([31000, 31001], DEFAULT_NODE_PORT_RANGE)).toBe(
       31002,
@@ -60,6 +83,8 @@ describe("development instance helpers", () => {
       cpu: "2",
       memory: "4Gi",
       workspaceSize: "20Gi",
+      gpuCount: 1,
+      gpuModel: "NVIDIA T4",
       nodePort: 31022,
       codeServerNodePort: 31023,
       maxHours: 24,
@@ -97,6 +122,8 @@ describe("development instance helpers", () => {
       cpu: "2",
       memory: "4Gi",
       workspaceSize: "20Gi",
+      gpuCount: 1,
+      gpuModel: "NVIDIA T4",
       serviceType: "NodePort",
       nodePort: 31022,
       codeServerNodePort: 31023,

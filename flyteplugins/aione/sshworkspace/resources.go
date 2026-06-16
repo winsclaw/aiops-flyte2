@@ -23,6 +23,9 @@ const (
 	labelDomain        = "flyte.org/domain"
 	labelOrg           = "flyte.org/org"
 	labelActionName    = "flyte.org/action-name"
+	labelGPUModel      = "flyte.org/gpu-model"
+
+	annotationGPUModel = "flyte.org/gpu-model"
 
 	maxGeneratedNameBaseLength = 63 - len("-workspace")
 )
@@ -54,6 +57,13 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}
 
 	labels := workspaceLabels(identity)
+	if cfg.GPUModel != "" {
+		labels[labelGPUModel] = sanitizeLabelValue(cfg.GPUModel)
+	}
+	annotations := map[string]string{}
+	if cfg.GPUModel != "" {
+		annotations[annotationGPUModel] = cfg.GPUModel
+	}
 	resourceName := kubernetesNameBase(identity.Name)
 	secretName := resourceName + "-ssh"
 	pvcName := resourceName + "-workspace"
@@ -163,6 +173,17 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		}
 		container.Resources.Requests[corev1.ResourceMemory] = memory
 	}
+	if cfg.GPUCount > 0 {
+		gpu := resource.MustParse(fmt.Sprintf("%d", cfg.GPUCount))
+		if container.Resources.Requests == nil {
+			container.Resources.Requests = corev1.ResourceList{}
+		}
+		if container.Resources.Limits == nil {
+			container.Resources.Limits = corev1.ResourceList{}
+		}
+		container.Resources.Requests[corev1.ResourceName("nvidia.com/gpu")] = gpu
+		container.Resources.Limits[corev1.ResourceName("nvidia.com/gpu")] = gpu
+	}
 
 	volumes := []corev1.Volume{{
 		Name: "ssh-keys",
@@ -230,9 +251,10 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      resourceName,
-			Namespace: identity.Namespace,
-			Labels:    labels,
+			Name:        resourceName,
+			Namespace:   identity.Namespace,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
@@ -241,7 +263,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 				MatchLabels: map[string]string{labelWorkspaceName: identity.Name},
 			},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				ObjectMeta: metav1.ObjectMeta{Labels: labels, Annotations: annotations},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{container},
 					Volumes:    volumes,
@@ -377,6 +399,11 @@ func shortNameHash(value string) string {
 	hash := fnv.New32a()
 	_, _ = hash.Write([]byte(value))
 	return fmt.Sprintf("%08x", hash.Sum32())
+}
+
+func sanitizeLabelValue(value string) string {
+	cleaned := strings.NewReplacer(" ", "-", "/", "-", "_", "-").Replace(strings.TrimSpace(value))
+	return strings.Trim(cleaned, "-")
 }
 
 func workspaceEntrypoint(sshUser string) string {

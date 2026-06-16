@@ -30,6 +30,8 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 		"authorizedKeys":     []any{"ssh-rsa AAAA user@example"},
 		"cpu":                "1",
 		"memory":             "2Gi",
+		"gpuCount":           float64(1),
+		"gpuModel":           "NVIDIA T4",
 		"workspaceSize":      "20Gi",
 		"serviceType":        "NodePort",
 		"nodePort":           float64(30222),
@@ -54,6 +56,8 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	assert.Equal(t, []string{"ssh-rsa AAAA user@example"}, cfg.AuthorizedKeys)
 	assert.Equal(t, "1", cfg.CPU)
 	assert.Equal(t, "2Gi", cfg.Memory)
+	assert.Equal(t, int32(1), cfg.GPUCount)
+	assert.Equal(t, "NVIDIA T4", cfg.GPUModel)
 	assert.Equal(t, "20Gi", cfg.WorkspaceSize)
 	assert.Equal(t, corev1.ServiceTypeNodePort, cfg.ServiceType)
 	require.NotNil(t, cfg.NodePort)
@@ -101,6 +105,8 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 		AuthorizedKeys:     []string{"ssh-rsa AAAA user@example"},
 		CPU:                "1",
 		Memory:             "2Gi",
+		GPUCount:           1,
+		GPUModel:           "NVIDIA T4",
 		WorkspaceSize:      "20Gi",
 		ServiceType:        corev1.ServiceTypeNodePort,
 		NodePort:           &nodePort,
@@ -139,6 +145,10 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Contains(t, container.Args[0], "code-server")
 	assert.Contains(t, container.Args[0], "useradd")
 	assert.Equal(t, "value", envValue(container.Env, "EXAMPLE"))
+	gpuLimit := container.Resources.Limits[corev1.ResourceName("nvidia.com/gpu")]
+	assert.Equal(t, "1", gpuLimit.String())
+	assert.Equal(t, "NVIDIA-T4", sts.Labels[labelGPUModel])
+	assert.Equal(t, "NVIDIA T4", sts.Annotations[annotationGPUModel])
 	require.Len(t, container.Ports, 2)
 	assert.Equal(t, int32(22), container.Ports[0].ContainerPort)
 	assert.Equal(t, int32(8080), container.Ports[1].ContainerPort)

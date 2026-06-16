@@ -44,6 +44,61 @@ export const DEFAULT_CODE_SERVER_IMAGE =
 export const DELETED_DEVELOPMENT_INSTANCE_REASON =
   "Deleted from development instance console";
 
+export type DevelopmentInstanceResourceSpec = {
+  id: string;
+  label: string;
+  cpu: string;
+  memory: string;
+  workspaceSize: string;
+  gpuCount: number;
+  gpuModel?: string;
+};
+
+export const DEVELOPMENT_INSTANCE_RESOURCE_SPECS: DevelopmentInstanceResourceSpec[] =
+  [
+    {
+      id: "cpu-1c-2g-20g",
+      label: "1vCPU, 2GiB RAM, 20Gi 工作区",
+      cpu: "1",
+      memory: "2Gi",
+      workspaceSize: "20Gi",
+      gpuCount: 0,
+    },
+    {
+      id: "t4-1c-2g-20g",
+      label: "1vCPU, 2GiB RAM, 1*NVIDIA T4, 20Gi 工作区",
+      cpu: "1",
+      memory: "2Gi",
+      workspaceSize: "20Gi",
+      gpuCount: 1,
+      gpuModel: "NVIDIA T4",
+    },
+    {
+      id: "cpu-2c-4g-20g",
+      label: "2vCPU, 4GiB RAM, 20Gi 工作区",
+      cpu: "2",
+      memory: "4Gi",
+      workspaceSize: "20Gi",
+      gpuCount: 0,
+    },
+    {
+      id: "cpu-4c-8g-50g",
+      label: "4vCPU, 8GiB RAM, 50Gi 工作区",
+      cpu: "4",
+      memory: "8Gi",
+      workspaceSize: "50Gi",
+      gpuCount: 0,
+    },
+    {
+      id: "cpu-8c-16g-100g",
+      label: "8vCPU, 16GiB RAM, 100Gi 工作区",
+      cpu: "8",
+      memory: "16Gi",
+      workspaceSize: "100Gi",
+      gpuCount: 0,
+    },
+  ];
+
 export type NodePortRange = typeof DEFAULT_NODE_PORT_RANGE;
 
 export type DevelopmentInstanceFormValues = {
@@ -58,6 +113,8 @@ export type DevelopmentInstanceFormValues = {
   authorizedKey: string;
   cpu: string;
   memory: string;
+  gpuCount?: number;
+  gpuModel?: string;
   workspaceSize: string;
   nodePort: number;
   codeServerNodePort: number;
@@ -138,15 +195,13 @@ export function buildCreateDevelopmentInstanceRequest(
   values: DevelopmentInstanceFormValues,
 ) {
   const name = normalizeRunName(values.name);
-  const cloudStorageMounts = (values.cloudStorageMounts ?? []).map(
-    (mount) => ({
-      id: mount.cloudStorageId,
-      pvcName: mount.pvcName,
-      storageClass: mount.storageClass,
-      size: mount.size,
-      mountPath: mount.mountPath,
-    }),
-  );
+  const cloudStorageMounts = (values.cloudStorageMounts ?? []).map((mount) => ({
+    id: mount.cloudStorageId,
+    pvcName: mount.pvcName,
+    storageClass: mount.storageClass,
+    size: mount.size,
+    mountPath: mount.mountPath,
+  }));
 
   const custom = {
     image: values.image.trim(),
@@ -154,6 +209,8 @@ export function buildCreateDevelopmentInstanceRequest(
     authorizedKeys: [values.authorizedKey.trim()],
     cpu: values.cpu.trim(),
     memory: values.memory.trim(),
+    gpuCount: values.gpuCount ?? 0,
+    gpuModel: values.gpuModel?.trim() ?? "",
     workspaceSize: values.workspaceSize.trim(),
     serviceType: "NodePort",
     nodePort: values.nodePort,
@@ -293,9 +350,18 @@ export function formatDevelopmentInstance(
   const sshUser = typeof custom.sshUser === "string" ? custom.sshUser : "dev";
   const cpu = typeof custom.cpu === "string" ? custom.cpu : "";
   const memory = typeof custom.memory === "string" ? custom.memory : "";
+  const gpuCount =
+    typeof custom.gpuCount === "number" ? Number(custom.gpuCount) : 0;
+  const gpuModel = typeof custom.gpuModel === "string" ? custom.gpuModel : "";
   const workspaceSize =
     typeof custom.workspaceSize === "string" ? custom.workspaceSize : "";
-  const resourceSummary = [cpu && `${cpu}vCPU`, memory, workspaceSize]
+  const gpuSummary = gpuCount > 0 && gpuModel ? `${gpuCount}*${gpuModel}` : "";
+  const resourceSummary = [
+    cpu && `${cpu}vCPU`,
+    memory,
+    gpuSummary,
+    workspaceSize,
+  ]
     .filter(Boolean)
     .join(", ");
 

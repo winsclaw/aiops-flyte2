@@ -11,6 +11,8 @@ const (
 )
 
 var trainingTaskResourceSpecs = []*trainingtaskpb.ResourceSpec{
+	{Id: "cpu-1c-2g", DisplayLabel: "1vCPU, 2GiB RAM, 1Gbps", Cpu: "1", Memory: "2Gi", GpuCount: 0, GpuModel: "", Bandwidth: "1Gbps"},
+	{Id: "t4-1c-2g-1x", DisplayLabel: "1vCPU, 2GiB RAM, 1*NVIDIA T4, 1Gbps", Cpu: "1", Memory: "2Gi", GpuCount: 1, GpuModel: "NVIDIA T4", Bandwidth: "1Gbps"},
 	{Id: "rtx5090-8c-64g-1x", DisplayLabel: "8vCPU, 64GiB RAM, 1*NVIDIA RTX 5090, 1Gbps", Cpu: "8", Memory: "64Gi", GpuCount: 1, GpuModel: "NVIDIA RTX 5090", Bandwidth: "1Gbps"},
 	{Id: "rtx5090-16c-128g-2x", DisplayLabel: "16vCPU, 128GiB RAM, 2*NVIDIA RTX 5090, 1Gbps", Cpu: "16", Memory: "128Gi", GpuCount: 2, GpuModel: "NVIDIA RTX 5090", Bandwidth: "1Gbps"},
 	{Id: "rtx5090-32c-256g-4x", DisplayLabel: "32vCPU, 256GiB RAM, 4*NVIDIA RTX 5090, 1Gbps", Cpu: "32", Memory: "256Gi", GpuCount: 4, GpuModel: "NVIDIA RTX 5090", Bandwidth: "1Gbps"},

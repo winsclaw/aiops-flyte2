@@ -19,6 +19,8 @@ type WorkspaceConfig struct {
 	AuthorizedKeys     []string
 	CPU                string
 	Memory             string
+	GPUCount           int32
+	GPUModel           string
 	WorkspaceSize      string
 	ServiceType        corev1.ServiceType
 	NodePort           *int32
@@ -53,9 +55,19 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 		SSHUser:       stringValue(values, "sshUser", "dev"),
 		CPU:           stringValue(values, "cpu", ""),
 		Memory:        stringValue(values, "memory", ""),
+		GPUModel:      stringValue(values, "gpuModel", ""),
 		WorkspaceSize: stringValue(values, "workspaceSize", ""),
 		ServiceType:   corev1.ServiceTypeClusterIP,
 		Environment:   map[string]string{},
+	}
+
+	if gpuCount, ok, err := int32Value(values, "gpuCount"); err != nil {
+		return WorkspaceConfig{}, err
+	} else if ok {
+		if gpuCount < 0 {
+			return WorkspaceConfig{}, fmt.Errorf("gpuCount must be non-negative")
+		}
+		cfg.GPUCount = gpuCount
 	}
 
 	if serviceType := stringValue(values, "serviceType", "ClusterIP"); serviceType != "" {
