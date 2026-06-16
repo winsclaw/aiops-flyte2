@@ -152,6 +152,9 @@ rustfs:
   ingress:
     enabled: false
   image:
+    initImage:
+      repository: docker.fzyun.io/library/busybox
+      tag: stable
     repository: rustfs/rustfs
     tag: sandbox
   service:
@@ -162,6 +165,8 @@ rustfs:
     rustfs:
       access_key: rustfs
       secret_key: rustfsstorage
+  storageclass:
+    name: bj1-ebs
 
 postgresql:
   fullnameOverride: postgresql
