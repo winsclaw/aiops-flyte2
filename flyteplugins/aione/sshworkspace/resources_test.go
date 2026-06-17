@@ -158,6 +158,11 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	container := sts.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "ssh", container.Name)
 	assert.Equal(t, "ubuntu:22.04", container.Image)
+	require.NotNil(t, container.SecurityContext)
+	require.NotNil(t, container.SecurityContext.RunAsUser)
+	require.NotNil(t, container.SecurityContext.RunAsGroup)
+	assert.Equal(t, int64(0), *container.SecurityContext.RunAsUser)
+	assert.Equal(t, int64(0), *container.SecurityContext.RunAsGroup)
 	assert.Contains(t, container.Command, "/bin/sh")
 	assert.Contains(t, container.Args[0], "/usr/sbin/sshd -D -e")
 	assert.Contains(t, container.Args[0], "code-server")

@@ -127,6 +127,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}
 
 	replicas := int32(1)
+	rootUser := int64(0)
 	entrypoint := workspaceEntrypoint(cfg.SSHUser)
 	if len(cfg.CodeRepositories) > 0 {
 		entrypoint = aionecoderepository.CommandWithDownload(entrypoint)
@@ -137,6 +138,10 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command:         []string{"/bin/sh", "-c"},
 		Args:            []string{entrypoint},
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser:  &rootUser,
+			RunAsGroup: &rootUser,
+		},
 		Ports: []corev1.ContainerPort{{
 			Name:          "ssh",
 			ContainerPort: 22,
