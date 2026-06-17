@@ -19,6 +19,7 @@ import {
   DEFAULT_AIONE_STORAGE_CLASS,
   RegistryCredentials,
   authenticateAioneRequest,
+  buildAioneInstanceAccessInfo,
   buildAioneInstanceValues,
   buildDockerConfigJson,
   buildWorkspaceLabels,
@@ -103,7 +104,7 @@ async function createInstance(payload: unknown) {
 
     try {
       const client = createFlyteRunClient();
-      const run = await client.createRun(
+      await client.createRun(
         buildCreateDevelopmentInstanceRequest(mapped.values),
       );
       return NextResponse.json(
@@ -119,6 +120,19 @@ async function createInstance(payload: unknown) {
             org: mapped.values.sourceOrg,
             id: mapped.values.sourceInstanceId,
           },
+          instance: buildAioneInstanceAccessInfo({
+            runName: mapped.runName,
+            sourceName: mapped.values.sourceName ?? "",
+            sshUser: mapped.values.sshUser,
+            nodePort,
+            codeServerNodePort,
+            cpu: mapped.values.cpu,
+            memory: mapped.values.memory,
+            gpuCount: mapped.values.gpuCount,
+            workspaceSize: mapped.values.workspaceSize,
+            publicScheme: process.env.EXTERNAL_API_PUBLIC_SCHEME,
+            publicHost: process.env.EXTERNAL_API_PUBLIC_HOST,
+          }),
         },
         { status: 201 },
       );

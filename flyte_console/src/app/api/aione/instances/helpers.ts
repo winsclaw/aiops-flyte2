@@ -11,6 +11,8 @@ import {
 export const DEFAULT_AIONE_INTERNAL_ORG = "aione";
 export const DEFAULT_AIONE_STORAGE_CLASS = "bj1-ebs";
 export const AIONE_RUNTIME_NAMESPACE = "flyte";
+export const DEFAULT_EXTERNAL_API_PUBLIC_SCHEME = "http";
+export const DEFAULT_EXTERNAL_API_PUBLIC_HOST = "172.19.65.230";
 
 type ExternalImageType = "BASE" | "OWN";
 
@@ -73,6 +75,20 @@ export type BuildAioneInstanceValuesInput = {
   internalOrg?: string;
   defaultStorageClass?: string;
   defaultAuthorizedKey?: string;
+};
+
+export type BuildAioneInstanceAccessInfoInput = {
+  runName: string;
+  sourceName: string;
+  sshUser: string;
+  nodePort: number;
+  codeServerNodePort: number;
+  cpu: string;
+  memory: string;
+  gpuCount: number;
+  workspaceSize: string;
+  publicScheme?: string;
+  publicHost?: string;
 };
 
 export function authenticateAioneRequest(
@@ -219,6 +235,47 @@ export function buildDockerConfigJson(credentials: RegistryCredentials) {
       },
     },
   });
+}
+
+export function buildAioneInstanceAccessInfo({
+  runName,
+  sourceName,
+  sshUser,
+  nodePort,
+  codeServerNodePort,
+  cpu,
+  memory,
+  gpuCount,
+  workspaceSize,
+  publicScheme = DEFAULT_EXTERNAL_API_PUBLIC_SCHEME,
+  publicHost = DEFAULT_EXTERNAL_API_PUBLIC_HOST,
+}: BuildAioneInstanceAccessInfoInput) {
+  const scheme = publicScheme.trim() || DEFAULT_EXTERNAL_API_PUBLIC_SCHEME;
+  const host = publicHost.trim() || DEFAULT_EXTERNAL_API_PUBLIC_HOST;
+  const codeServerUrl = `${scheme}://${host}:${codeServerNodePort}`;
+  return {
+    id: runName,
+    name: sourceName,
+    status: "CREATED",
+    ssh: {
+      user: sshUser,
+      host,
+      port: nodePort,
+      command: `ssh -p ${nodePort} ${sshUser}@${host}`,
+    },
+    codeServer: {
+      host,
+      port: codeServerNodePort,
+      url: codeServerUrl,
+      workspaceUrl: `${codeServerUrl}/?folder=/workspace`,
+    },
+    resources: {
+      cpu,
+      memory,
+      gpu: gpuCount,
+      workspaceSize,
+    },
+  };
 }
 
 export function buildExternalSecretName(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   authenticateAioneRequest,
+  buildAioneInstanceAccessInfo,
   buildAioneInstanceValues,
   buildDockerConfigJson,
   buildExternalSecretName,
@@ -184,5 +185,64 @@ describe("aione external instance helpers", () => {
         "image",
       ).length,
     ).toBeLessThanOrEqual(63);
+  });
+
+  it("builds external SSH and code-server access information", () => {
+    expect(
+      buildAioneInstanceAccessInfo({
+        runName: "ins-5ud29xk04tmc6e4ufe8083dvn0",
+        sourceName: "开发实例一",
+        sshUser: "dev",
+        nodePort: 31004,
+        codeServerNodePort: 31005,
+        cpu: "2",
+        memory: "4Gi",
+        gpuCount: 0,
+        workspaceSize: "20Gi",
+        publicScheme: "http",
+        publicHost: "172.19.65.230",
+      }),
+    ).toEqual({
+      id: "ins-5ud29xk04tmc6e4ufe8083dvn0",
+      name: "开发实例一",
+      status: "CREATED",
+      ssh: {
+        user: "dev",
+        host: "172.19.65.230",
+        port: 31004,
+        command: "ssh -p 31004 dev@172.19.65.230",
+      },
+      codeServer: {
+        host: "172.19.65.230",
+        port: 31005,
+        url: "http://172.19.65.230:31005",
+        workspaceUrl: "http://172.19.65.230:31005/?folder=/workspace",
+      },
+      resources: {
+        cpu: "2",
+        memory: "4Gi",
+        gpu: 0,
+        workspaceSize: "20Gi",
+      },
+    });
+  });
+
+  it("defaults external access URLs to the deployed NodePort host", () => {
+    const access = buildAioneInstanceAccessInfo({
+      runName: "ins-default",
+      sourceName: "",
+      sshUser: "dev",
+      nodePort: 31004,
+      codeServerNodePort: 31005,
+      cpu: "2",
+      memory: "4Gi",
+      gpuCount: 0,
+      workspaceSize: "20Gi",
+    });
+
+    expect(access.codeServer.url).toBe("http://172.19.65.230:31005");
+    expect(access.codeServer.workspaceUrl).toBe(
+      "http://172.19.65.230:31005/?folder=/workspace",
+    );
   });
 });

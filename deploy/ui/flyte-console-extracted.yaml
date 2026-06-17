@@ -79,6 +79,10 @@ spec:
               value: aione
             - name: EXTERNAL_API_DEFAULT_STORAGE_CLASS
               value: bj1-ebs
+            - name: EXTERNAL_API_PUBLIC_SCHEME
+              value: http
+            - name: EXTERNAL_API_PUBLIC_HOST
+              value: 172.19.65.230
             - name: EXTERNAL_API_KEYS
               valueFrom:
                 secretKeyRef:
