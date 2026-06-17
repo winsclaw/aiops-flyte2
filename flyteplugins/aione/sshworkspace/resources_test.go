@@ -25,17 +25,20 @@ func taskTemplateWithCustom(t *testing.T, values map[string]any) *idlcore.TaskTe
 
 func TestParseConfigUsesCustomPayload(t *testing.T) {
 	tmpl := taskTemplateWithCustom(t, map[string]any{
-		"image":              "ubuntu:22.04",
-		"sshUser":            "dev",
-		"authorizedKeys":     []any{"ssh-rsa AAAA user@example"},
-		"cpu":                "1",
-		"memory":             "2Gi",
-		"gpuCount":           float64(1),
-		"gpuModel":           "NVIDIA T4",
-		"workspaceSize":      "20Gi",
-		"serviceType":        "NodePort",
-		"nodePort":           float64(30222),
-		"codeServerNodePort": float64(31080),
+		"image":                    "ubuntu:22.04",
+		"sshUser":                  "dev",
+		"authorizedKeys":           []any{"ssh-rsa AAAA user@example"},
+		"cpu":                      "1",
+		"memory":                   "2Gi",
+		"gpuCount":                 float64(1),
+		"gpuModel":                 "NVIDIA T4",
+		"workspaceSize":            "20Gi",
+		"serviceType":              "NodePort",
+		"nodePort":                 float64(30222),
+		"codeServerNodePort":       float64(31080),
+		"imagePullSecretName":      "workspace-image-pull",
+		"codeRepositorySecretName": "workspace-code-repos",
+		"gpuNodeLabelKey":          "nvidia.com/gpu.present",
 		"environment": map[string]any{
 			"EXAMPLE": "value",
 		},
@@ -59,6 +62,9 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	assert.Equal(t, int32(1), cfg.GPUCount)
 	assert.Equal(t, "NVIDIA T4", cfg.GPUModel)
 	assert.Equal(t, "20Gi", cfg.WorkspaceSize)
+	assert.Equal(t, "workspace-image-pull", cfg.ImagePullSecretName)
+	assert.Equal(t, "workspace-code-repos", cfg.CodeRepositorySecretName)
+	assert.Equal(t, "nvidia.com/gpu.present", cfg.GPUNodeLabelKey)
 	assert.Equal(t, corev1.ServiceTypeNodePort, cfg.ServiceType)
 	require.NotNil(t, cfg.NodePort)
 	assert.Equal(t, int32(30222), *cfg.NodePort)
@@ -176,6 +182,52 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, int32(8080), svc.Spec.Ports[1].Port)
 	assert.Equal(t, int32(31080), svc.Spec.Ports[1].NodePort)
 	assert.Equal(t, "run-abc", svc.Spec.Selector[labelWorkspaceName])
+}
+
+func TestBuildResourcesUsesExternalSecretsAndGPUNodeLabel(t *testing.T) {
+	cfg := WorkspaceConfig{
+		Image:                    "docker.fzyun.io/founder/aione.ide:1.0.0.60",
+		ImagePullSecretName:      "workspace-image-pull",
+		CodeRepositorySecretName: "workspace-code-repos",
+		GPUNodeLabelKey:          "nvidia.com/gpu.present",
+		SSHUser:                  "dev",
+		AuthorizedKeys:           []string{"ssh-rsa AAAA user@example"},
+		ServiceType:              corev1.ServiceTypeClusterIP,
+		CodeRepositories: []CodeRepositoryMount{{
+			ID:        "repo-1",
+			RepoURL:   "https://git.fzyun.io/serverless/aione.git",
+			Branch:    "main",
+			MountPath: "/workspace/aione",
+		}},
+	}
+	identity := WorkspaceIdentity{
+		Namespace:  "flyte",
+		Name:       "run-abc",
+		RunName:    "run-abc",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "aione",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	assert.NotContains(t, resources.Secret.Data, "code_repositories")
+	podSpec := resources.StatefulSet.Spec.Template.Spec
+	require.Len(t, podSpec.ImagePullSecrets, 1)
+	assert.Equal(t, "workspace-image-pull", podSpec.ImagePullSecrets[0].Name)
+	require.NotNil(t, podSpec.Affinity)
+	require.NotNil(t, podSpec.Affinity.NodeAffinity)
+	terms := podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+	require.Len(t, terms, 1)
+	require.Len(t, terms[0].MatchExpressions, 1)
+	assert.Equal(t, "nvidia.com/gpu.present", terms[0].MatchExpressions[0].Key)
+	assert.Equal(t, corev1.NodeSelectorOpExists, terms[0].MatchExpressions[0].Operator)
+	container := podSpec.Containers[0]
+	require.Len(t, container.Env, 1)
+	assert.Equal(t, "AIONE_CODE_REPOSITORIES", container.Env[0].Name)
+	assert.Equal(t, "workspace-code-repos", container.Env[0].ValueFrom.SecretKeyRef.Name)
 }
 
 func TestBuildResourcesAddsCloudStoragePVCMounts(t *testing.T) {

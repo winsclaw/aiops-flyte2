@@ -56,11 +56,15 @@ export async function requestKubernetes({
   method = "GET",
   token,
   ca,
+  body,
+  headers = {},
 }: {
   url: string;
   method?: string;
   token: string;
   ca: string;
+  body?: string;
+  headers?: Record<string, string>;
 }) {
   const target = new URL(url);
   return new Promise<{
@@ -80,6 +84,7 @@ export async function requestKubernetes({
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
+          ...headers,
         },
       },
       (res) => {
@@ -98,6 +103,9 @@ export async function requestKubernetes({
       },
     );
     req.on("error", reject);
+    if (body) {
+      req.write(body);
+    }
     req.end();
   });
 }

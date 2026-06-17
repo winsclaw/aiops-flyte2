@@ -132,6 +132,14 @@ export type DevelopmentInstanceFormValues = {
   nodePort: number;
   codeServerNodePort: number;
   maxHours: number;
+  imagePullSecretName?: string;
+  codeRepositorySecretName?: string;
+  gpuNodeLabelKey?: string;
+  sourceOrg?: string;
+  sourceInstanceId?: string;
+  sourceName?: string;
+  sourceSystem?: string;
+  baseImageMountPath?: string;
   cloudStorageMounts?: {
     cloudStorageId: string;
     pvcName: string;
@@ -239,6 +247,14 @@ export function buildCreateDevelopmentInstanceRequest(
     description: values.description?.trim() ?? "",
     owner: values.owner?.trim() ?? "",
     maxHours: values.maxHours,
+    imagePullSecretName: values.imagePullSecretName?.trim() ?? "",
+    codeRepositorySecretName: values.codeRepositorySecretName?.trim() ?? "",
+    gpuNodeLabelKey: values.gpuNodeLabelKey?.trim() ?? "",
+    sourceOrg: values.sourceOrg?.trim() ?? "",
+    sourceInstanceId: values.sourceInstanceId?.trim() ?? "",
+    sourceName: values.sourceName?.trim() ?? "",
+    sourceSystem: values.sourceSystem?.trim() ?? "",
+    baseImageMountPath: values.baseImageMountPath?.trim() ?? "",
     cloudStorageMounts,
     codeRepositories: values.codeRepositories ?? [],
   };

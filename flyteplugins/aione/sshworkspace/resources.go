@@ -96,11 +96,13 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		},
 	}
 	if len(cfg.CodeRepositories) > 0 {
-		data, err := aionecoderepository.SecretValue(cfg.CodeRepositories)
-		if err != nil {
-			return WorkspaceResources{}, err
+		if cfg.CodeRepositorySecretName == "" {
+			data, err := aionecoderepository.SecretValue(cfg.CodeRepositories)
+			if err != nil {
+				return WorkspaceResources{}, err
+			}
+			secret.Data[aionecoderepository.SecretKey] = data
 		}
-		secret.Data[aionecoderepository.SecretKey] = data
 	}
 
 	var pvc *corev1.PersistentVolumeClaim
@@ -159,7 +161,11 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		},
 	}
 	if len(cfg.CodeRepositories) > 0 {
-		container.Env = append(container.Env, aionecoderepository.EnvVar(secretName))
+		repositorySecretName := secretName
+		if cfg.CodeRepositorySecretName != "" {
+			repositorySecretName = cfg.CodeRepositorySecretName
+		}
+		container.Env = append(container.Env, aionecoderepository.EnvVar(repositorySecretName))
 	}
 	if !cpu.IsZero() {
 		if container.Resources.Requests == nil {
@@ -270,6 +276,25 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 				},
 			},
 		},
+	}
+	if cfg.ImagePullSecretName != "" {
+		sts.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{
+			Name: cfg.ImagePullSecretName,
+		}}
+	}
+	if cfg.GPUNodeLabelKey != "" {
+		sts.Spec.Template.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{{
+							Key:      cfg.GPUNodeLabelKey,
+							Operator: corev1.NodeSelectorOpExists,
+						}},
+					}},
+				},
+			},
+		}
 	}
 
 	sshServicePort := corev1.ServicePort{

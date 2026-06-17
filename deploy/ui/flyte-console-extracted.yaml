@@ -16,7 +16,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["pods", "services", "secrets"]
-    verbs: ["get", "list", "watch", "delete", "deletecollection"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
   - apiGroups: ["apps"]
     resources: ["statefulsets"]
     verbs: ["get", "list", "delete", "deletecollection"]
@@ -73,6 +73,24 @@ spec:
               value: "3000"
             - name: FLYTE_API_ORIGIN
               value: http://flyte-binary-http.flyte.svc.cluster.local:8090
+            - name: UNION_ORG_OVERRIDE
+              value: aione
+            - name: EXTERNAL_API_FLYTE_ORG
+              value: aione
+            - name: EXTERNAL_API_DEFAULT_STORAGE_CLASS
+              value: bj1-ebs
+            - name: EXTERNAL_API_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: flyte-console-external-api
+                  key: api-keys
+                  optional: true
+            - name: EXTERNAL_API_DEFAULT_AUTHORIZED_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: flyte-console-external-api
+                  key: authorized-key
+                  optional: true
           ports:
             - name: http
               containerPort: 8080

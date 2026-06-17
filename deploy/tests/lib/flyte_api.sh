@@ -198,6 +198,54 @@ print(json.dumps(payload, separators=(",", ":")))
 ' "$org" "$project" "$domain" "$image" "$command"
 }
 
+build_aione_instance_payload() {
+  local source_org="$1"
+  local project="$2"
+  local domain="$3"
+  local name="$4"
+  local instance_id="$5"
+  local authorized_key="$6"
+  local image="$7"
+  local timeout_hours="$8"
+  local cpu="$9"
+  local memory="${10}"
+
+  python_json -c '
+import json, sys
+source_org, project, domain, name, instance_id, authorized_key, image, timeout_hours, cpu, memory = sys.argv[1:11]
+payload = {
+    "org": source_org,
+    "project": project,
+    "domain": domain,
+    "name": name,
+    "id": instance_id,
+    "timeout": int(timeout_hours),
+    "authorizedKey": authorized_key,
+    "imageType": "BASE",
+    "baseImage": {
+        "image": image,
+        "mountPath": "/data/lib1",
+    },
+    "codes": [],
+    "datastores": [],
+    "resourceDefinition": {
+        "cpu": cpu,
+        "memory": memory,
+    },
+}
+print(json.dumps(payload, separators=(",", ":")))
+' "$source_org" "$project" "$domain" "$name" "$instance_id" "$authorized_key" "$image" "$timeout_hours" "$cpu" "$memory"
+}
+
+parse_aione_instance_run_id() {
+  python_json -c '
+import json, sys
+data = json.load(sys.stdin)
+run = data["run"]
+print("/".join([run["org"], run["project"], run["domain"], run["name"]]))
+' <<<"$1"
+}
+
 flyte_buf_curl() {
   local endpoint="$1"
   local procedure="$2"

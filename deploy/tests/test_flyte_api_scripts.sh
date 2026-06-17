@@ -29,6 +29,7 @@ assert_file_contains() {
 assert_file_contains "$ROOT_DIR/tests/start_ssh_workspace.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
 assert_file_contains "$ROOT_DIR/tests/start_ml_task.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
 assert_file_contains "$ROOT_DIR/tests/get_run_status.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
+assert_file_contains "$ROOT_DIR/tests/start_aione_instance.sh" "API_PATH=\"\${API_PATH:-/v2/api/aione/instances}\""
 
 json_get() {
   local json="$1"
@@ -114,5 +115,15 @@ assert_eq "30222" "$(json_get "$payload" "taskSpec.taskTemplate.custom.nodePort"
 ml_payload="$(build_ml_task_payload "testorg" "flytesnacks" "development" "python:3.12" "python -m timeit")"
 assert_eq "container" "$(json_get "$ml_payload" "taskSpec.taskTemplate.type")" "ml task type"
 assert_eq "python:3.12" "$(json_get "$ml_payload" "taskSpec.taskTemplate.container.image")" "ml image"
+
+aione_payload="$(build_aione_instance_payload \
+  "external-org" "aione" "development" "External Dev" "ins-123" \
+  "ssh-rsa AAAA user@example" "docker.fzyun.io/founder/aione.ide:1.0.0.60" "1" "2" "4Gi")"
+assert_eq "external-org" "$(json_get "$aione_payload" "org")" "aione source org"
+assert_eq "BASE" "$(json_get "$aione_payload" "imageType")" "aione image type"
+assert_eq "/data/lib1" "$(json_get "$aione_payload" "baseImage.mountPath")" "aione base image mount path"
+
+aione_response='{"ok":true,"run":{"org":"aione","project":"aione","domain":"development","name":"ins-123"},"source":{"org":"external-org","id":"ins-123"}}'
+assert_eq "aione/aione/development/ins-123" "$(parse_aione_instance_run_id "$aione_response")" "parse aione instance run id"
 
 printf 'PASS tests/test_flyte_api_scripts.sh\n'

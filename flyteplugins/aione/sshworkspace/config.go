@@ -18,20 +18,23 @@ const (
 )
 
 type WorkspaceConfig struct {
-	Image              string
-	SSHUser            string
-	AuthorizedKeys     []string
-	CPU                string
-	Memory             string
-	GPUCount           int32
-	GPUModel           string
-	WorkspaceSize      string
-	ServiceType        corev1.ServiceType
-	NodePort           *int32
-	CodeServerNodePort *int32
-	Environment        map[string]string
-	CloudStorageMounts []CloudStorageMount
-	CodeRepositories   []CodeRepositoryMount
+	Image                    string
+	ImagePullSecretName      string
+	SSHUser                  string
+	AuthorizedKeys           []string
+	CPU                      string
+	Memory                   string
+	GPUCount                 int32
+	GPUModel                 string
+	GPUNodeLabelKey          string
+	WorkspaceSize            string
+	ServiceType              corev1.ServiceType
+	NodePort                 *int32
+	CodeServerNodePort       *int32
+	Environment              map[string]string
+	CloudStorageMounts       []CloudStorageMount
+	CodeRepositories         []CodeRepositoryMount
+	CodeRepositorySecretName string
 }
 
 type CloudStorageMount struct {
@@ -55,14 +58,16 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 
 	values := custom.AsMap()
 	cfg := WorkspaceConfig{
-		Image:         stringValue(values, "image", DefaultWorkspaceImage),
-		SSHUser:       stringValue(values, "sshUser", DefaultWorkspaceSSHUser),
-		CPU:           stringValue(values, "cpu", ""),
-		Memory:        stringValue(values, "memory", ""),
-		GPUModel:      stringValue(values, "gpuModel", ""),
-		WorkspaceSize: stringValue(values, "workspaceSize", ""),
-		ServiceType:   corev1.ServiceTypeClusterIP,
-		Environment:   map[string]string{},
+		Image:               stringValue(values, "image", DefaultWorkspaceImage),
+		ImagePullSecretName: stringValue(values, "imagePullSecretName", ""),
+		SSHUser:             stringValue(values, "sshUser", DefaultWorkspaceSSHUser),
+		CPU:                 stringValue(values, "cpu", ""),
+		Memory:              stringValue(values, "memory", ""),
+		GPUModel:            stringValue(values, "gpuModel", ""),
+		GPUNodeLabelKey:     stringValue(values, "gpuNodeLabelKey", ""),
+		WorkspaceSize:       stringValue(values, "workspaceSize", ""),
+		ServiceType:         corev1.ServiceTypeClusterIP,
+		Environment:         map[string]string{},
 	}
 
 	if gpuCount, ok, err := int32Value(values, "gpuCount"); err != nil {
@@ -139,6 +144,7 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 		return WorkspaceConfig{}, err
 	}
 	cfg.CodeRepositories = codeRepositories
+	cfg.CodeRepositorySecretName = stringValue(values, "codeRepositorySecretName", "")
 
 	return cfg, nil
 }
