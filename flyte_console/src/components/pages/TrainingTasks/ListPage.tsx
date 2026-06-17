@@ -46,6 +46,14 @@ type ProjectDomainParams = {
 const buttonClass =
   "inline-flex h-9 items-center justify-center gap-2 border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
 
+function getListStatusMessage(statusMessage?: string) {
+  const message = statusMessage?.trim();
+  if (!message) {
+    return "";
+  }
+  return message.split(/[:：]/, 1)[0].trim() || message;
+}
+
 export function StatusPill({
   status,
   statusMessage,
@@ -56,6 +64,9 @@ export function StatusPill({
   const isError = status === TrainingTaskStatus.FAILED;
   const isRunning = status === TrainingTaskStatus.RUNNING;
   const isSuccess = status === TrainingTaskStatus.SUCCEEDED;
+  const listStatusMessage = isError
+    ? getListStatusMessage(statusMessage)
+    : "";
   return (
     <span
       className={clsx(
@@ -82,9 +93,9 @@ export function StatusPill({
         )}
       />
       {getTrainingTaskStatusText(status)}
-      {isError && statusMessage && (
+      {listStatusMessage && (
         <span className="max-w-48 truncate text-zinc-500 dark:text-zinc-400">
-          {statusMessage}
+          {listStatusMessage}
         </span>
       )}
     </span>
