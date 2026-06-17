@@ -59,7 +59,8 @@ describe("aione external instance helpers", () => {
       runNameSuffix: "r1",
     });
 
-    expect(mapped.runName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-r1");
+    expect(mapped.runName).toMatch(/-r1$/);
+    expect(mapped.runName.length).toBeLessThanOrEqual(30);
     expect(mapped.sourceInstanceId).toBe("ins-og2bgwm130xq3o6uk3h4956la6");
     expect(mapped.workspacePVCName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-workspace");
     expect(mapped.values.org).toBe("aione");
@@ -123,8 +124,8 @@ describe("aione external instance helpers", () => {
 
     expect(first.sourceInstanceId).toBe(second.sourceInstanceId);
     expect(first.runName).not.toBe(second.runName);
-    expect(first.runName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-r1");
-    expect(second.runName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-r2");
+    expect(first.runName).toMatch(/-r1$/);
+    expect(second.runName).toMatch(/-r2$/);
     expect(first.workspacePVCName).toBe(second.workspacePVCName);
     expect(first.values.workspacePVCName).toBe(second.values.workspacePVCName);
     expect(first.values.cloudStorageMounts?.[0]?.pvcName).toBe(
@@ -134,7 +135,7 @@ describe("aione external instance helpers", () => {
     expect(first.values.codeRepositorySecretName).toBe(
       second.values.codeRepositorySecretName,
     );
-    expect(first.runName.length).toBeLessThanOrEqual(63);
+    expect(first.runName.length).toBeLessThanOrEqual(30);
     expect(buildAioneInstanceConfigMapName(first.sourceInstanceId).length).toBeLessThanOrEqual(253);
   });
 

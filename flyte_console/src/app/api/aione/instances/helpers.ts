@@ -429,9 +429,9 @@ export function buildAioneInstanceRecord({
 
 function buildRestartableRunName(sourceBaseName: string, suffix?: string) {
   const resolvedSuffix =
-    normalizeRunName(suffix ?? `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) ||
+    normalizeRunName(suffix ?? `r${Math.random().toString(36).slice(2, 5)}`) ||
     "r";
-  return buildNameWithSuffix(sourceBaseName, resolvedSuffix, 63);
+  return buildNameWithSuffix(sourceBaseName, resolvedSuffix, 30);
 }
 
 function buildStablePVCName(sourceBaseName: string, suffix: string) {

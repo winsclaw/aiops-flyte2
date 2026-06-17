@@ -83,6 +83,23 @@ async function createInstance(payload: unknown) {
       token,
       ca,
     });
+    const baseMapped = buildAioneInstanceValues({
+      payload: payload as Parameters<typeof buildAioneInstanceValues>[0]["payload"],
+      nodePort,
+      codeServerNodePort,
+      internalOrg,
+      defaultStorageClass,
+      defaultAuthorizedKey,
+      runNameSuffix: "r0",
+    });
+    const existingRecord = await readAioneInstanceRecord(
+      { apiOrigin, namespace, token, ca },
+      baseMapped.sourceInstanceId,
+    );
+    if (isAioneInstanceActive(existingRecord?.status)) {
+      throw statusError("instance is already running", 409);
+    }
+    const generation = nextAioneInstanceGeneration(existingRecord);
     const mapped = buildAioneInstanceValues({
       payload: payload as Parameters<typeof buildAioneInstanceValues>[0]["payload"],
       nodePort,
@@ -90,15 +107,8 @@ async function createInstance(payload: unknown) {
       internalOrg,
       defaultStorageClass,
       defaultAuthorizedKey,
+      runNameSuffix: `r${generation}`,
     });
-    const existingRecord = await readAioneInstanceRecord(
-      { apiOrigin, namespace, token, ca },
-      mapped.sourceInstanceId,
-    );
-    if (isAioneInstanceActive(existingRecord?.status)) {
-      throw statusError("instance is already running", 409);
-    }
-    const generation = nextAioneInstanceGeneration(existingRecord);
     const now = new Date().toISOString();
     const startingRecord = buildAioneInstanceRecord({
       sourceInstanceId: mapped.sourceInstanceId,
