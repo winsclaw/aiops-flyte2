@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   authenticateAioneRequest,
+  buildAioneCreateInstanceResponse,
   buildAioneInstanceAccessInfo,
   buildAioneInstanceValues,
   buildDockerConfigJson,
@@ -244,5 +245,48 @@ describe("aione external instance helpers", () => {
     expect(access.codeServer.workspaceUrl).toBe(
       "http://172.19.65.230:31005/?folder=/workspace",
     );
+  });
+
+  it("wraps successful create results in the external API response shape", () => {
+    const info = buildAioneInstanceAccessInfo({
+      runName: "ins-2024ad6h4e4x036u9u5j31ec89",
+      sourceName: "实例2",
+      sshUser: "dev",
+      nodePort: 31006,
+      codeServerNodePort: 31007,
+      cpu: "2",
+      memory: "4Gi",
+      gpuCount: 0,
+      workspaceSize: "20Gi",
+      publicScheme: "http",
+      publicHost: "172.19.65.230",
+    });
+
+    expect(
+      buildAioneCreateInstanceResponse({
+        internalOrg: "aione",
+        project: "aione",
+        domain: "development",
+        runName: "ins-2024ad6h4e4x036u9u5j31ec89",
+        sourceOrg: "",
+        sourceInstanceId: "ins-2024ad6h4e4x036u9u5j31ec89",
+        info,
+      }),
+    ).toEqual({
+      status: 200,
+      data: {
+        run: {
+          org: "aione",
+          project: "aione",
+          domain: "development",
+          name: "ins-2024ad6h4e4x036u9u5j31ec89",
+        },
+        source: {
+          org: "",
+          id: "ins-2024ad6h4e4x036u9u5j31ec89",
+        },
+        info,
+      },
+    });
   });
 });

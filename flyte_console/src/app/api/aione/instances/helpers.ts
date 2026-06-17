@@ -91,6 +91,18 @@ export type BuildAioneInstanceAccessInfoInput = {
   publicHost?: string;
 };
 
+export type AioneInstanceAccessInfo = ReturnType<typeof buildAioneInstanceAccessInfo>;
+
+export type BuildAioneCreateInstanceResponseInput = {
+  internalOrg: string;
+  project: string;
+  domain: string;
+  runName: string;
+  sourceOrg: string;
+  sourceInstanceId: string;
+  info: AioneInstanceAccessInfo;
+};
+
 export function authenticateAioneRequest(
   headers: Headers,
   configuredKeys: string[] | string | undefined,
@@ -274,6 +286,33 @@ export function buildAioneInstanceAccessInfo({
       memory,
       gpu: gpuCount,
       workspaceSize,
+    },
+  };
+}
+
+export function buildAioneCreateInstanceResponse({
+  internalOrg,
+  project,
+  domain,
+  runName,
+  sourceOrg,
+  sourceInstanceId,
+  info,
+}: BuildAioneCreateInstanceResponseInput) {
+  return {
+    status: 200,
+    data: {
+      run: {
+        org: internalOrg,
+        project,
+        domain,
+        name: runName,
+      },
+      source: {
+        org: sourceOrg,
+        id: sourceInstanceId,
+      },
+      info,
     },
   };
 }

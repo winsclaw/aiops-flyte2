@@ -19,6 +19,7 @@ import {
   DEFAULT_AIONE_STORAGE_CLASS,
   RegistryCredentials,
   authenticateAioneRequest,
+  buildAioneCreateInstanceResponse,
   buildAioneInstanceAccessInfo,
   buildAioneInstanceValues,
   buildDockerConfigJson,
@@ -108,19 +109,14 @@ async function createInstance(payload: unknown) {
         buildCreateDevelopmentInstanceRequest(mapped.values),
       );
       return NextResponse.json(
-        {
-          ok: true,
-          run: {
-            org: internalOrg,
-            project: mapped.values.project,
-            domain: mapped.values.domain,
-            name: mapped.runName,
-          },
-          source: {
-            org: mapped.values.sourceOrg,
-            id: mapped.values.sourceInstanceId,
-          },
-          instance: buildAioneInstanceAccessInfo({
+        buildAioneCreateInstanceResponse({
+          internalOrg,
+          project: mapped.values.project,
+          domain: mapped.values.domain,
+          runName: mapped.runName,
+          sourceOrg: mapped.values.sourceOrg ?? "",
+          sourceInstanceId: mapped.values.sourceInstanceId ?? "",
+          info: buildAioneInstanceAccessInfo({
             runName: mapped.runName,
             sourceName: mapped.values.sourceName ?? "",
             sshUser: mapped.values.sshUser,
@@ -133,8 +129,8 @@ async function createInstance(payload: unknown) {
             publicScheme: process.env.EXTERNAL_API_PUBLIC_SCHEME,
             publicHost: process.env.EXTERNAL_API_PUBLIC_HOST,
           }),
-        },
-        { status: 201 },
+        }),
+        { status: 200 },
       );
     } catch (error) {
       if (isAlreadyExists(error)) {
