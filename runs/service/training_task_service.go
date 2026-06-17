@@ -434,11 +434,31 @@ func trainingTaskStatusMessage(
 		return ""
 	}
 	eventModel, err := actionRepo.GetLatestEventByAttempt(ctx, actionID, action.Attempts)
-	if err != nil || eventModel == nil {
+	if err == nil && eventModel != nil {
+		if event, err := eventModel.ToActionEvent(); err == nil {
+			if message := actionEventStatusMessage(event); message != "" {
+				return message
+			}
+		}
+	}
+	eventModels, err := actionRepo.ListEvents(ctx, actionID, 500)
+	if err != nil {
 		return ""
 	}
-	event, err := eventModel.ToActionEvent()
-	if err != nil {
+	for i := len(eventModels) - 1; i >= 0; i-- {
+		event, err := eventModels[i].ToActionEvent()
+		if err != nil || event.GetPhase() != common.ActionPhase_ACTION_PHASE_FAILED {
+			continue
+		}
+		if message := actionEventStatusMessage(event); message != "" {
+			return message
+		}
+	}
+	return ""
+}
+
+func actionEventStatusMessage(event *workflow.ActionEvent) string {
+	if event == nil || event.GetErrorInfo() == nil {
 		return ""
 	}
 	return normalizeTrainingTaskStatusMessage(event.GetErrorInfo().GetMessage())

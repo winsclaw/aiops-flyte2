@@ -151,6 +151,93 @@ func TestListTrainingTasksUsesLatestRunFailureStatusAndMessage(t *testing.T) {
 	require.Contains(t, response.Msg.GetTrainingTasks()[0].GetStatusMessage(), "镜像拉取失败")
 }
 
+func TestGetTrainingTaskUsesFailureEventMessageWhenLatestAttemptEventHasNoError(t *testing.T) {
+	ctx := context.Background()
+	repo := repositorymocks.NewRepository(t)
+	actionRepo := repositorymocks.NewActionRepo(t)
+	svc := NewTrainingTaskService(repo, nil)
+	task := &models.TrainingTask{
+		TrainingTaskKey: models.TrainingTaskKey{
+			ID:      "train-1",
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+		},
+		Name:            "任务1",
+		ResourceSpecID:  "cpu-1c-2g",
+		ResourceDisplay: "1vCPU, 2GiB RAM, 1Gbps",
+		CPU:             "1",
+		Memory:          "2Gi",
+		Command:         "echo hello",
+		MaxRuntimeHours: 1,
+		ImageType:       "custom",
+		ImageName:       "bad-image",
+		ImageURI:        "docker.fzyun.io/library/missing:tag",
+		Creator:         "ljgong",
+		LatestRunName:   "run-abc",
+	}
+	actionID := &common.ActionIdentifier{
+		Run: &common.RunIdentifier{
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+			Name:    "run-abc",
+		},
+		Name: RootActionName,
+	}
+	failedEventModel, err := models.NewActionEventModel(&workflow.ActionEvent{
+		Id:          actionID,
+		Attempt:     1,
+		Phase:       common.ActionPhase_ACTION_PHASE_FAILED,
+		Version:     1,
+		UpdatedTime: timestamppb.Now(),
+		ErrorInfo: &workflow.ErrorInfo{
+			Message: `镜像拉取失败: failed to pull image "docker.fzyun.io/library/missing:tag"`,
+			Kind:    workflow.ErrorInfo_KIND_SYSTEM,
+		},
+	})
+	require.NoError(t, err)
+	latestEventModel, err := models.NewActionEventModel(&workflow.ActionEvent{
+		Id:          actionID,
+		Attempt:     1,
+		Phase:       common.ActionPhase_ACTION_PHASE_ABORTED,
+		Version:     2,
+		UpdatedTime: timestamppb.Now(),
+	})
+	require.NoError(t, err)
+	trainingRepo := &fakeTrainingTaskRepo{getResult: task}
+
+	repo.EXPECT().TrainingTaskRepo().Return(trainingRepo).Once()
+	repo.EXPECT().ActionRepo().Return(actionRepo).Once()
+	actionRepo.EXPECT().GetAction(mock.Anything, matchTrainingTaskActionID(actionID)).Return(&models.Action{
+		Project:  "flytesnacks",
+		Domain:   "development",
+		RunName:  "run-abc",
+		Name:     RootActionName,
+		Phase:    int32(common.ActionPhase_ACTION_PHASE_FAILED),
+		Attempts: 1,
+	}, nil).Once()
+	actionRepo.EXPECT().GetLatestEventByAttempt(mock.Anything, matchTrainingTaskActionID(actionID), uint32(1)).Return(latestEventModel, nil).Once()
+	actionRepo.EXPECT().ListEvents(mock.Anything, matchTrainingTaskActionID(actionID), 500).Return([]*models.ActionEvent{
+		failedEventModel,
+		latestEventModel,
+	}, nil).Once()
+
+	response, err := svc.GetTrainingTask(ctx, connect.NewRequest(&trainingtaskpb.GetTrainingTaskRequest{
+		Id: &trainingtaskpb.TrainingTaskIdentifier{
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+			Id:      "train-1",
+		},
+	}))
+
+	require.NoError(t, err)
+	require.Equal(t, trainingtaskpb.TrainingTaskStatus_TRAINING_TASK_STATUS_FAILED, response.Msg.GetTrainingTask().GetStatus())
+	require.Contains(t, response.Msg.GetTrainingTask().GetStatusMessage(), "镜像拉取失败")
+	require.Contains(t, response.Msg.GetTrainingTask().GetStatusMessage(), "docker.fzyun.io/library/missing:tag")
+}
+
 func TestBuildTrainingTaskSpecIncludesCloudStorageMounts(t *testing.T) {
 	spec, err := BuildTrainingTaskSpec(&models.TrainingTask{
 		TrainingTaskKey: models.TrainingTaskKey{
@@ -348,14 +435,21 @@ func (r *fakeCodeRepositoryRepo) List(context.Context, models.CodeRepositoryList
 
 type fakeTrainingTaskRepo struct {
 	listResult *models.TrainingTaskListResult
+	getResult  *models.TrainingTask
 }
 
 func (r *fakeTrainingTaskRepo) Create(context.Context, *models.TrainingTask) error {
 	return nil
 }
 
-func (r *fakeTrainingTaskRepo) Get(context.Context, models.TrainingTaskKey) (*models.TrainingTask, error) {
-	return nil, fmt.Errorf("not found")
+func (r *fakeTrainingTaskRepo) Get(_ context.Context, key models.TrainingTaskKey) (*models.TrainingTask, error) {
+	if r.getResult == nil {
+		return nil, fmt.Errorf("not found")
+	}
+	if r.getResult.Org != key.Org || r.getResult.Project != key.Project || r.getResult.Domain != key.Domain || r.getResult.ID != key.ID {
+		return nil, fmt.Errorf("unexpected get key: %+v", key)
+	}
+	return r.getResult, nil
 }
 
 func (r *fakeTrainingTaskRepo) Update(context.Context, *models.TrainingTask) error {
