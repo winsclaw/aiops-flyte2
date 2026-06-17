@@ -119,12 +119,15 @@ def main() -> int:
         return 1
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    run_id = result.get("runId") or {}
+    run_id = (result.get("data") or {}).get("run") or result.get("runId") or {}
     if run_id:
         print(
             "RUN:",
             f"{run_id.get('org')}/{run_id.get('project')}/{run_id.get('domain')}/{run_id.get('name')}",
         )
+    source = (result.get("data") or {}).get("source") or {}
+    if source.get("id"):
+        print("INSTANCE:", source.get("id"))
     return 0
 
 

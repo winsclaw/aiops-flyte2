@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   authenticateAioneRequest,
   buildAioneCreateInstanceResponse,
+  buildAioneInstanceConfigMapName,
   buildAioneInstanceAccessInfo,
   buildAioneInstanceValues,
   buildDockerConfigJson,
@@ -55,9 +56,12 @@ describe("aione external instance helpers", () => {
       internalOrg: "aione",
       defaultStorageClass: "bj1-ebs",
       defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+      runNameSuffix: "r1",
     });
 
-    expect(mapped.runName).toBe("ins-og2bgwm130xq3o6uk3h4956la6");
+    expect(mapped.runName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-r1");
+    expect(mapped.sourceInstanceId).toBe("ins-og2bgwm130xq3o6uk3h4956la6");
+    expect(mapped.workspacePVCName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-workspace");
     expect(mapped.values.org).toBe("aione");
     expect(mapped.values.project).toBe("aione");
     expect(mapped.values.domain).toBe("development");
@@ -69,6 +73,9 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.sourceOrg).toBe("external-org");
     expect(mapped.values.sourceInstanceId).toBe(
       "ins-og2bgwm130xq3o6uk3h4956la6",
+    );
+    expect(mapped.values.workspacePVCName).toBe(
+      "ins-og2bgwm130xq3o6uk3h4956la6-workspace",
     );
     expect(mapped.values.imagePullSecretName).toBe(
       "aione-ins-og2bgwm130xq3o6uk3h4956la6-image",
@@ -94,6 +101,43 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.gpuNodeLabelKey).toBe("nvidia.com/gpu.present");
   });
 
+  it("keeps stable instance resources while generating a unique Flyte run per start", () => {
+    const first = buildAioneInstanceValues({
+      payload: basePayload,
+      nodePort: 31000,
+      codeServerNodePort: 31001,
+      internalOrg: "aione",
+      defaultStorageClass: "bj1-ebs",
+      defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+      runNameSuffix: "r1",
+    });
+    const second = buildAioneInstanceValues({
+      payload: basePayload,
+      nodePort: 31002,
+      codeServerNodePort: 31003,
+      internalOrg: "aione",
+      defaultStorageClass: "bj1-ebs",
+      defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+      runNameSuffix: "r2",
+    });
+
+    expect(first.sourceInstanceId).toBe(second.sourceInstanceId);
+    expect(first.runName).not.toBe(second.runName);
+    expect(first.runName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-r1");
+    expect(second.runName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-r2");
+    expect(first.workspacePVCName).toBe(second.workspacePVCName);
+    expect(first.values.workspacePVCName).toBe(second.values.workspacePVCName);
+    expect(first.values.cloudStorageMounts?.[0]?.pvcName).toBe(
+      second.values.cloudStorageMounts?.[0]?.pvcName,
+    );
+    expect(first.values.imagePullSecretName).toBe(second.values.imagePullSecretName);
+    expect(first.values.codeRepositorySecretName).toBe(
+      second.values.codeRepositorySecretName,
+    );
+    expect(first.runName.length).toBeLessThanOrEqual(63);
+    expect(buildAioneInstanceConfigMapName(first.sourceInstanceId).length).toBeLessThanOrEqual(253);
+  });
+
   it("uses OWN image fields and the default authorized key when provided", () => {
     const mapped = buildAioneInstanceValues({
       payload: {
@@ -108,6 +152,7 @@ describe("aione external instance helpers", () => {
       internalOrg: "aione",
       defaultStorageClass: "bj1-ebs",
       defaultAuthorizedKey: "ssh-rsa BBBB user@example",
+      runNameSuffix: "r1",
     });
 
     expect(mapped.values.image).toBe("docker.fzyun.io/pytorch/pytorch:1.13.1");

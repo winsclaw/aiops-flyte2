@@ -15,7 +15,7 @@ metadata:
     app: flyte-console-extracted
 rules:
   - apiGroups: [""]
-    resources: ["pods", "services", "secrets"]
+    resources: ["pods", "services", "secrets", "configmaps"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
   - apiGroups: ["apps"]
     resources: ["statefulsets"]

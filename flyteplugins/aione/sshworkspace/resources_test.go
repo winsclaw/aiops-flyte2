@@ -33,6 +33,7 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 		"gpuCount":                 float64(1),
 		"gpuModel":                 "NVIDIA T4",
 		"workspaceSize":            "20Gi",
+		"workspacePVCName":         "stable-workspace-pvc",
 		"serviceType":              "NodePort",
 		"nodePort":                 float64(30222),
 		"codeServerNodePort":       float64(31080),
@@ -62,6 +63,7 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	assert.Equal(t, int32(1), cfg.GPUCount)
 	assert.Equal(t, "NVIDIA T4", cfg.GPUModel)
 	assert.Equal(t, "20Gi", cfg.WorkspaceSize)
+	assert.Equal(t, "stable-workspace-pvc", cfg.WorkspacePVCName)
 	assert.Equal(t, "workspace-image-pull", cfg.ImagePullSecretName)
 	assert.Equal(t, "workspace-code-repos", cfg.CodeRepositorySecretName)
 	assert.Equal(t, "nvidia.com/gpu.present", cfg.GPUNodeLabelKey)
@@ -187,6 +189,33 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, int32(8080), svc.Spec.Ports[1].Port)
 	assert.Equal(t, int32(31080), svc.Spec.Ports[1].NodePort)
 	assert.Equal(t, "run-abc", svc.Spec.Selector[labelWorkspaceName])
+}
+
+func TestBuildResourcesUsesConfiguredWorkspacePVCName(t *testing.T) {
+	cfg := WorkspaceConfig{
+		Image:            "ubuntu:22.04",
+		SSHUser:          "dev",
+		AuthorizedKeys:   []string{"ssh-rsa AAAA user@example"},
+		WorkspaceSize:    "20Gi",
+		WorkspacePVCName: "stable-workspace-pvc",
+		ServiceType:      corev1.ServiceTypeClusterIP,
+	}
+	identity := WorkspaceIdentity{
+		Namespace:  "flyte",
+		Name:       "run-abc-20260617",
+		RunName:    "run-abc-20260617",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	require.NotNil(t, resources.PVC)
+	assert.Equal(t, "stable-workspace-pvc", resources.PVC.Name)
+	assert.True(t, hasPVCVolume(resources.StatefulSet.Spec.Template.Spec.Volumes, "workspace", "stable-workspace-pvc"))
 }
 
 func TestBuildResourcesUsesExternalSecretsAndGPUNodeLabel(t *testing.T) {

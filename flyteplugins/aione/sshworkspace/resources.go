@@ -67,6 +67,9 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	resourceName := kubernetesNameBase(identity.Name)
 	secretName := resourceName + "-ssh"
 	pvcName := resourceName + "-workspace"
+	if cfg.WorkspacePVCName != "" {
+		pvcName = cfg.WorkspacePVCName
+	}
 	serviceName := resourceName + "-ssh"
 
 	var cpu, memory resource.Quantity

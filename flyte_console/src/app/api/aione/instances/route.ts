@@ -20,12 +20,19 @@ import {
   RegistryCredentials,
   authenticateAioneRequest,
   buildAioneCreateInstanceResponse,
+  buildAioneInstanceRecord,
   buildAioneInstanceAccessInfo,
   buildAioneInstanceValues,
   buildDockerConfigJson,
   buildWorkspaceLabels,
   getAioneNodePortRange,
 } from "./helpers";
+import {
+  isAioneInstanceActive,
+  nextAioneInstanceGeneration,
+  readAioneInstanceRecord,
+  writeAioneInstanceRecord,
+} from "./state";
 
 export const runtime = "nodejs";
 
@@ -84,6 +91,32 @@ async function createInstance(payload: unknown) {
       defaultStorageClass,
       defaultAuthorizedKey,
     });
+    const existingRecord = await readAioneInstanceRecord(
+      { apiOrigin, namespace, token, ca },
+      mapped.sourceInstanceId,
+    );
+    if (isAioneInstanceActive(existingRecord?.status)) {
+      throw statusError("instance is already running", 409);
+    }
+    const generation = nextAioneInstanceGeneration(existingRecord);
+    const now = new Date().toISOString();
+    const startingRecord = buildAioneInstanceRecord({
+      sourceInstanceId: mapped.sourceInstanceId,
+      latestRunName: mapped.runName,
+      org: internalOrg,
+      project: mapped.values.project,
+      domain: mapped.values.domain,
+      status: "STARTING",
+      generation,
+      workspacePVCName: mapped.workspacePVCName,
+      nodePort,
+      codeServerNodePort,
+      updatedAt: now,
+    });
+    await writeAioneInstanceRecord(
+      { apiOrigin, namespace, token, ca },
+      startingRecord,
+    );
     const labels = buildWorkspaceLabels({
       org: internalOrg,
       project: mapped.values.project,
@@ -91,22 +124,30 @@ async function createInstance(payload: unknown) {
       runName: mapped.runName,
     });
 
-    await ensureExternalSecrets({
-      apiOrigin,
-      namespace,
-      token,
-      ca,
-      labels,
-      registryCredentials: mapped.registryCredentials,
-      imagePullSecretName: mapped.values.imagePullSecretName,
-      codeRepositories: mapped.codeRepositoriesWithTokens,
-      codeRepositorySecretName: mapped.values.codeRepositorySecretName,
-    });
-
     try {
+      await ensureExternalSecrets({
+        apiOrigin,
+        namespace,
+        token,
+        ca,
+        labels,
+        registryCredentials: mapped.registryCredentials,
+        imagePullSecretName: mapped.values.imagePullSecretName,
+        codeRepositories: mapped.codeRepositoriesWithTokens,
+        codeRepositorySecretName: mapped.values.codeRepositorySecretName,
+      });
+
       const client = createFlyteRunClient();
       await client.createRun(
         buildCreateDevelopmentInstanceRequest(mapped.values),
+      );
+      await writeAioneInstanceRecord(
+        { apiOrigin, namespace, token, ca },
+        {
+          ...startingRecord,
+          status: "RUNNING",
+          updatedAt: new Date().toISOString(),
+        },
       );
       return NextResponse.json(
         buildAioneCreateInstanceResponse({
@@ -115,7 +156,7 @@ async function createInstance(payload: unknown) {
           domain: mapped.values.domain,
           runName: mapped.runName,
           sourceOrg: mapped.values.sourceOrg ?? "",
-          sourceInstanceId: mapped.values.sourceInstanceId ?? "",
+          sourceInstanceId: mapped.sourceInstanceId,
           info: buildAioneInstanceAccessInfo({
             runName: mapped.runName,
             sourceName: mapped.values.sourceName ?? "",
@@ -133,6 +174,14 @@ async function createInstance(payload: unknown) {
         { status: 200 },
       );
     } catch (error) {
+      await writeAioneInstanceRecord(
+        { apiOrigin, namespace, token, ca },
+        {
+          ...startingRecord,
+          status: "FAILED",
+          updatedAt: new Date().toISOString(),
+        },
+      );
       if (isAlreadyExists(error)) {
         throw statusError("run already exists", 409);
       }

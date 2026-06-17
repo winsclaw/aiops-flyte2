@@ -75,6 +75,7 @@ export type BuildAioneInstanceValuesInput = {
   internalOrg?: string;
   defaultStorageClass?: string;
   defaultAuthorizedKey?: string;
+  runNameSuffix?: string;
 };
 
 export type BuildAioneInstanceAccessInfoInput = {
@@ -92,6 +93,27 @@ export type BuildAioneInstanceAccessInfoInput = {
 };
 
 export type AioneInstanceAccessInfo = ReturnType<typeof buildAioneInstanceAccessInfo>;
+
+export type AioneInstanceRecordStatus =
+  | "STARTING"
+  | "RUNNING"
+  | "STOPPING"
+  | "STOPPED"
+  | "FAILED";
+
+export type AioneInstanceRecord = {
+  sourceInstanceId: string;
+  latestRunName: string;
+  org: string;
+  project: string;
+  domain: string;
+  status: AioneInstanceRecordStatus;
+  generation: number;
+  workspacePVCName: string;
+  nodePort?: number;
+  codeServerNodePort?: number;
+  updatedAt: string;
+};
 
 export type BuildAioneCreateInstanceResponseInput = {
   internalOrg: string;
@@ -132,15 +154,19 @@ export function buildAioneInstanceValues({
   internalOrg = DEFAULT_AIONE_INTERNAL_ORG,
   defaultStorageClass = DEFAULT_AIONE_STORAGE_CLASS,
   defaultAuthorizedKey = "",
+  runNameSuffix,
 }: BuildAioneInstanceValuesInput) {
   const project = requiredString(payload.project, "project");
   const domain = requiredString(payload.domain, "domain");
   const sourceID = payload.id?.trim() ?? "";
   const sourceName = payload.name?.trim() ?? "";
-  const runName = normalizeRunName(sourceID || sourceName);
-  if (!runName) {
+  const sourceInstanceId = sourceID || sourceName;
+  const sourceBaseName = normalizeRunName(sourceInstanceId);
+  if (!sourceBaseName) {
     throw new Error("id or name must produce a valid run name");
   }
+  const runName = buildRestartableRunName(sourceBaseName, runNameSuffix);
+  const workspacePVCName = buildStablePVCName(sourceBaseName, "workspace");
 
   const authorizedKey =
     firstNonEmpty([payload.authorizedKey, ...(payload.authorizedKeys ?? [])]) ||
@@ -165,7 +191,7 @@ export function buildAioneInstanceValues({
       ? { image, username: imageKey, password: imageSecret }
       : undefined;
   const imagePullSecretName = registryCredentials
-    ? buildExternalSecretName(project, runName, "image")
+    ? buildExternalSecretName(project, sourceBaseName, "image")
     : "";
 
   const codeRepositoriesWithTokens = (payload.codes ?? []).map((repo) => {
@@ -180,7 +206,7 @@ export function buildAioneInstanceValues({
   });
   const hasCodeRepositoryTokens = codeRepositoriesWithTokens.some((repo) => repo.token);
   const codeRepositorySecretName = hasCodeRepositoryTokens
-    ? buildExternalSecretName(project, runName, "code")
+    ? buildExternalSecretName(project, sourceBaseName, "code")
     : "";
 
   const values: DevelopmentInstanceFormValues = {
@@ -200,6 +226,7 @@ export function buildAioneInstanceValues({
     gpuCount: payload.resourceDefinition?.gpu ?? 0,
     gpuModel: "",
     workspaceSize: "20Gi",
+    workspacePVCName,
     nodePort,
     codeServerNodePort,
     maxHours: positiveNumber(payload.timeout, 24, "timeout"),
@@ -207,7 +234,7 @@ export function buildAioneInstanceValues({
     codeRepositorySecretName,
     gpuNodeLabelKey: payload.resourceDefinition?.gpu_key?.trim() || "",
     sourceOrg: payload.org?.trim() || "",
-    sourceInstanceId: sourceID,
+    sourceInstanceId,
     sourceName,
     sourceSystem: "external-api",
     baseImageMountPath: payload.baseImage?.mountPath?.trim() || "",
@@ -215,7 +242,7 @@ export function buildAioneInstanceValues({
       const id = requiredString(datastore.id, "datastores.id");
       return {
         cloudStorageId: id,
-        pvcName: buildPVCName(runName, id),
+        pvcName: buildStablePVCName(sourceBaseName, id),
         storageClass: defaultStorageClass,
         size: `${positiveNumber(datastore.size, 1, "datastores.size")}Gi`,
         mountPath: requiredAbsolutePath(datastore.path, "datastores.path"),
@@ -226,6 +253,8 @@ export function buildAioneInstanceValues({
 
   return {
     runName,
+    sourceInstanceId,
+    workspacePVCName,
     values,
     registryCredentials,
     codeRepositoriesWithTokens,
@@ -362,13 +391,72 @@ export function getAioneNodePortRange() {
   return { min, max };
 }
 
-function buildPVCName(runName: string, datastoreID: string) {
-  const cleaned = normalizeRunName(`${runName}-${datastoreID}`) || runName;
-  if (cleaned.length <= 253) {
+export function buildAioneInstanceConfigMapName(sourceInstanceId: string) {
+  const sourceBaseName = normalizeRunName(sourceInstanceId);
+  if (!sourceBaseName) {
+    throw new Error("id must produce a valid ConfigMap name");
+  }
+  return buildBoundedName(`aione-instance-${sourceBaseName}`, 253);
+}
+
+export function buildAioneInstanceRecord({
+  sourceInstanceId,
+  latestRunName,
+  org,
+  project,
+  domain,
+  status,
+  generation,
+  workspacePVCName,
+  nodePort,
+  codeServerNodePort,
+  updatedAt = new Date().toISOString(),
+}: Omit<AioneInstanceRecord, "updatedAt"> & { updatedAt?: string }): AioneInstanceRecord {
+  return {
+    sourceInstanceId,
+    latestRunName,
+    org,
+    project,
+    domain,
+    status,
+    generation,
+    workspacePVCName,
+    nodePort,
+    codeServerNodePort,
+    updatedAt,
+  };
+}
+
+function buildRestartableRunName(sourceBaseName: string, suffix?: string) {
+  const resolvedSuffix =
+    normalizeRunName(suffix ?? `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) ||
+    "r";
+  return buildNameWithSuffix(sourceBaseName, resolvedSuffix, 63);
+}
+
+function buildStablePVCName(sourceBaseName: string, suffix: string) {
+  return buildBoundedName(`${sourceBaseName}-${suffix}`, 253);
+}
+
+function buildNameWithSuffix(base: string, suffix: string, maxLength: number) {
+  const cleaned = normalizeRunName(base) || "instance";
+  const cleanedSuffix = normalizeRunName(suffix) || "r";
+  const full = `${cleaned}-${cleanedSuffix}`;
+  if (full.length <= maxLength) {
+    return full;
+  }
+  const hash = shortHash(full);
+  const prefixLength = Math.max(1, maxLength - cleanedSuffix.length - hash.length - 2);
+  return `${cleaned.slice(0, prefixLength).replace(/-+$/g, "")}-${hash}-${cleanedSuffix}`;
+}
+
+function buildBoundedName(value: string, maxLength: number) {
+  const cleaned = normalizeRunName(value) || "instance";
+  if (cleaned.length <= maxLength) {
     return cleaned;
   }
   const hash = shortHash(cleaned);
-  return `${cleaned.slice(0, 253 - hash.length - 1).replace(/-+$/g, "")}-${hash}`;
+  return `${cleaned.slice(0, maxLength - hash.length - 1).replace(/-+$/g, "")}-${hash}`;
 }
 
 function requiredString(value: string | undefined, field: string) {

@@ -129,6 +129,7 @@ export type DevelopmentInstanceFormValues = {
   gpuCount?: number;
   gpuModel?: string;
   workspaceSize: string;
+  workspacePVCName?: string;
   nodePort: number;
   codeServerNodePort: number;
   maxHours: number;
@@ -241,6 +242,7 @@ export function buildCreateDevelopmentInstanceRequest(
     gpuCount: values.gpuCount ?? 0,
     gpuModel: values.gpuModel?.trim() ?? "",
     workspaceSize: values.workspaceSize.trim(),
+    workspacePVCName: values.workspacePVCName?.trim() ?? "",
     serviceType: "NodePort",
     nodePort: values.nodePort,
     codeServerNodePort: values.codeServerNodePort,
