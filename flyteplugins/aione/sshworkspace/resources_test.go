@@ -70,6 +70,18 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	assert.Equal(t, "/workspace/aione", cfg.CodeRepositories[0].MountPath)
 }
 
+func TestParseConfigDefaultsToOfficialIDEImage(t *testing.T) {
+	tmpl := taskTemplateWithCustom(t, map[string]any{
+		"sshUser":        "dev",
+		"authorizedKeys": []any{"ssh-rsa AAAA user@example"},
+	})
+
+	cfg, err := ParseConfig(tmpl)
+
+	require.NoError(t, err)
+	assert.Equal(t, "docker.fzyun.io/founder/aione.ide:1.0.0.60", cfg.Image)
+}
+
 func TestParseConfigRejectsMissingAuthorizedKeys(t *testing.T) {
 	tmpl := taskTemplateWithCustom(t, map[string]any{
 		"image":   "ubuntu:22.04",

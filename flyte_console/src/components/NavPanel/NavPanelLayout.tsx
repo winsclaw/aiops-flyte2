@@ -2,29 +2,34 @@
  * © Copyright Union Systems Inc 2026. All rights reserved.
  */
 
-import clsx from 'clsx'
-import React, { useState } from 'react'
-import { NavPanel } from './NavPanel'
-import { NavPanelSettings } from './NavPanelSettings'
-import { NavItemType, NavPanelMode, NavPanelType, NavPanelWidth } from './types'
+import clsx from "clsx";
+import React, { useState } from "react";
+import { NavPanel } from "./NavPanel";
+import { NavPanelSettings } from "./NavPanelSettings";
+import {
+  NavItemType,
+  NavPanelMode,
+  NavPanelType,
+  NavPanelWidth,
+} from "./types";
 
 export type NavPanelLayoutProps = {
-  children: React.ReactNode
-  navItems?: NavItemType[]
-  type?: NavPanelType
-  mode?: NavPanelMode
-  initialSize?: NavPanelWidth
-}
+  children: React.ReactNode;
+  navItems?: NavItemType[];
+  type?: NavPanelType;
+  mode?: NavPanelMode;
+  initialSize?: NavPanelWidth;
+};
 
 export const NavPanelLayout = ({
   children,
   navItems,
-  type = 'default',
-  mode = 'overlay',
-  initialSize = 'thin',
+  type = "default",
+  mode = "overlay",
+  initialSize = "thin",
 }: NavPanelLayoutProps) => {
-  const [navSize, setNavSize] = useState<NavPanelWidth>(initialSize)
-  const isOverlayMode = mode === 'overlay'
+  const [navSize, setNavSize] = useState<NavPanelWidth>(initialSize);
+  const isOverlayMode = mode === "overlay";
 
   return (
     <div className="relative flex h-full w-full dark:bg-(--system-black)">
@@ -36,21 +41,21 @@ export const NavPanelLayout = ({
       {/* Absolutely positioned panel for smooth transitions */}
       <div
         className={clsx(
-          'z-30 h-full transition-[width] duration-300 ease-in-out',
-          isOverlayMode ? 'absolute top-0 left-0' : 'relative',
+          "z-30 h-full transition-[width] duration-300 ease-in-out",
+          isOverlayMode ? "absolute top-0 left-0" : "relative",
           isOverlayMode &&
-            navSize === 'wide' &&
-            'shadow-[4px 0 4px 0 rgba(0, 0, 0, 0.5)]',
+            navSize === "wide" &&
+            "shadow-[4px 0 4px 0 rgba(0, 0, 0, 0.5)]",
         )}
         style={{
           width:
-            navSize === 'thin'
-              ? 'var(--sidebar-w-thin)'
-              : 'var(--sidebar-w-wide)',
+            navSize === "thin"
+              ? "var(--sidebar-w-thin)"
+              : "var(--sidebar-w-wide)",
         }}
       >
         <div className="flex h-full flex-col bg-(--system-gray-1) text-(--system-gray-5)">
-          {type === 'settings' ? (
+          {type === "settings" ? (
             <NavPanelSettings navItems={navItems} />
           ) : (
             <NavPanel
@@ -67,5 +72,5 @@ export const NavPanelLayout = ({
         {children}
       </div>
     </div>
-  )
-}
+  );
+};

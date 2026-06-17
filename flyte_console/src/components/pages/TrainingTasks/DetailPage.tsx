@@ -259,6 +259,7 @@ export function TrainingTaskDetailPage() {
                     ["资源规格", task?.resourceSpec?.displayLabel],
                     ["执行命令", task?.command],
                     ["状态", task ? getTrainingTaskStatusText(task.status) : "-"],
+                    ["失败原因", task?.statusMessage || "-"],
                     ["运行时长", task?.runtimeDuration || "-"],
                     ["开始时间", formatTimestamp(task?.startedAt)],
                     ["结束时间", formatTimestamp(task?.endedAt)],

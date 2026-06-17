@@ -11,7 +11,11 @@ import (
 	idlcore "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
 )
 
-const TaskType = "ssh_workspace"
+const (
+	TaskType                = "ssh_workspace"
+	DefaultWorkspaceImage   = "docker.fzyun.io/founder/aione.ide:1.0.0.60"
+	DefaultWorkspaceSSHUser = "dev"
+)
 
 type WorkspaceConfig struct {
 	Image              string
@@ -51,8 +55,8 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 
 	values := custom.AsMap()
 	cfg := WorkspaceConfig{
-		Image:         stringValue(values, "image", "ubuntu:22.04"),
-		SSHUser:       stringValue(values, "sshUser", "dev"),
+		Image:         stringValue(values, "image", DefaultWorkspaceImage),
+		SSHUser:       stringValue(values, "sshUser", DefaultWorkspaceSSHUser),
 		CPU:           stringValue(values, "cpu", ""),
 		Memory:        stringValue(values, "memory", ""),
 		GPUModel:      stringValue(values, "gpuModel", ""),

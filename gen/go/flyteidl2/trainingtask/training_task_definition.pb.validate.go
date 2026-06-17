@@ -652,6 +652,8 @@ func (m *TrainingTask) validate(all bool) error {
 
 	}
 
+	// no validation rules for StatusMessage
+
 	if len(errors) > 0 {
 		return TrainingTaskMultiError(errors)
 	}

@@ -2,28 +2,28 @@
  * © Copyright Union Systems Inc 2026. All rights reserved.
  */
 
-import { useDomainStore } from '@/lib/DomainStore'
-import clsx from 'clsx'
-import { AnimatePresence, motion } from 'motion/react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { Dispatch, SetStateAction, useMemo } from 'react'
-import { NavItems } from '.'
-import { Button } from '../Button'
-import { DomainPicker } from '../DomainPicker'
-import { HamburgerIcon } from '../icons/HamburgerIcon'
-import { Logo } from '../Logo'
-import { RunDetailsPageParams } from '../pages/RunDetails/types'
-import { ProjectsPicker } from '../ProjectsPicker'
-import { getNavItem } from './NavItems'
-import { type NavItemType, NavPanelWidth } from './types'
+import { useDomainStore } from "@/lib/DomainStore";
+import clsx from "clsx";
+import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Dispatch, SetStateAction, useMemo } from "react";
+import { NavItems } from ".";
+import { Button } from "../Button";
+import { DomainPicker } from "../DomainPicker";
+import { HamburgerIcon } from "../icons/HamburgerIcon";
+import { Logo } from "../Logo";
+import { RunDetailsPageParams } from "../pages/RunDetails/types";
+import { ProjectsPicker } from "../ProjectsPicker";
+import { getNavItem } from "./NavItems";
+import { type NavItemType, NavPanelWidth } from "./types";
 
 type NavPanelProps = {
-  navItems?: NavItemType[] // custom main nav items
-  orgItems?: NavItemType[] // custom organization nav items
-  navSize: NavPanelWidth
-  setNavSize: Dispatch<SetStateAction<NavPanelWidth>>
-}
+  navItems?: NavItemType[]; // custom main nav items
+  orgItems?: NavItemType[]; // custom organization nav items
+  navSize: NavPanelWidth;
+  setNavSize: Dispatch<SetStateAction<NavPanelWidth>>;
+};
 
 export const NavPanel = ({
   navItems,
@@ -31,24 +31,24 @@ export const NavPanel = ({
   navSize,
   setNavSize,
 }: NavPanelProps) => {
-  const isThin = navSize === 'thin'
-  const params = useParams<RunDetailsPageParams>()
-  const { selectedDomain } = useDomainStore()
-  const project = params.project
+  const isThin = navSize === "thin";
+  const params = useParams<RunDetailsPageParams>();
+  const { selectedDomain } = useDomainStore();
+  const project = params.project;
   // show the project picker when project is in url params (excludes /projects)
-  const shouldShowProjectPicker = !!project
-  const defaultNavItems = NavItems.useDefaultItems()
-  const defaultOrgNavItems = NavItems.useDefaultOrgItems()
-  const itemsToShow = navItems || defaultNavItems
-  const orgItemsToShow = orgItems || defaultOrgNavItems
+  const shouldShowProjectPicker = !!project;
+  const defaultNavItems = NavItems.useDefaultItems();
+  const defaultOrgNavItems = NavItems.useDefaultOrgItems();
+  const itemsToShow = navItems || defaultNavItems;
+  const orgItemsToShow = orgItems || defaultOrgNavItems;
 
   const logoClickLink = useMemo(() => {
     if (project && selectedDomain) {
-      return `/domain/${selectedDomain.id}/project/${project}/runs`
+      return `/domain/${selectedDomain.id}/project/${project}/runs`;
     }
     // if no selected project/domain, send to project selection page
-    return `/projects`
-  }, [project, selectedDomain])
+    return `/projects`;
+  }, [project, selectedDomain]);
 
   return (
     <>
@@ -60,7 +60,7 @@ export const NavPanel = ({
               className="!p-2 hover:bg-(--system-gray-3) dark:hover:bg-(--system-gray-4)"
               plain
               onClick={() => {
-                setNavSize((prev) => (prev === 'thin' ? 'wide' : 'thin'))
+                setNavSize((prev) => (prev === "thin" ? "wide" : "thin"));
               }}
             >
               <HamburgerIcon className="size-4 text-(--system-gray-5)" />
@@ -86,7 +86,9 @@ export const NavPanel = ({
         >
           <AnimatePresence mode="popLayout">
             {itemsToShow.map((item) =>
-              item.shouldHideIconOnCollapse && isThin ? null : (
+              item.type === "link" &&
+              item.shouldHideIconOnCollapse &&
+              isThin ? null : (
                 <motion.div
                   key={item.displayText}
                   initial="hidden"
@@ -95,7 +97,7 @@ export const NavPanel = ({
                   layout
                   className={clsx(
                     `flex w-full min-w-5.5`,
-                    isThin && 'justify-center',
+                    isThin && "justify-center",
                   )}
                 >
                   {getNavItem(item, navSize)}
@@ -108,7 +110,7 @@ export const NavPanel = ({
 
       {/* Bottom org items */}
       <div
-        className={`flex shrink-0 flex-col ${isThin ? 'justify-center' : ''} gap-y-0.5 px-2.5`}
+        className={`flex shrink-0 flex-col ${isThin ? "justify-center" : ""} gap-y-0.5 px-2.5`}
       >
         <motion.div
           className="flex w-full flex-col gap-1 pb-3"
@@ -125,7 +127,7 @@ export const NavPanel = ({
                 layout
                 className={clsx(
                   `flex w-full min-w-5.5`,
-                  isThin && 'justify-center',
+                  isThin && "justify-center",
                 )}
               >
                 {getNavItem(item, navSize)}
@@ -135,5 +137,5 @@ export const NavPanel = ({
         </motion.div>
       </div>
     </>
-  )
-}
+  );
+};

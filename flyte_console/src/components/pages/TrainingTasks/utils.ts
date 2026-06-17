@@ -8,8 +8,9 @@ import {
 import { TrainingTaskInputSchema } from "@/gen/flyteidl2/trainingtask/training_task_service_pb";
 
 export const DEFAULT_RESOURCE_SPEC_ID = "t4-8c-16g-1x";
-export const DEFAULT_OFFICIAL_IMAGE_ID = "busybox";
-export const DEFAULT_CUSTOM_IMAGE = "busybox:1.36";
+export const DEFAULT_OFFICIAL_IMAGE_ID = "flyte-py311-v251";
+export const DEFAULT_CUSTOM_IMAGE =
+  "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1";
 
 export type TrainingTaskFormValues = {
   name: string;

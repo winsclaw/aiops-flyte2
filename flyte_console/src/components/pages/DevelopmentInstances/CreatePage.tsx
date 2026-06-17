@@ -35,7 +35,9 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   buildCreateDevelopmentInstanceRequest,
-  DEFAULT_CODE_SERVER_IMAGE,
+  DEFAULT_CUSTOM_DEVELOPMENT_INSTANCE_IMAGE,
+  DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
+  DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES,
   DEVELOPMENT_INSTANCE_RESOURCE_SPECS,
   getConsoleApiPath,
   getNextNodePort,
@@ -62,7 +64,11 @@ export function DevelopmentInstanceCreatePage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState("ljgong");
-  const [image, setImage] = useState(DEFAULT_CODE_SERVER_IMAGE);
+  const [imageType, setImageType] = useState<"official" | "custom">("official");
+  const [officialImageId, setOfficialImageId] = useState(
+    DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
+  );
+  const [image, setImage] = useState(DEFAULT_CUSTOM_DEVELOPMENT_INSTANCE_IMAGE);
   const [sshUser, setSshUser] = useState("dev");
   const [authorizedKey, setAuthorizedKey] = useState("");
   const [cpu, setCpu] = useState("2");
@@ -228,6 +234,10 @@ export function DevelopmentInstanceCreatePage() {
       setError("请输入 SSH 公钥");
       return;
     }
+    if (imageType === "custom" && !image.trim()) {
+      setError("请输入自定义镜像地址");
+      return;
+    }
     if (!autoNodePort || !autoCodeServerNodePort) {
       setError("没有可用 NodePort");
       return;
@@ -280,6 +290,8 @@ export function DevelopmentInstanceCreatePage() {
           name,
           description,
           owner,
+          imageType,
+          officialImageId,
           image,
           sshUser,
           authorizedKey,
@@ -498,15 +510,72 @@ export function DevelopmentInstanceCreatePage() {
                   选择镜像
                 </div>
                 <div className="space-y-4 p-5">
-                  <label className={labelClass}>
-                    镜像
-                    <input
-                      className={fieldClass}
-                      value={image}
-                      onChange={(event) => setImage(event.target.value)}
-                      placeholder="例如 ubuntu:22.04"
-                    />
-                  </label>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label
+                      className={`flex h-11 items-center gap-2 border px-4 text-sm font-medium ${
+                        imageType === "official"
+                          ? "border-blue-600 bg-blue-50 text-zinc-950 dark:bg-blue-950/30 dark:text-white"
+                          : "border-zinc-400 text-zinc-800 dark:border-zinc-700 dark:text-zinc-100"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        checked={imageType === "official"}
+                        onChange={() => setImageType("official")}
+                      />
+                      官方镜像
+                    </label>
+                    <label
+                      className={`flex h-11 items-center gap-2 border px-4 text-sm font-medium ${
+                        imageType === "custom"
+                          ? "border-blue-600 bg-blue-50 text-zinc-950 dark:bg-blue-950/30 dark:text-white"
+                          : "border-zinc-400 text-zinc-800 dark:border-zinc-700 dark:text-zinc-100"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        checked={imageType === "custom"}
+                        onChange={() => setImageType("custom")}
+                      />
+                      自定义镜像
+                    </label>
+                  </div>
+                  {imageType === "official" ? (
+                    <label className={labelClass}>
+                      镜像
+                      <select
+                        className={fieldClass}
+                        value={officialImageId}
+                        onChange={(event) =>
+                          setOfficialImageId(event.target.value)
+                        }
+                      >
+                        {DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES.map(
+                          (officialImage) => (
+                            <option
+                              key={officialImage.id}
+                              value={officialImage.id}
+                            >
+                              {officialImage.name}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </label>
+                  ) : (
+                    <label className={labelClass}>
+                      镜像
+                      <input
+                        className={fieldClass}
+                        value={image}
+                        onChange={(event) => setImage(event.target.value)}
+                        placeholder="请输入镜像完整地址"
+                      />
+                      <span className="mt-1 block text-xs font-normal text-zinc-500">
+                        例：docker.fzyun.io/aione/image1:1.0.1
+                      </span>
+                    </label>
+                  )}
                   <label className={labelClass}>
                     SSH 用户
                     <input

@@ -38,11 +38,22 @@ export const DEFAULT_NODE_PORT_RANGE = {
   max: 32767,
 };
 
-export const DEFAULT_CODE_SERVER_IMAGE =
-  "flyte-ssh-workspace-code-server:4.19.0";
+export const DEFAULT_CUSTOM_DEVELOPMENT_INSTANCE_IMAGE = "";
+
+export const DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID = "aione-ide";
+
+export const DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES = [
+  {
+    id: DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
+    name: "官方编辑器",
+    imageUri: "docker.fzyun.io/founder/aione.ide:1.0.0.60",
+  },
+];
 
 export const DELETED_DEVELOPMENT_INSTANCE_REASON =
   "Deleted from development instance console";
+
+export type DevelopmentInstanceImageType = "official" | "custom";
 
 export type DevelopmentInstanceResourceSpec = {
   id: string;
@@ -108,6 +119,8 @@ export type DevelopmentInstanceFormValues = {
   name: string;
   description?: string;
   owner?: string;
+  imageType: DevelopmentInstanceImageType;
+  officialImageId: string;
   image: string;
   sshUser: string;
   authorizedKey: string;
@@ -202,9 +215,17 @@ export function buildCreateDevelopmentInstanceRequest(
     size: mount.size,
     mountPath: mount.mountPath,
   }));
+  const officialImage =
+    values.imageType === "official"
+      ? developmentInstanceOfficialImageByID(values.officialImageId)
+      : undefined;
+  const image = officialImage?.imageUri ?? values.image.trim();
 
   const custom = {
-    image: values.image.trim(),
+    image,
+    imageType: values.imageType,
+    officialImageId: officialImage?.id ?? "",
+    imageName: officialImage?.name ?? image,
     sshUser: values.sshUser.trim(),
     authorizedKeys: [values.authorizedKey.trim()],
     cpu: values.cpu.trim(),
@@ -267,6 +288,15 @@ export function buildCreateDevelopmentInstanceRequest(
     },
     source: RunSource.WEB,
   });
+}
+
+export function developmentInstanceOfficialImageByID(id: string) {
+  const selectedID = id || DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID;
+  return (
+    DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES.find(
+      (image) => image.id === selectedID,
+    ) ?? DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES[0]
+  );
 }
 
 export function isTerminalPhase(phase: ActionPhase | undefined) {

@@ -3,7 +3,7 @@ import {
   DELETABLE_KINDS,
   buildDeleteCollectionRequests,
   buildWorkspaceLabelSelector,
-} from "./route";
+} from "./helpers";
 
 describe("development instance delete API helpers", () => {
   it("targets workload, service, secret, and ingress resources only", () => {

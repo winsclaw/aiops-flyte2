@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractNodePorts } from "./route";
+import { extractNodePorts } from "./helpers";
 
 describe("development instance nodeport API helpers", () => {
   it("extracts unique NodePorts from Kubernetes service lists", () => {

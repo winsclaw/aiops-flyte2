@@ -56,6 +56,49 @@ func TestPluginHandleReturnsSuccessWhenJobSucceeded(t *testing.T) {
 	assert.Equal(t, pluginsCore.PhaseSuccess, transition.Info().Phase())
 }
 
+func TestPluginHandleFailsWhenPodImagePullBackOff(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := newFakeClient(t)
+	plugin := NewPlugin(k8sClient)
+	tCtx := trainingTaskContext(t, validTrainingTemplate(t), "run-abc")
+
+	_, err := plugin.Handle(ctx, tCtx)
+	require.NoError(t, err)
+
+	var job batchv1.Job
+	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc"}, &job))
+	job.Status.Active = 1
+	require.NoError(t, k8sClient.Status().Update(ctx, &job))
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run-abc-pod",
+			Namespace: "flyte",
+			Labels:    job.Spec.Template.Labels,
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{{
+				Name: "training",
+				State: corev1.ContainerState{
+					Waiting: &corev1.ContainerStateWaiting{
+						Reason:  "ImagePullBackOff",
+						Message: `Back-off pulling image "busybox:1.36"`,
+					},
+				},
+			}},
+		},
+	}
+	require.NoError(t, k8sClient.Create(ctx, pod))
+
+	transition, err := plugin.Handle(ctx, tCtx)
+
+	require.NoError(t, err)
+	require.NotNil(t, transition.Info().Err())
+	assert.Equal(t, pluginsCore.PhasePermanentFailure, transition.Info().Phase())
+	assert.Equal(t, "ImagePullFailed", transition.Info().Err().GetCode())
+	assert.Contains(t, transition.Info().Err().GetMessage(), "镜像拉取失败")
+}
+
 func TestPluginAbortDeletesTrainingJob(t *testing.T) {
 	ctx := context.Background()
 	k8sClient := newFakeClient(t)

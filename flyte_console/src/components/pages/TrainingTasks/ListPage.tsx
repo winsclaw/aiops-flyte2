@@ -46,7 +46,13 @@ type ProjectDomainParams = {
 const buttonClass =
   "inline-flex h-9 items-center justify-center gap-2 border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
 
-function StatusPill({ status }: { status: TrainingTaskStatus }) {
+export function StatusPill({
+  status,
+  statusMessage,
+}: {
+  status: TrainingTaskStatus;
+  statusMessage?: string;
+}) {
   const isError = status === TrainingTaskStatus.FAILED;
   const isRunning = status === TrainingTaskStatus.RUNNING;
   const isSuccess = status === TrainingTaskStatus.SUCCEEDED;
@@ -76,6 +82,11 @@ function StatusPill({ status }: { status: TrainingTaskStatus }) {
         )}
       />
       {getTrainingTaskStatusText(status)}
+      {isError && statusMessage && (
+        <span className="max-w-48 truncate text-zinc-500 dark:text-zinc-400">
+          {statusMessage}
+        </span>
+      )}
     </span>
   );
 }
@@ -348,7 +359,10 @@ export function TrainingTasksListPage() {
                       {task.resourceSpec?.displayLabel ?? "-"}
                     </td>
                     <td className="px-4 py-4">
-                      <StatusPill status={task.status} />
+                      <StatusPill
+                        status={task.status}
+                        statusMessage={task.statusMessage}
+                      />
                     </td>
                     <td className="px-4 py-4">{task.runtimeDuration || "-"}</td>
                     <td className="px-4 py-4">{task.creator || "-"}</td>

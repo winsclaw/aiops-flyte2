@@ -4,6 +4,7 @@ import {
   TrainingTaskStatus,
 } from "@/gen/flyteidl2/trainingtask/training_task_definition_pb";
 import {
+  DEFAULT_CUSTOM_IMAGE,
   DEFAULT_OFFICIAL_IMAGE_ID,
   DEFAULT_RESOURCE_SPEC_ID,
   buildTrainingTaskInput,
@@ -54,6 +55,12 @@ describe("training task helpers", () => {
       codeRepositoryId: "repo-1",
       mountPath: "/workspace/aione",
     });
+  });
+
+  it("uses the Flyte runtime image for custom image defaults", () => {
+    expect(DEFAULT_CUSTOM_IMAGE).toBe(
+      "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1",
+    );
   });
 
   it("requires custom image uri when custom image is selected", () => {

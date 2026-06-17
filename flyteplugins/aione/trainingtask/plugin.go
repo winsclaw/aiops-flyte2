@@ -3,6 +3,7 @@ package trainingtask
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -77,6 +78,11 @@ func (p *Plugin) Handle(ctx context.Context, tCtx pluginsCore.TaskExecutionConte
 		return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure(condition.Reason, condition.Message, nil)), nil
 	}
 	if job.Status.Active > 0 {
+		if imagePullFailure, err := p.imagePullFailure(ctx, &job); err != nil {
+			return pluginsCore.UnknownTransition, err
+		} else if imagePullFailure != "" {
+			return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure("ImagePullFailed", imagePullFailure, nil)), nil
+		}
 		info := pluginsCore.PhaseInfoRunning(pluginsCore.DefaultPhaseVersion, nil)
 		info.WithReason("training task is running")
 		return pluginsCore.DoTransition(info), nil
@@ -109,6 +115,34 @@ func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContex
 
 func (p *Plugin) Finalize(context.Context, pluginsCore.TaskExecutionContext) error {
 	return nil
+}
+
+func (p *Plugin) imagePullFailure(ctx context.Context, job *batchv1.Job) (string, error) {
+	if job == nil {
+		return "", nil
+	}
+	var pods corev1.PodList
+	if err := p.kubeClient.List(ctx, &pods, client.InNamespace(job.Namespace), client.MatchingLabels(job.Spec.Template.Labels)); err != nil {
+		return "", err
+	}
+	for i := range pods.Items {
+		for _, status := range pods.Items[i].Status.ContainerStatuses {
+			waiting := status.State.Waiting
+			if waiting == nil || !isImagePullFailureReason(waiting.Reason) {
+				continue
+			}
+			message := strings.TrimSpace(waiting.Message)
+			if message == "" {
+				message = waiting.Reason
+			}
+			return "镜像拉取失败: " + message, nil
+		}
+	}
+	return "", nil
+}
+
+func isImagePullFailureReason(reason string) bool {
+	return reason == "ImagePullBackOff" || reason == "ErrImagePull"
 }
 
 func (p *Plugin) ensureJob(ctx context.Context, job *batchv1.Job) (bool, error) {

@@ -23,7 +23,7 @@ var trainingTaskResourceSpecs = []*trainingtaskpb.ResourceSpec{
 }
 
 var trainingTaskOfficialImages = []*trainingtaskpb.OfficialImage{
-	{Id: "busybox", Name: "BusyBox 1.36", ImageUri: "busybox:1.36"},
+	{Id: "flyte-py311-v251", Name: "Flyte Python 3.11 v2.5.1", ImageUri: "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1"},
 }
 
 func trainingTaskResourceSpecByID(id string) (*trainingtaskpb.ResourceSpec, error) {

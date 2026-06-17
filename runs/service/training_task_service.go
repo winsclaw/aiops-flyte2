@@ -60,7 +60,7 @@ func (s *TrainingTaskService) CreateTrainingTask(ctx context.Context, req *conne
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&trainingtaskpb.CreateTrainingTaskResponse{TrainingTask: trainingTaskModelToProto(created)}), nil
+	return connect.NewResponse(&trainingtaskpb.CreateTrainingTaskResponse{TrainingTask: s.trainingTaskModelToProto(ctx, created)}), nil
 }
 
 func (s *TrainingTaskService) GetTrainingTask(ctx context.Context, req *connect.Request[trainingtaskpb.GetTrainingTaskRequest]) (*connect.Response[trainingtaskpb.GetTrainingTaskResponse], error) {
@@ -71,7 +71,7 @@ func (s *TrainingTaskService) GetTrainingTask(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	return connect.NewResponse(&trainingtaskpb.GetTrainingTaskResponse{TrainingTask: trainingTaskModelToProto(model)}), nil
+	return connect.NewResponse(&trainingtaskpb.GetTrainingTaskResponse{TrainingTask: s.trainingTaskModelToProto(ctx, model)}), nil
 }
 
 func (s *TrainingTaskService) ListTrainingTasks(ctx context.Context, req *connect.Request[trainingtaskpb.ListTrainingTasksRequest]) (*connect.Response[trainingtaskpb.ListTrainingTasksResponse], error) {
@@ -112,7 +112,7 @@ func (s *TrainingTaskService) ListTrainingTasks(ctx context.Context, req *connec
 	}
 	items := make([]*trainingtaskpb.TrainingTask, 0, len(result.Items))
 	for _, item := range result.Items {
-		items = append(items, trainingTaskModelToProto(item))
+		items = append(items, s.trainingTaskModelToProto(ctx, item))
 	}
 	token := ""
 	if len(items) == int(limit) && offset+limit < result.Total {
@@ -142,7 +142,7 @@ func (s *TrainingTaskService) UpdateTrainingTask(ctx context.Context, req *conne
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&trainingtaskpb.UpdateTrainingTaskResponse{TrainingTask: trainingTaskModelToProto(saved)}), nil
+	return connect.NewResponse(&trainingtaskpb.UpdateTrainingTaskResponse{TrainingTask: s.trainingTaskModelToProto(ctx, saved)}), nil
 }
 
 func (s *TrainingTaskService) DeleteTrainingTask(ctx context.Context, req *connect.Request[trainingtaskpb.DeleteTrainingTaskRequest]) (*connect.Response[trainingtaskpb.DeleteTrainingTaskResponse], error) {
@@ -194,7 +194,7 @@ func (s *TrainingTaskService) StartTrainingTask(ctx context.Context, req *connec
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	model.LatestRunName = runName
-	return connect.NewResponse(&trainingtaskpb.StartTrainingTaskResponse{TrainingTask: trainingTaskModelToProto(model), RunName: runName}), nil
+	return connect.NewResponse(&trainingtaskpb.StartTrainingTaskResponse{TrainingTask: s.trainingTaskModelToProto(ctx, model), RunName: runName}), nil
 }
 
 func (s *TrainingTaskService) StopTrainingTask(ctx context.Context, req *connect.Request[trainingtaskpb.StopTrainingTaskRequest]) (*connect.Response[trainingtaskpb.StopTrainingTaskResponse], error) {
@@ -224,7 +224,7 @@ func (s *TrainingTaskService) StopTrainingTask(ctx context.Context, req *connect
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&trainingtaskpb.StopTrainingTaskResponse{TrainingTask: trainingTaskModelToProto(model)}), nil
+	return connect.NewResponse(&trainingtaskpb.StopTrainingTaskResponse{TrainingTask: s.trainingTaskModelToProto(ctx, model)}), nil
 }
 
 func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingtaskpb.TrainingTaskInput, creator string, id string) (*models.TrainingTask, error) {
@@ -376,6 +376,90 @@ func trainingTaskModelToProto(model *models.TrainingTask) *trainingtaskpb.Traini
 		CreatedAt:            timestamppb.New(model.CreatedAt),
 		UpdatedAt:            timestamppb.New(model.UpdatedAt),
 	}
+}
+
+func (s *TrainingTaskService) trainingTaskModelToProto(ctx context.Context, model *models.TrainingTask) *trainingtaskpb.TrainingTask {
+	trainingTask := trainingTaskModelToProto(model)
+	if trainingTask == nil || model.LatestRunName == "" || s.repo == nil {
+		return trainingTask
+	}
+	actionRepo := s.repo.ActionRepo()
+	if actionRepo == nil {
+		return trainingTask
+	}
+	actionID := &common.ActionIdentifier{
+		Run: &common.RunIdentifier{
+			Org:     model.Org,
+			Project: model.Project,
+			Domain:  model.Domain,
+			Name:    model.LatestRunName,
+		},
+		Name: RootActionName,
+	}
+	action, err := actionRepo.GetAction(ctx, actionID)
+	if err != nil || action == nil {
+		return trainingTask
+	}
+	phase := common.ActionPhase(action.Phase)
+	trainingTask.Status = trainingTaskStatusFromActionPhase(phase)
+	if message := trainingTaskStatusMessage(ctx, actionRepo, actionID, action, phase); message != "" {
+		trainingTask.StatusMessage = message
+	}
+	return trainingTask
+}
+
+func trainingTaskStatusFromActionPhase(phase common.ActionPhase) trainingtaskpb.TrainingTaskStatus {
+	switch phase {
+	case common.ActionPhase_ACTION_PHASE_SUCCEEDED:
+		return trainingtaskpb.TrainingTaskStatus_TRAINING_TASK_STATUS_SUCCEEDED
+	case common.ActionPhase_ACTION_PHASE_FAILED:
+		return trainingtaskpb.TrainingTaskStatus_TRAINING_TASK_STATUS_FAILED
+	case common.ActionPhase_ACTION_PHASE_ABORTED:
+		return trainingtaskpb.TrainingTaskStatus_TRAINING_TASK_STATUS_STOPPED
+	case common.ActionPhase_ACTION_PHASE_TIMED_OUT:
+		return trainingtaskpb.TrainingTaskStatus_TRAINING_TASK_STATUS_TIMED_OUT
+	default:
+		return trainingtaskpb.TrainingTaskStatus_TRAINING_TASK_STATUS_RUNNING
+	}
+}
+
+func trainingTaskStatusMessage(
+	ctx context.Context,
+	actionRepo interfaces.ActionRepo,
+	actionID *common.ActionIdentifier,
+	action *models.Action,
+	phase common.ActionPhase,
+) string {
+	if phase != common.ActionPhase_ACTION_PHASE_FAILED || actionRepo == nil || action == nil {
+		return ""
+	}
+	eventModel, err := actionRepo.GetLatestEventByAttempt(ctx, actionID, action.Attempts)
+	if err != nil || eventModel == nil {
+		return ""
+	}
+	event, err := eventModel.ToActionEvent()
+	if err != nil {
+		return ""
+	}
+	return normalizeTrainingTaskStatusMessage(event.GetErrorInfo().GetMessage())
+}
+
+func normalizeTrainingTaskStatusMessage(message string) string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return ""
+	}
+	if strings.HasPrefix(message, "镜像拉取失败") {
+		return message
+	}
+	lower := strings.ToLower(message)
+	if strings.Contains(message, "ImagePullBackOff") ||
+		strings.Contains(message, "ErrImagePull") ||
+		strings.Contains(lower, "failed to pull image") ||
+		strings.Contains(lower, "back-off pulling image") {
+		return "镜像拉取失败: " + message
+	}
+	return message
 }
 
 func (s *TrainingTaskService) resolveTrainingTaskCloudStorageMounts(ctx context.Context, task *models.TrainingTask) error {

@@ -546,7 +546,7 @@ export function TrainingTaskFormPage() {
                           : [
                               {
                                 id: DEFAULT_OFFICIAL_IMAGE_ID,
-                                name: "BusyBox 1.36",
+                                name: "Flyte Python 3.11 v2.5.1",
                                 imageUri: DEFAULT_CUSTOM_IMAGE,
                               },
                             ]

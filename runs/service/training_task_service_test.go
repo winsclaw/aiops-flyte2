@@ -6,11 +6,15 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	coderepositorypb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/coderepository"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/common"
 	trainingtaskpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask"
+	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow"
+	repositorymocks "github.com/flyteorg/flyte/v2/runs/repository/mocks"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 )
 
@@ -60,6 +64,91 @@ func TestListResourceSpecsIncludesSmallCPUAndT4Specs(t *testing.T) {
 	require.Equal(t, "2Gi", t4Spec.GetMemory())
 	require.Equal(t, uint32(1), t4Spec.GetGpuCount())
 	require.Equal(t, "NVIDIA T4", t4Spec.GetGpuModel())
+}
+
+func TestListOfficialImagesUsesFlyteRuntimeImage(t *testing.T) {
+	svc := NewTrainingTaskService(nil, nil)
+
+	response, err := svc.ListOfficialImages(context.Background(), connect.NewRequest(&trainingtaskpb.ListOfficialImagesRequest{}))
+
+	require.NoError(t, err)
+	require.Len(t, response.Msg.GetOfficialImages(), 1)
+	require.Equal(t, "flyte-py311-v251", response.Msg.GetOfficialImages()[0].GetId())
+	require.Equal(t, "Flyte Python 3.11 v2.5.1", response.Msg.GetOfficialImages()[0].GetName())
+	require.Equal(t, "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1", response.Msg.GetOfficialImages()[0].GetImageUri())
+}
+
+func TestListTrainingTasksUsesLatestRunFailureStatusAndMessage(t *testing.T) {
+	ctx := context.Background()
+	repo := repositorymocks.NewRepository(t)
+	actionRepo := repositorymocks.NewActionRepo(t)
+	svc := NewTrainingTaskService(repo, nil)
+	task := &models.TrainingTask{
+		TrainingTaskKey: models.TrainingTaskKey{
+			ID:      "train-1",
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+		},
+		Name:            "任务1",
+		ResourceSpecID:  "cpu-1c-2g",
+		ResourceDisplay: "1vCPU, 2GiB RAM, 1Gbps",
+		CPU:             "1",
+		Memory:          "2Gi",
+		Command:         "echo hello",
+		MaxRuntimeHours: 1,
+		ImageType:       "official",
+		OfficialImageID: "flyte-py311-v251",
+		ImageName:       "Flyte Python 3.11 v2.5.1",
+		ImageURI:        "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1",
+		Creator:         "ljgong",
+		LatestRunName:   "run-abc",
+	}
+	actionID := &common.ActionIdentifier{
+		Run: &common.RunIdentifier{
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+			Name:    "run-abc",
+		},
+		Name: RootActionName,
+	}
+	eventModel, err := models.NewActionEventModel(&workflow.ActionEvent{
+		Id:          actionID,
+		Attempt:     0,
+		Phase:       common.ActionPhase_ACTION_PHASE_FAILED,
+		Version:     1,
+		UpdatedTime: timestamppb.Now(),
+		ErrorInfo: &workflow.ErrorInfo{
+			Message: `镜像拉取失败: Back-off pulling image "busybox:1.36"`,
+			Kind:    workflow.ErrorInfo_KIND_SYSTEM,
+		},
+	})
+	require.NoError(t, err)
+	trainingRepo := &fakeTrainingTaskRepo{
+		listResult: &models.TrainingTaskListResult{Items: []*models.TrainingTask{task}, Total: 1},
+	}
+
+	repo.EXPECT().TrainingTaskRepo().Return(trainingRepo).Once()
+	repo.EXPECT().ActionRepo().Return(actionRepo).Once()
+	actionRepo.EXPECT().GetAction(mock.Anything, matchTrainingTaskActionID(actionID)).Return(&models.Action{
+		Project:  "flytesnacks",
+		Domain:   "development",
+		RunName:  "run-abc",
+		Name:     RootActionName,
+		Phase:    int32(common.ActionPhase_ACTION_PHASE_FAILED),
+		Attempts: 0,
+	}, nil).Once()
+	actionRepo.EXPECT().GetLatestEventByAttempt(mock.Anything, matchTrainingTaskActionID(actionID), uint32(0)).Return(eventModel, nil).Once()
+
+	response, err := svc.ListTrainingTasks(ctx, connect.NewRequest(&trainingtaskpb.ListTrainingTasksRequest{
+		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
+	}))
+
+	require.NoError(t, err)
+	require.Len(t, response.Msg.GetTrainingTasks(), 1)
+	require.Equal(t, trainingtaskpb.TrainingTaskStatus_TRAINING_TASK_STATUS_FAILED, response.Msg.GetTrainingTasks()[0].GetStatus())
+	require.Contains(t, response.Msg.GetTrainingTasks()[0].GetStatusMessage(), "镜像拉取失败")
 }
 
 func TestBuildTrainingTaskSpecIncludesCloudStorageMounts(t *testing.T) {
@@ -160,7 +249,7 @@ func TestBuildTrainingTaskModelIncludesCodeRepositoryMounts(t *testing.T) {
 			Command:         "echo hello",
 			MaxRuntimeHours: 1,
 			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_OFFICIAL,
-			OfficialImageId: "busybox",
+			OfficialImageId: "flyte-py311-v251",
 			CodeRepositoryMounts: []*coderepositorypb.CodeRepositoryMount{
 				{CodeRepositoryId: "repo-1", MountPath: "/workspace/aione"},
 			},
@@ -220,7 +309,7 @@ func TestTrainingTaskServiceRejectsMissingCommand(t *testing.T) {
 			Command:         "",
 			MaxRuntimeHours: 1,
 			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_OFFICIAL,
-			OfficialImageId: "busybox",
+			OfficialImageId: "flyte-py311-v251",
 		},
 	}))
 
@@ -255,4 +344,45 @@ func (r *fakeCodeRepositoryRepo) Delete(context.Context, models.CodeRepositoryKe
 
 func (r *fakeCodeRepositoryRepo) List(context.Context, models.CodeRepositoryListInput) (*models.CodeRepositoryListResult, error) {
 	return nil, nil
+}
+
+type fakeTrainingTaskRepo struct {
+	listResult *models.TrainingTaskListResult
+}
+
+func (r *fakeTrainingTaskRepo) Create(context.Context, *models.TrainingTask) error {
+	return nil
+}
+
+func (r *fakeTrainingTaskRepo) Get(context.Context, models.TrainingTaskKey) (*models.TrainingTask, error) {
+	return nil, fmt.Errorf("not found")
+}
+
+func (r *fakeTrainingTaskRepo) Update(context.Context, *models.TrainingTask) error {
+	return nil
+}
+
+func (r *fakeTrainingTaskRepo) Delete(context.Context, models.TrainingTaskKey) error {
+	return nil
+}
+
+func (r *fakeTrainingTaskRepo) List(_ context.Context, input models.TrainingTaskListInput) (*models.TrainingTaskListResult, error) {
+	if input.Org != "testorg" || input.Project != "flytesnacks" || input.Domain != "development" || input.Limit != 50 {
+		return nil, fmt.Errorf("unexpected list input: %+v", input)
+	}
+	return r.listResult, nil
+}
+
+func (r *fakeTrainingTaskRepo) SetLatestRun(context.Context, models.TrainingTaskKey, string) error {
+	return nil
+}
+
+func matchTrainingTaskActionID(expected *common.ActionIdentifier) interface{} {
+	return mock.MatchedBy(func(actual *common.ActionIdentifier) bool {
+		return actual.GetRun().GetOrg() == expected.GetRun().GetOrg() &&
+			actual.GetRun().GetProject() == expected.GetRun().GetProject() &&
+			actual.GetRun().GetDomain() == expected.GetRun().GetDomain() &&
+			actual.GetRun().GetName() == expected.GetRun().GetName() &&
+			actual.GetName() == expected.GetName()
+	})
 }

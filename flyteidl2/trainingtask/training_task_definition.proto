@@ -69,4 +69,5 @@ message TrainingTask {
   google.protobuf.Timestamp ended_at = 18;
   repeated aione.cloudstorage.CloudStorageMount cloud_storage_mounts = 19;
   repeated aione.coderepository.CodeRepositoryMount code_repository_mounts = 20;
+  string status_message = 21;
 }

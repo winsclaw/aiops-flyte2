@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
   DEFAULT_NODE_PORT_RANGE,
+  DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES,
   DEVELOPMENT_INSTANCE_RESOURCE_SPECS,
   DELETED_DEVELOPMENT_INSTANCE_REASON,
   buildCreateDevelopmentInstanceRequest,
@@ -77,6 +79,8 @@ describe("development instance helpers", () => {
       name: "devbox-a",
       description: "for notebooks",
       owner: "ljgong",
+      imageType: "custom",
+      officialImageId: DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
       image: "ubuntu:22.04",
       sshUser: "dev",
       authorizedKey: "ssh-rsa AAAA user@example",
@@ -148,6 +152,48 @@ describe("development instance helpers", () => {
           token: "",
         },
       ],
+    });
+  });
+
+  it("uses the official IDE image by default", () => {
+    const defaultOfficialImage = DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES.find(
+      (image) => image.id === DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
+    );
+
+    expect(defaultOfficialImage).toMatchObject({
+      name: "官方编辑器",
+      imageUri: "docker.fzyun.io/founder/aione.ide:1.0.0.60",
+    });
+
+    const request = buildCreateDevelopmentInstanceRequest({
+      org: "testorg",
+      project: "flytesnacks",
+      domain: "development",
+      name: "devbox-a",
+      description: "",
+      owner: "ljgong",
+      imageType: "official",
+      officialImageId: "",
+      image: "",
+      sshUser: "dev",
+      authorizedKey: "ssh-rsa AAAA user@example",
+      cpu: "2",
+      memory: "4Gi",
+      workspaceSize: "20Gi",
+      gpuCount: 0,
+      nodePort: 31022,
+      codeServerNodePort: 31023,
+      maxHours: 24,
+    });
+
+    if (request.task.case !== "taskSpec") {
+      throw new Error("expected task spec");
+    }
+    expect(request.task.value.taskTemplate?.custom).toMatchObject({
+      image: "docker.fzyun.io/founder/aione.ide:1.0.0.60",
+      imageType: "official",
+      officialImageId: DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
+      imageName: "官方编辑器",
     });
   });
 

@@ -32,6 +32,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DevelopmentInstance,
+  DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
   DELETED_DEVELOPMENT_INSTANCE_REASON,
   buildCreateDevelopmentInstanceRequest,
   buildRunIdentifier,
@@ -307,9 +308,18 @@ export function DevelopmentInstancesListPage() {
     }
     const source = selectedInstances[0];
     const custom = source.custom ?? {};
+    const sourceImageType =
+      custom.imageType === "custom" || custom.imageType === "official"
+        ? custom.imageType
+        : typeof custom.image === "string" && custom.image
+          ? "custom"
+          : "official";
     setIsOperating(true);
     setOperationMessage("");
     try {
+      const usedPorts = getUsedNodePorts(runs);
+      const nodePort = getNextNodePort(usedPorts);
+      const codeServerNodePort = getNextNodePort([...usedPorts, nodePort]);
       await runClient.createRun(
         buildCreateDevelopmentInstanceRequest({
           org: projectId.organization,
@@ -319,8 +329,12 @@ export function DevelopmentInstancesListPage() {
           description:
             typeof custom.description === "string" ? custom.description : "",
           owner: typeof custom.owner === "string" ? custom.owner : source.owner,
-          image:
-            typeof custom.image === "string" ? custom.image : "ubuntu:22.04",
+          imageType: sourceImageType,
+          officialImageId:
+            typeof custom.officialImageId === "string"
+              ? custom.officialImageId
+              : DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
+          image: typeof custom.image === "string" ? custom.image : "",
           sshUser: typeof custom.sshUser === "string" ? custom.sshUser : "dev",
           authorizedKey: Array.isArray(custom.authorizedKeys)
             ? String(custom.authorizedKeys[0] ?? "")
@@ -331,7 +345,8 @@ export function DevelopmentInstancesListPage() {
             typeof custom.workspaceSize === "string"
               ? custom.workspaceSize
               : "20Gi",
-          nodePort: getNextNodePort(getUsedNodePorts(runs)),
+          nodePort,
+          codeServerNodePort,
           maxHours: typeof custom.maxHours === "number" ? custom.maxHours : 24,
         }),
       );

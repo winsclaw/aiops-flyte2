@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/app/api/development-instances/**/*.ts",
+    "src/components/pages/DevelopmentInstances/**/*.ts",
+    "src/components/pages/DevelopmentInstances/**/*.tsx",
+    "src/components/pages/TrainingTasks/**/*.ts",
+    "src/components/pages/TrainingTasks/**/*.tsx",
+    "gen/flyteidl2/aione/**/*.ts",
+    "gen/flyteidl2/common/**/*.ts",
+    "gen/flyteidl2/core/**/*.ts",
+    "gen/flyteidl2/task/**/*.ts",
+    "gen/flyteidl2/trainingtask/**/*.ts",
+    "gen/flyteidl2/workflow/**/*.ts",
+    "types/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}
