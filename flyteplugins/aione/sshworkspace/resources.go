@@ -9,6 +9,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -28,6 +29,7 @@ const (
 	annotationGPUModel = "flyte.org/gpu-model"
 
 	maxGeneratedNameBaseLength = 63 - len("-workspace")
+	codeServerDomain           = "ops.fzyun.io"
 )
 
 type WorkspaceIdentity struct {
@@ -41,11 +43,12 @@ type WorkspaceIdentity struct {
 }
 
 type WorkspaceResources struct {
-	Secret           *corev1.Secret
-	PVC              *corev1.PersistentVolumeClaim
-	CloudStoragePVCs []*corev1.PersistentVolumeClaim
-	StatefulSet      *appsv1.StatefulSet
-	Service          *corev1.Service
+	Secret            *corev1.Secret
+	PVC               *corev1.PersistentVolumeClaim
+	CloudStoragePVCs  []*corev1.PersistentVolumeClaim
+	StatefulSet       *appsv1.StatefulSet
+	Service           *corev1.Service
+	CodeServerIngress *networkingv1.Ingress
 }
 
 func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceResources, error) {
@@ -336,12 +339,41 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		},
 	}
 
+	pathType := networkingv1.PathTypePrefix
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName + "-code",
+			Namespace: identity.Namespace,
+			Labels:    labels,
+		},
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{{
+				Host: codeServerHost(identity, cfg),
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
+							Path:     "/",
+							PathType: &pathType,
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: serviceName,
+									Port: networkingv1.ServiceBackendPort{Name: "code-server"},
+								},
+							},
+						}},
+					},
+				},
+			}},
+		},
+	}
+
 	return WorkspaceResources{
-		Secret:           secret,
-		PVC:              pvc,
-		CloudStoragePVCs: cloudPVCs,
-		StatefulSet:      sts,
-		Service:          svc,
+		Secret:            secret,
+		PVC:               pvc,
+		CloudStoragePVCs:  cloudPVCs,
+		StatefulSet:       sts,
+		Service:           svc,
+		CodeServerIngress: ingress,
 	}, nil
 }
 
@@ -409,6 +441,17 @@ func kubernetesNameBase(name string) string {
 	hash := shortNameHash(cleaned)
 	prefixLength := maxGeneratedNameBaseLength - len(hash) - 1
 	return strings.TrimRight(cleaned[:prefixLength], "-") + "-" + hash
+}
+
+func codeServerHost(identity WorkspaceIdentity, cfg WorkspaceConfig) string {
+	if strings.TrimSpace(cfg.CodeServerHost) != "" {
+		return strings.TrimSpace(cfg.CodeServerHost)
+	}
+	name := identity.RunName
+	if strings.TrimSpace(name) == "" {
+		name = identity.Name
+	}
+	return kubernetesNameBase(name) + "-code." + codeServerDomain
 }
 
 func collapseHyphens(value string) string {

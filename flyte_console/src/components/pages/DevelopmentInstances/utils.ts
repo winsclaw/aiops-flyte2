@@ -38,6 +38,9 @@ export const DEFAULT_NODE_PORT_RANGE = {
   max: 32767,
 };
 
+export const DEFAULT_CODE_SERVER_DOMAIN = "ops.fzyun.io";
+export const DEFAULT_CODE_SERVER_SCHEME = "https";
+
 export const DEFAULT_CUSTOM_DEVELOPMENT_INSTANCE_IMAGE = "";
 
 export const DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID = "aione-ide";
@@ -132,6 +135,9 @@ export type DevelopmentInstanceFormValues = {
   workspacePVCName?: string;
   nodePort: number;
   codeServerNodePort: number;
+  codeServerHost?: string;
+  codeServerUrl?: string;
+  codeServerWorkspaceUrl?: string;
   maxHours: number;
   imagePullSecretName?: string;
   codeRepositorySecretName?: string;
@@ -213,6 +219,33 @@ export function normalizeRunName(value: string) {
     .replace(/^-|-$/g, "");
 }
 
+export function buildCodeServerHost(
+  value: string,
+  domain = DEFAULT_CODE_SERVER_DOMAIN,
+) {
+  const base = normalizeRunName(value) || "instance";
+  const suffix = "-code";
+  const hostLabel =
+    base.length + suffix.length <= 63
+      ? `${base}${suffix}`
+      : `${base.slice(0, 63 - suffix.length - 9).replace(/-+$/g, "")}-${shortHash(base)}${suffix}`;
+  return `${hostLabel}.${domain}`;
+}
+
+export function buildCodeServerUrl(
+  host: string,
+  scheme = DEFAULT_CODE_SERVER_SCHEME,
+) {
+  return `${scheme}://${host}`;
+}
+
+export function buildCodeServerWorkspaceUrl(
+  host: string,
+  scheme = DEFAULT_CODE_SERVER_SCHEME,
+) {
+  return `${buildCodeServerUrl(host, scheme)}/?folder=/workspace`;
+}
+
 export function buildCreateDevelopmentInstanceRequest(
   values: DevelopmentInstanceFormValues,
 ) {
@@ -229,6 +262,13 @@ export function buildCreateDevelopmentInstanceRequest(
       ? developmentInstanceOfficialImageByID(values.officialImageId)
       : undefined;
   const image = officialImage?.imageUri ?? values.image.trim();
+  const codeServerHost =
+    values.codeServerHost?.trim() || buildCodeServerHost(name);
+  const codeServerUrl =
+    values.codeServerUrl?.trim() || buildCodeServerUrl(codeServerHost);
+  const codeServerWorkspaceUrl =
+    values.codeServerWorkspaceUrl?.trim() ||
+    buildCodeServerWorkspaceUrl(codeServerHost);
 
   const custom = {
     image,
@@ -246,6 +286,9 @@ export function buildCreateDevelopmentInstanceRequest(
     serviceType: "NodePort",
     nodePort: values.nodePort,
     codeServerNodePort: values.codeServerNodePort,
+    codeServerHost,
+    codeServerUrl,
+    codeServerWorkspaceUrl,
     description: values.description?.trim() ?? "",
     owner: values.owner?.trim() ?? "",
     maxHours: values.maxHours,
@@ -395,6 +438,15 @@ export function formatDevelopmentInstance(
     typeof custom.codeServerNodePort === "number"
       ? Number(custom.codeServerNodePort)
       : undefined;
+  const codeServerWorkspaceUrl =
+    typeof custom.codeServerWorkspaceUrl === "string" &&
+    custom.codeServerWorkspaceUrl.trim()
+      ? custom.codeServerWorkspaceUrl.trim()
+      : "";
+  const codeServerUrl =
+    typeof custom.codeServerUrl === "string" && custom.codeServerUrl.trim()
+      ? custom.codeServerUrl.trim()
+      : "";
   const sshUser = typeof custom.sshUser === "string" ? custom.sshUser : "dev";
   const cpu = typeof custom.cpu === "string" ? custom.cpu : "";
   const memory = typeof custom.memory === "string" ? custom.memory : "";
@@ -430,13 +482,25 @@ export function formatDevelopmentInstance(
       : undefined,
     nodePort,
     codeServerNodePort,
-    codeServerUrl: codeServerNodePort
-      ? `http://172.19.65.230:${codeServerNodePort}/?folder=/workspace`
-      : undefined,
+    codeServerUrl:
+      codeServerWorkspaceUrl ||
+      codeServerUrl ||
+      (codeServerNodePort
+        ? `http://172.19.65.230:${codeServerNodePort}/?folder=/workspace`
+        : undefined),
     image: typeof custom.image === "string" ? custom.image : undefined,
     custom,
     run,
   };
+}
+
+function shortHash(value: string) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 export function getUsedNodePorts(runs: Run[]) {

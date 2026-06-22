@@ -8,7 +8,7 @@ import urllib.request
 
 
 ENDPOINT = os.environ.get("ENDPOINT", "http://172.19.65.230:30081")
-API_PATH = os.environ.get("API_PATH", "/v2/api/aione/instances")
+API_PATH = os.environ.get("API_PATH", "/v2/api/aione/run")
 API_KEY = os.environ.get("AIONE_API_KEY", "aione-external-test-key-20260617160842-86fa2460143e495ab74791432293e04d")
 
 
@@ -119,15 +119,14 @@ def main() -> int:
         return 1
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    run_id = (result.get("data") or {}).get("run") or result.get("runId") or {}
-    if run_id:
-        print(
-            "RUN:",
-            f"{run_id.get('org')}/{run_id.get('project')}/{run_id.get('domain')}/{run_id.get('name')}",
-        )
-    source = (result.get("data") or {}).get("source") or {}
-    if source.get("id"):
-        print("INSTANCE:", source.get("id"))
+    data = result.get("data")
+    if isinstance(data, dict):
+        print("INSTANCE:", data.get("id") or data.get("source", {}).get("id"))
+        code_server = data.get("info", {}).get("codeServer", {})
+        if code_server.get("workspaceUrl"):
+            print("CODE_SERVER:", code_server["workspaceUrl"])
+    elif data:
+        print("INSTANCE:", data)
     return 0
 
 

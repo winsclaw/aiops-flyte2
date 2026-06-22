@@ -3,11 +3,12 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 
 ENDPOINT = os.environ.get("ENDPOINT", "http://172.19.65.230:30081")
-API_PATH = os.environ.get("API_PATH", "/v2/api/aione/instances/status")
+API_PATH_TEMPLATE = os.environ.get("API_PATH_TEMPLATE", "/v2/api/aione/{id}/status")
 API_KEY = os.environ.get(
     "AIONE_API_KEY",
     "aione-external-test-key-20260617160842-86fa2460143e495ab74791432293e04d",
@@ -20,15 +21,13 @@ def post_status(workflow_id: str) -> dict:
     if not workflow_id:
         raise RuntimeError("INSTANCE_ID or FLYTE_WORKFLOW_ID is required")
 
-    url = ENDPOINT.rstrip("/") + API_PATH
-    data = json.dumps({"id": workflow_id}, ensure_ascii=False).encode("utf-8")
+    path = API_PATH_TEMPLATE.format(id=urllib.parse.quote(workflow_id, safe=""))
+    url = ENDPOINT.rstrip("/") + path
     request = urllib.request.Request(
         url,
-        data=data,
-        method="POST",
+        method="GET",
         headers={
             "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json",
         },
     )
 

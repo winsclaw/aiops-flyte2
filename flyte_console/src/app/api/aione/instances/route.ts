@@ -5,13 +5,19 @@
 import { createClient, Code, ConnectError } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { NextRequest, NextResponse } from "next/server";
-import { buildCreateDevelopmentInstanceRequest, getNextNodePort } from "@/components/pages/DevelopmentInstances/utils";
+import {
+  buildCreateDevelopmentInstanceRequest,
+  getNextNodePort,
+} from "@/components/pages/DevelopmentInstances/utils";
 import { RunService } from "@/gen/flyteidl2/workflow/run_service_pb";
 import {
   getKubernetesClientConfig,
   requestKubernetes,
 } from "../../development-instances/kubernetes";
-import { KubernetesServiceList, extractNodePorts } from "../../development-instances/nodeports/helpers";
+import {
+  KubernetesServiceList,
+  extractNodePorts,
+} from "../../development-instances/nodeports/helpers";
 import {
   AIONE_RUNTIME_NAMESPACE,
   CodeRepositoryWithToken,
@@ -40,7 +46,9 @@ const NODE_PORT_RETRIES = 3;
 let allocationLock: Promise<void> = Promise.resolve();
 
 export async function POST(request: NextRequest) {
-  if (!authenticateAioneRequest(request.headers, process.env.EXTERNAL_API_KEYS)) {
+  if (
+    !authenticateAioneRequest(request.headers, process.env.EXTERNAL_API_KEYS)
+  ) {
     return NextResponse.json(
       { ok: false, error: "unauthorized" },
       { status: 401 },
@@ -84,7 +92,9 @@ async function createInstance(payload: unknown) {
       ca,
     });
     const baseMapped = buildAioneInstanceValues({
-      payload: payload as Parameters<typeof buildAioneInstanceValues>[0]["payload"],
+      payload: payload as Parameters<
+        typeof buildAioneInstanceValues
+      >[0]["payload"],
       nodePort,
       codeServerNodePort,
       internalOrg,
@@ -101,7 +111,9 @@ async function createInstance(payload: unknown) {
     }
     const generation = nextAioneInstanceGeneration(existingRecord);
     const mapped = buildAioneInstanceValues({
-      payload: payload as Parameters<typeof buildAioneInstanceValues>[0]["payload"],
+      payload: payload as Parameters<
+        typeof buildAioneInstanceValues
+      >[0]["payload"],
       nodePort,
       codeServerNodePort,
       internalOrg,
@@ -179,6 +191,7 @@ async function createInstance(payload: unknown) {
             workspaceSize: mapped.values.workspaceSize,
             publicScheme: process.env.EXTERNAL_API_PUBLIC_SCHEME,
             publicHost: process.env.EXTERNAL_API_PUBLIC_HOST,
+            codeServerHost: mapped.values.codeServerHost,
           }),
         }),
         { status: 200 },
@@ -237,7 +250,10 @@ async function allocateNodePorts({
     ca,
   });
   if (!response.ok) {
-    throw statusError(response.text || "failed to list Kubernetes services", 502);
+    throw statusError(
+      response.text || "failed to list Kubernetes services",
+      502,
+    );
   }
   const usedPorts = extractNodePorts(response.json<KubernetesServiceList>());
   const nodePort = getNextNodePort(usedPorts, getAioneNodePortRange());
@@ -367,10 +383,7 @@ async function withNodePortAllocation<T>(fn: () => Promise<T>) {
 }
 
 function isAlreadyExists(error: unknown) {
-  return (
-    error instanceof ConnectError &&
-    error.code === Code.AlreadyExists
-  );
+  return error instanceof ConnectError && error.code === Code.AlreadyExists;
 }
 
 function isLikelyNodePortConflict(error: unknown) {
@@ -393,7 +406,10 @@ function statusError(message: string, status: number) {
 }
 
 class ResponseStatusError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
     super(message);
   }
 }

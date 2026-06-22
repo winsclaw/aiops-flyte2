@@ -62,7 +62,9 @@ describe("aione external instance helpers", () => {
     expect(mapped.runName).toMatch(/-r1$/);
     expect(mapped.runName.length).toBeLessThanOrEqual(30);
     expect(mapped.sourceInstanceId).toBe("ins-og2bgwm130xq3o6uk3h4956la6");
-    expect(mapped.workspacePVCName).toBe("ins-og2bgwm130xq3o6uk3h4956la6-workspace");
+    expect(mapped.workspacePVCName).toBe(
+      "ins-og2bgwm130xq3o6uk3h4956la6-workspace",
+    );
     expect(mapped.values.org).toBe("aione");
     expect(mapped.values.project).toBe("aione");
     expect(mapped.values.domain).toBe("development");
@@ -131,12 +133,16 @@ describe("aione external instance helpers", () => {
     expect(first.values.cloudStorageMounts?.[0]?.pvcName).toBe(
       second.values.cloudStorageMounts?.[0]?.pvcName,
     );
-    expect(first.values.imagePullSecretName).toBe(second.values.imagePullSecretName);
+    expect(first.values.imagePullSecretName).toBe(
+      second.values.imagePullSecretName,
+    );
     expect(first.values.codeRepositorySecretName).toBe(
       second.values.codeRepositorySecretName,
     );
     expect(first.runName.length).toBeLessThanOrEqual(30);
-    expect(buildAioneInstanceConfigMapName(first.sourceInstanceId).length).toBeLessThanOrEqual(253);
+    expect(
+      buildAioneInstanceConfigMapName(first.sourceInstanceId).length,
+    ).toBeLessThanOrEqual(253);
   });
 
   it("uses OWN image fields and the default authorized key when provided", () => {
@@ -293,6 +299,30 @@ describe("aione external instance helpers", () => {
     );
   });
 
+  it("builds code-server access URLs from the workspace domain when provided", () => {
+    const access = buildAioneInstanceAccessInfo({
+      runName: "ins-domain-test-r1",
+      sourceName: "",
+      sshUser: "dev",
+      nodePort: 31004,
+      codeServerNodePort: 31005,
+      cpu: "2",
+      memory: "4Gi",
+      gpuCount: 0,
+      workspaceSize: "20Gi",
+      codeServerHost: "ins-domain-test-r1-code.ops.fzyun.io",
+      codeServerScheme: "https",
+    });
+
+    expect(access.codeServer).toMatchObject({
+      host: "ins-domain-test-r1-code.ops.fzyun.io",
+      port: 443,
+      url: "https://ins-domain-test-r1-code.ops.fzyun.io",
+      workspaceUrl:
+        "https://ins-domain-test-r1-code.ops.fzyun.io/?folder=/workspace",
+    });
+  });
+
   it("wraps successful create results in the external API response shape", () => {
     const info = buildAioneInstanceAccessInfo({
       runName: "ins-2024ad6h4e4x036u9u5j31ec89",
@@ -321,6 +351,7 @@ describe("aione external instance helpers", () => {
     ).toEqual({
       status: 200,
       data: {
+        id: "ins-2024ad6h4e4x036u9u5j31ec89",
         run: {
           org: "aione",
           project: "aione",

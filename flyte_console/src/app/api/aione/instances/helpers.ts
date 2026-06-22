@@ -3,6 +3,9 @@
  */
 
 import {
+  buildCodeServerHost,
+  buildCodeServerUrl,
+  buildCodeServerWorkspaceUrl,
   DEFAULT_NODE_PORT_RANGE,
   DevelopmentInstanceFormValues,
   normalizeRunName,
@@ -90,9 +93,13 @@ export type BuildAioneInstanceAccessInfoInput = {
   workspaceSize: string;
   publicScheme?: string;
   publicHost?: string;
+  codeServerScheme?: string;
+  codeServerHost?: string;
 };
 
-export type AioneInstanceAccessInfo = ReturnType<typeof buildAioneInstanceAccessInfo>;
+export type AioneInstanceAccessInfo = ReturnType<
+  typeof buildAioneInstanceAccessInfo
+>;
 
 export type AioneInstanceRecordStatus =
   | "STARTING"
@@ -167,6 +174,9 @@ export function buildAioneInstanceValues({
   }
   const runName = buildRestartableRunName(sourceBaseName, runNameSuffix);
   const workspacePVCName = buildStablePVCName(sourceBaseName, "workspace");
+  const codeServerHost = buildCodeServerHost(sourceBaseName);
+  const codeServerUrl = buildCodeServerUrl(codeServerHost);
+  const codeServerWorkspaceUrl = buildCodeServerWorkspaceUrl(codeServerHost);
 
   const authorizedKey =
     firstNonEmpty([payload.authorizedKey, ...(payload.authorizedKeys ?? [])]) ||
@@ -181,7 +191,9 @@ export function buildAioneInstanceValues({
       ? requiredString(payload.image, "image")
       : requiredString(payload.baseImage?.image, "baseImage.image");
   const imageKey =
-    imageType === "OWN" ? payload.imageKey?.trim() : payload.baseImage?.imageKey?.trim();
+    imageType === "OWN"
+      ? payload.imageKey?.trim()
+      : payload.baseImage?.imageKey?.trim();
   const imageSecret =
     imageType === "OWN"
       ? payload.imageSecret?.trim()
@@ -204,7 +216,9 @@ export function buildAioneInstanceValues({
       token: repo.token?.trim() || undefined,
     };
   });
-  const hasCodeRepositoryTokens = codeRepositoriesWithTokens.some((repo) => repo.token);
+  const hasCodeRepositoryTokens = codeRepositoriesWithTokens.some(
+    (repo) => repo.token,
+  );
   const codeRepositorySecretName = hasCodeRepositoryTokens
     ? buildExternalSecretName(project, sourceBaseName, "code")
     : "";
@@ -229,6 +243,9 @@ export function buildAioneInstanceValues({
     workspacePVCName,
     nodePort,
     codeServerNodePort,
+    codeServerHost,
+    codeServerUrl,
+    codeServerWorkspaceUrl,
     maxHours: positiveNumber(payload.timeout, 24, "timeout"),
     imagePullSecretName,
     codeRepositorySecretName,
@@ -248,7 +265,9 @@ export function buildAioneInstanceValues({
         mountPath: requiredAbsolutePath(datastore.path, "datastores.path"),
       };
     }),
-    codeRepositories: codeRepositoriesWithTokens.map(({ token: _token, ...repo }) => repo),
+    codeRepositories: codeRepositoriesWithTokens.map(
+      ({ token: _token, ...repo }) => repo,
+    ),
   };
 
   return {
@@ -290,10 +309,18 @@ export function buildAioneInstanceAccessInfo({
   workspaceSize,
   publicScheme = DEFAULT_EXTERNAL_API_PUBLIC_SCHEME,
   publicHost = DEFAULT_EXTERNAL_API_PUBLIC_HOST,
+  codeServerScheme = "https",
+  codeServerHost,
 }: BuildAioneInstanceAccessInfoInput) {
   const scheme = publicScheme.trim() || DEFAULT_EXTERNAL_API_PUBLIC_SCHEME;
   const host = publicHost.trim() || DEFAULT_EXTERNAL_API_PUBLIC_HOST;
-  const codeServerUrl = `${scheme}://${host}:${codeServerNodePort}`;
+  const resolvedCodeServerHost = codeServerHost?.trim();
+  const resolvedCodeServerUrl = resolvedCodeServerHost
+    ? buildCodeServerUrl(resolvedCodeServerHost, codeServerScheme)
+    : `${scheme}://${host}:${codeServerNodePort}`;
+  const resolvedCodeServerPort = resolvedCodeServerHost
+    ? 443
+    : codeServerNodePort;
   return {
     id: runName,
     name: sourceName,
@@ -305,10 +332,10 @@ export function buildAioneInstanceAccessInfo({
       command: `ssh -p ${nodePort} ${sshUser}@${host}`,
     },
     codeServer: {
-      host,
-      port: codeServerNodePort,
-      url: codeServerUrl,
-      workspaceUrl: `${codeServerUrl}/?folder=/workspace`,
+      host: resolvedCodeServerHost || host,
+      port: resolvedCodeServerPort,
+      url: resolvedCodeServerUrl,
+      workspaceUrl: `${resolvedCodeServerUrl}/?folder=/workspace`,
     },
     resources: {
       cpu,
@@ -331,6 +358,7 @@ export function buildAioneCreateInstanceResponse({
   return {
     status: 200,
     data: {
+      id: sourceInstanceId,
       run: {
         org: internalOrg,
         project,
@@ -381,11 +409,13 @@ export function buildWorkspaceLabels({
 
 export function getAioneNodePortRange() {
   const min = Number.parseInt(
-    process.env.EXTERNAL_API_NODE_PORT_MIN || String(DEFAULT_NODE_PORT_RANGE.min),
+    process.env.EXTERNAL_API_NODE_PORT_MIN ||
+      String(DEFAULT_NODE_PORT_RANGE.min),
     10,
   );
   const max = Number.parseInt(
-    process.env.EXTERNAL_API_NODE_PORT_MAX || String(DEFAULT_NODE_PORT_RANGE.max),
+    process.env.EXTERNAL_API_NODE_PORT_MAX ||
+      String(DEFAULT_NODE_PORT_RANGE.max),
     10,
   );
   return { min, max };
@@ -411,7 +441,9 @@ export function buildAioneInstanceRecord({
   nodePort,
   codeServerNodePort,
   updatedAt = new Date().toISOString(),
-}: Omit<AioneInstanceRecord, "updatedAt"> & { updatedAt?: string }): AioneInstanceRecord {
+}: Omit<AioneInstanceRecord, "updatedAt"> & {
+  updatedAt?: string;
+}): AioneInstanceRecord {
   return {
     sourceInstanceId,
     latestRunName,
@@ -446,7 +478,10 @@ function buildNameWithSuffix(base: string, suffix: string, maxLength: number) {
     return full;
   }
   const hash = shortHash(full);
-  const prefixLength = Math.max(1, maxLength - cleanedSuffix.length - hash.length - 2);
+  const prefixLength = Math.max(
+    1,
+    maxLength - cleanedSuffix.length - hash.length - 2,
+  );
   return `${cleaned.slice(0, prefixLength).replace(/-+$/g, "")}-${hash}-${cleanedSuffix}`;
 }
 
@@ -475,7 +510,11 @@ function requiredAbsolutePath(value: string | undefined, field: string) {
   return trimmed;
 }
 
-function positiveNumber(value: number | undefined, fallback: number, field: string) {
+function positiveNumber(
+  value: number | undefined,
+  fallback: number,
+  field: string,
+) {
   const resolved = value ?? fallback;
   if (!Number.isFinite(resolved) || resolved <= 0) {
     throw new Error(`${field} must be a positive number`);

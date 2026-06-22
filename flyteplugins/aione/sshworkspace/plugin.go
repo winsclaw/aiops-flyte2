@@ -152,6 +152,11 @@ func (p *Plugin) ensureResources(ctx context.Context, resources WorkspaceResourc
 	} else if ok {
 		created = true
 	}
+	if ok, err := p.ensureObject(ctx, resources.CodeServerIngress); err != nil {
+		return false, err
+	} else if ok {
+		created = true
+	}
 	if ok, err := p.ensureObject(ctx, resources.StatefulSet); err != nil {
 		return false, err
 	} else if ok {

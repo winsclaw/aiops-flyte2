@@ -133,6 +133,10 @@ describe("development instance helpers", () => {
       serviceType: "NodePort",
       nodePort: 31022,
       codeServerNodePort: 31023,
+      codeServerHost: "devbox-a-code.ops.fzyun.io",
+      codeServerUrl: "https://devbox-a-code.ops.fzyun.io",
+      codeServerWorkspaceUrl:
+        "https://devbox-a-code.ops.fzyun.io/?folder=/workspace",
       description: "for notebooks",
       owner: "ljgong",
       maxHours: 24,

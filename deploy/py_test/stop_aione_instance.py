@@ -4,10 +4,11 @@ import os
 import sys
 import urllib.error
 import urllib.request
+import urllib.parse
 
 
 ENDPOINT = os.environ.get("ENDPOINT", "http://172.19.65.230:30081")
-API_PATH = os.environ.get("API_PATH", "/v2/api/aione/instances/stop")
+API_PATH_TEMPLATE = os.environ.get("API_PATH_TEMPLATE", "/v2/api/aione/{id}/stop")
 API_KEY = os.environ.get("AIONE_API_KEY", "aione-external-test-key-20260617160842-86fa2460143e495ab74791432293e04d")
 
 
@@ -17,11 +18,11 @@ def post_stop(instance_id: str) -> dict:
     if not instance_id:
         raise RuntimeError("INSTANCE_ID is required")
 
-    url = ENDPOINT.rstrip("/") + API_PATH
-    data = json.dumps({"id": instance_id}, ensure_ascii=False).encode("utf-8")
+    path = API_PATH_TEMPLATE.format(id=urllib.parse.quote(instance_id, safe=""))
+    url = ENDPOINT.rstrip("/") + path
     request = urllib.request.Request(
         url,
-        data=data,
+        data=b"",
         method="POST",
         headers={
             "Authorization": f"Bearer {API_KEY}",
@@ -39,7 +40,7 @@ def post_stop(instance_id: str) -> dict:
 
 def main() -> int:
     try:
-        result = post_stop(os.environ.get("INSTANCE_ID", "").strip())
+        result = post_stop(os.environ.get("INSTANCE_ID", "codex-rs-1937").strip())
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

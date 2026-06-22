@@ -1,6 +1,7 @@
 package sshworkspace
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	idlcore "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
@@ -37,6 +39,7 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 		"serviceType":              "NodePort",
 		"nodePort":                 float64(30222),
 		"codeServerNodePort":       float64(31080),
+		"codeServerHost":           "run-abc-code.ops.fzyun.io",
 		"imagePullSecretName":      "workspace-image-pull",
 		"codeRepositorySecretName": "workspace-code-repos",
 		"gpuNodeLabelKey":          "nvidia.com/gpu.present",
@@ -72,6 +75,7 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	assert.Equal(t, int32(30222), *cfg.NodePort)
 	require.NotNil(t, cfg.CodeServerNodePort)
 	assert.Equal(t, int32(31080), *cfg.CodeServerNodePort)
+	assert.Equal(t, "run-abc-code.ops.fzyun.io", cfg.CodeServerHost)
 	assert.Equal(t, map[string]string{"EXAMPLE": "value"}, cfg.Environment)
 	require.Len(t, cfg.CodeRepositories, 1)
 	assert.Equal(t, "repo-1", cfg.CodeRepositories[0].ID)
@@ -189,6 +193,46 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, int32(8080), svc.Spec.Ports[1].Port)
 	assert.Equal(t, int32(31080), svc.Spec.Ports[1].NodePort)
 	assert.Equal(t, "run-abc", svc.Spec.Selector[labelWorkspaceName])
+
+	ingress := resources.CodeServerIngress
+	require.IsType(t, &networkingv1.Ingress{}, ingress)
+	assert.Equal(t, "run-abc-code", ingress.Name)
+	assert.Equal(t, "flyte", ingress.Namespace)
+	assert.Equal(t, "run-abc-code.ops.fzyun.io", ingress.Spec.Rules[0].Host)
+	require.Len(t, ingress.Spec.Rules[0].HTTP.Paths, 1)
+	path := ingress.Spec.Rules[0].HTTP.Paths[0]
+	assert.Equal(t, "/", path.Path)
+	require.NotNil(t, path.PathType)
+	assert.Equal(t, networkingv1.PathTypePrefix, *path.PathType)
+	assert.Equal(t, "run-abc-ssh", path.Backend.Service.Name)
+	assert.Equal(t, networkingv1.ServiceBackendPort{Name: "code-server"}, path.Backend.Service.Port)
+}
+
+func TestBuildResourcesCreatesBoundedCodeServerIngressHost(t *testing.T) {
+	cfg := WorkspaceConfig{
+		Image:          "ubuntu:22.04",
+		SSHUser:        "dev",
+		AuthorizedKeys: []string{"ssh-rsa AAAA user@example"},
+		ServiceType:    corev1.ServiceTypeClusterIP,
+	}
+	identity := WorkspaceIdentity{
+		Namespace:  "flyte",
+		Name:       "This_Run_Name_Is_Much_Longer_Than_A_DNS_Label_And_Needs_A_Hash_Suffix",
+		RunName:    "This_Run_Name_Is_Much_Longer_Than_A_DNS_Label_And_Needs_A_Hash_Suffix",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	require.NotNil(t, resources.CodeServerIngress)
+	host := resources.CodeServerIngress.Spec.Rules[0].Host
+	assert.Contains(t, host, "-code.ops.fzyun.io")
+	assert.Empty(t, validation.IsDNS1123Subdomain(host))
+	assert.LessOrEqual(t, len(strings.TrimSuffix(host, ".ops.fzyun.io")), 63)
 }
 
 func TestBuildResourcesUsesConfiguredWorkspacePVCName(t *testing.T) {

@@ -32,6 +32,7 @@ type WorkspaceConfig struct {
 	ServiceType              corev1.ServiceType
 	NodePort                 *int32
 	CodeServerNodePort       *int32
+	CodeServerHost           string
 	Environment              map[string]string
 	CloudStorageMounts       []CloudStorageMount
 	CodeRepositories         []CodeRepositoryMount
@@ -68,6 +69,7 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 		GPUNodeLabelKey:     stringValue(values, "gpuNodeLabelKey", ""),
 		WorkspaceSize:       stringValue(values, "workspaceSize", ""),
 		WorkspacePVCName:    stringValue(values, "workspacePVCName", ""),
+		CodeServerHost:      stringValue(values, "codeServerHost", ""),
 		ServiceType:         corev1.ServiceTypeClusterIP,
 		Environment:         map[string]string{},
 	}
