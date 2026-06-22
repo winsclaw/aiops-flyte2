@@ -7,12 +7,7 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import { NextRequest } from "next/server";
 import { RunService } from "@/gen/flyteidl2/workflow/run_service_pb";
 import { getKubernetesClientConfig } from "../../../development-instances/kubernetes";
-import {
-  errorEnvelope,
-  makeJsonSafe,
-  okEnvelope,
-  statusError,
-} from "../../response";
+import { errorEnvelope, okEnvelope, statusError } from "../../response";
 import {
   AIONE_RUNTIME_NAMESPACE,
   DEFAULT_AIONE_INTERNAL_ORG,
@@ -49,7 +44,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const runId = await resolveFlyteRunIdentifier(sourceOrRunId);
     const response = await createFlyteRunClient().getRunDetails({ runId });
-    return okEnvelope(makeJsonSafe(response));
+    const action = response.details?.action;
+    const durationMs = action?.status?.durationMs;
+    return okEnvelope({
+      phase: action?.status?.phase ?? 0,
+      error: getActionError(action?.result),
+      durationSeconds: durationMs ? Math.floor(Number(durationMs) / 1000) : 0,
+    });
   } catch (error) {
     return errorEnvelope(error);
   }
@@ -102,6 +103,22 @@ function parseFlyteWorkflowId(id: string): FlyteRunIdentifier | null {
     return { org, project, domain, name };
   }
   return null;
+}
+
+function getActionError(
+  result:
+    | { case: "errorInfo"; value: { message?: string } }
+    | { case: "abortInfo"; value: { reason?: string } }
+    | { case: undefined; value?: undefined }
+    | undefined,
+) {
+  if (result?.case === "errorInfo") {
+    return result.value.message ?? "";
+  }
+  if (result?.case === "abortInfo") {
+    return result.value.reason ?? "";
+  }
+  return "";
 }
 
 function createFlyteRunClient() {
