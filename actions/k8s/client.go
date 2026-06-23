@@ -660,6 +660,9 @@ func GetPhaseFromConditions(taskAction *executorv1.TaskAction) common.ActionPhas
 			}
 		case string(executorv1.ConditionTypeFailed):
 			if cond.Status == "True" {
+				if cond.Reason == string(executorv1.ConditionReasonTimedOut) {
+					return common.ActionPhase_ACTION_PHASE_TIMED_OUT
+				}
 				return common.ActionPhase_ACTION_PHASE_FAILED
 			}
 		case string(executorv1.ConditionTypeProgressing):

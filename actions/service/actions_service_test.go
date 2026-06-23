@@ -189,6 +189,36 @@ func TestTaskActionToUpdate_PopulatesErrorOnFailure(t *testing.T) {
 	}
 }
 
+func TestTaskActionToUpdate_PopulatesErrorOnTimeout(t *testing.T) {
+	ta := &executorv1.TaskAction{
+		Spec: executorv1.TaskActionSpec{
+			Project: "flytesnacks", Domain: "development", RunName: "r1", ActionName: "a0",
+			RunOutputBase: "s3://bucket/run",
+		},
+		Status: executorv1.TaskActionStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   string(executorv1.ConditionTypeFailed),
+					Status: metav1.ConditionTrue,
+					Reason: string(executorv1.ConditionReasonTimedOut),
+				},
+			},
+			ErrorState: &executorv1.ErrorState{
+				Code: "TaskTimedOut", Kind: "USER", Message: "task exceeded timeout 10m0s",
+			},
+		},
+	}
+
+	upd := taskActionToUpdate(ta)
+
+	assert.Equal(t, common.ActionPhase_ACTION_PHASE_TIMED_OUT, upd.Phase)
+	if assert.NotNil(t, upd.Error, "ActionUpdate.Error must be populated for timed-out actions with ErrorState") {
+		assert.Equal(t, "TaskTimedOut", upd.Error.Code)
+		assert.Equal(t, core.ExecutionError_USER, upd.Error.Kind)
+		assert.Equal(t, "task exceeded timeout 10m0s", upd.Error.Message)
+	}
+}
+
 func TestTaskActionToUpdate_NoErrorWhenNotFailed(t *testing.T) {
 	ta := &executorv1.TaskAction{
 		Spec: executorv1.TaskActionSpec{

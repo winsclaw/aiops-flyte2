@@ -123,7 +123,7 @@ func (s *ActionsService) WatchForUpdates(
 				Phase:     update.Phase,
 				OutputUri: update.OutputUri,
 			}
-			if update.Phase == common.ActionPhase_ACTION_PHASE_FAILED && update.ErrorState != nil {
+			if updateHasError(update.Phase) && update.ErrorState != nil {
 				au.Error = errorStateToExecutionError(update.ErrorState)
 			}
 			resp := &actions.WatchForUpdatesResponse{
@@ -193,10 +193,15 @@ func taskActionToUpdate(action *executorv1.TaskAction) *workflow.ActionUpdate {
 		Phase:     phase,
 		OutputUri: actionOutputURI(action.Spec.RunOutputBase, action.Spec.ActionName),
 	}
-	if phase == common.ActionPhase_ACTION_PHASE_FAILED && action.Status.ErrorState != nil {
+	if updateHasError(phase) && action.Status.ErrorState != nil {
 		update.Error = errorStateToExecutionError(action.Status.ErrorState)
 	}
 	return update
+}
+
+func updateHasError(phase common.ActionPhase) bool {
+	return phase == common.ActionPhase_ACTION_PHASE_FAILED ||
+		phase == common.ActionPhase_ACTION_PHASE_TIMED_OUT
 }
 
 func errorStateToExecutionError(es *executorv1.ErrorState) *core.ExecutionError {
@@ -230,6 +235,9 @@ func getPhaseFromConditions(taskAction *executorv1.TaskAction) common.ActionPhas
 			}
 		case string(executorv1.ConditionTypeFailed):
 			if cond.Status == "True" {
+				if cond.Reason == string(executorv1.ConditionReasonTimedOut) {
+					return common.ActionPhase_ACTION_PHASE_TIMED_OUT
+				}
 				return common.ActionPhase_ACTION_PHASE_FAILED
 			}
 		case string(executorv1.ConditionTypeProgressing):

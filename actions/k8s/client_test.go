@@ -819,10 +819,12 @@ func TestBuildActionUpdate_DeleteAfterTerminalPreservesPhase(t *testing.T) {
 	cases := []struct {
 		name      string
 		condition string
+		reason    string
 		want      common.ActionPhase
 	}{
-		{"succeeded", string(executorv1.ConditionTypeSucceeded), common.ActionPhase_ACTION_PHASE_SUCCEEDED},
-		{"failed", string(executorv1.ConditionTypeFailed), common.ActionPhase_ACTION_PHASE_FAILED},
+		{"succeeded", string(executorv1.ConditionTypeSucceeded), "", common.ActionPhase_ACTION_PHASE_SUCCEEDED},
+		{"failed", string(executorv1.ConditionTypeFailed), "", common.ActionPhase_ACTION_PHASE_FAILED},
+		{"timed out", string(executorv1.ConditionTypeFailed), string(executorv1.ConditionReasonTimedOut), common.ActionPhase_ACTION_PHASE_TIMED_OUT},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -832,7 +834,7 @@ func TestBuildActionUpdate_DeleteAfterTerminalPreservesPhase(t *testing.T) {
 				},
 				Status: executorv1.TaskActionStatus{
 					Conditions: []metav1.Condition{
-						{Type: tc.condition, Status: metav1.ConditionTrue},
+						{Type: tc.condition, Status: metav1.ConditionTrue, Reason: tc.reason},
 					},
 				},
 			}
