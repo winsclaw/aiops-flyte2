@@ -12,7 +12,7 @@ import {
   RunService,
 } from "@/gen/flyteidl2/workflow/run_service_pb";
 import { getKubernetesClientConfig } from "@/server/kubernetes/client";
-import { errorEnvelope, okEnvelope, statusError } from "@/server/aione/response";
+import { errorEnvelope, okEnvelope, statusError } from "@/server/http/response";
 import {
   AIONE_RUNTIME_NAMESPACE,
   authenticateAioneRequest,

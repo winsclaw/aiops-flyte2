@@ -18,7 +18,7 @@ import {
   KubernetesServiceList,
   extractNodePorts,
 } from "@/server/development-instances/nodeports";
-import { errorEnvelope, okEnvelope, statusError } from "@/server/aione/response";
+import { errorEnvelope, okEnvelope, statusError } from "@/server/http/response";
 import {
   AIONE_RUNTIME_NAMESPACE,
   CodeRepositoryWithToken,

@@ -2,11 +2,12 @@
  * © Copyright Union Systems Inc 2026. All rights reserved.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   getKubernetesClientConfig,
   requestKubernetes,
 } from "@/server/kubernetes/client";
+import { errorEnvelope, okEnvelope, statusError } from "@/server/http/response";
 import {
   KubernetesServiceList,
   extractNodePorts,
@@ -26,23 +27,13 @@ export async function GET(request: NextRequest) {
       ca,
     });
     if (!response.ok) {
-      return NextResponse.json(
-        { ok: false, error: response.text },
-        { status: 502 },
+      return errorEnvelope(
+        statusError(response.text || "failed to list Kubernetes services", 502),
       );
     }
     const serviceList = response.json<KubernetesServiceList>();
-    return NextResponse.json({
-      ok: true,
-      nodePorts: extractNodePorts(serviceList),
-    });
+    return okEnvelope({ nodePorts: extractNodePorts(serviceList) });
   } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 400 },
-    );
+    return errorEnvelope(error);
   }
 }

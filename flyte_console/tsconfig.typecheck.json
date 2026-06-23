@@ -6,7 +6,7 @@
   },
   "include": [
     "next-env.d.ts",
-    "src/app/api/development-instances/**/*.ts",
+    "src/app/api/**/*.ts",
     "src/server/**/*.ts",
     "src/components/pages/DevelopmentInstances/**/*.ts",
     "src/components/pages/DevelopmentInstances/**/*.tsx",

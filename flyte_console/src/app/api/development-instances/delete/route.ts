@@ -2,11 +2,12 @@
  * © Copyright Union Systems Inc 2026. All rights reserved.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   getKubernetesClientConfig,
   requestKubernetes,
 } from "@/server/kubernetes/client";
+import { errorEnvelope, okEnvelope, statusError } from "@/server/http/response";
 import {
   DeleteDevelopmentInstanceRequest,
   buildDeleteCollectionRequests,
@@ -64,17 +65,21 @@ export async function POST(request: NextRequest) {
 
     const failures = results.filter((result) => !result.ok);
     if (failures.length > 0) {
-      return NextResponse.json({ ok: false, failures }, { status: 502 });
+      return errorEnvelope(
+        statusError(buildDeleteFailureMessage(failures), 502),
+      );
     }
 
-    return NextResponse.json({ ok: true, deleted: results });
+    return okEnvelope({ deleted: results });
   } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 400 },
-    );
+    return errorEnvelope(error);
   }
+}
+
+function buildDeleteFailureMessage(
+  failures: Array<{ kind: string; status: number; body?: string }>,
+) {
+  return `failed to delete development instance resources: ${failures
+    .map((failure) => `${failure.kind}(${failure.status})`)
+    .join(", ")}`;
 }

@@ -7,7 +7,7 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import { NextRequest } from "next/server";
 import { RunService } from "@/gen/flyteidl2/workflow/run_service_pb";
 import { getKubernetesClientConfig } from "@/server/kubernetes/client";
-import { errorEnvelope, okEnvelope, statusError } from "@/server/aione/response";
+import { errorEnvelope, okEnvelope, statusError } from "@/server/http/response";
 import {
   AIONE_RUNTIME_NAMESPACE,
   DEFAULT_AIONE_INTERNAL_ORG,

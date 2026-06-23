@@ -185,9 +185,11 @@ export function DevelopmentInstanceCreatePage() {
         if (!response.ok) {
           return;
         }
-        const body = (await response.json()) as { nodePorts?: number[] };
+        const body = (await response.json()) as {
+          data?: { nodePorts?: number[] };
+        };
         if (!cancelled) {
-          setUsedNodePorts(body.nodePorts ?? []);
+          setUsedNodePorts(body.data?.nodePorts ?? []);
         }
       } catch (nodePortError) {
         console.error("Error loading Kubernetes NodePorts", nodePortError);
