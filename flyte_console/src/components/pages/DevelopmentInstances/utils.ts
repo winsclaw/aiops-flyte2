@@ -331,6 +331,10 @@ export function buildCreateDevelopmentInstanceRequest(
           custom,
           metadata: create(CoreTaskMetadataSchema, {
             discoverable: false,
+            timeout: {
+              seconds: BigInt(values.maxHours * 3600),
+              nanos: 0,
+            },
             retries: create(RetryStrategySchema, { retries: 0 }),
             interruptibleValue: { case: "interruptible", value: false },
             cacheSerializable: false,

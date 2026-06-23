@@ -159,6 +159,9 @@ describe("development instance helpers", () => {
         },
       ],
     });
+    expect(request.task.value.taskTemplate?.metadata?.timeout?.seconds).toBe(
+      86400n,
+    );
   });
 
   it("uses the official IDE image by default", () => {

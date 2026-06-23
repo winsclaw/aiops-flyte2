@@ -101,6 +101,10 @@ describe("aione external run route", () => {
 
     expect(response.status).toBe(200);
     expect(createRunMock).toHaveBeenCalledTimes(1);
+    const createRunRequest = createRunMock.mock.calls[0][0];
+    expect(
+      createRunRequest.task.value.taskTemplate.metadata.timeout.seconds,
+    ).toBe(3600n);
     expect(body.status).toBe(200);
     expect(body.data.id).toBe("ins-contract-1");
     expect(body.data.source.id).toBe("ins-contract-1");
