@@ -3,3 +3,6 @@ gen/** linguist-generated=true
 
 # Mark generated mocks so GitHub hides them in diffs by default
 **/mocks/mocks.go linguist-generated=true
+
+# Shell scripts must stay LF so bash can run them from Windows checkouts.
+*.sh text eol=lf
