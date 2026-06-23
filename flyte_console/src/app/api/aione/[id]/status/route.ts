@@ -6,6 +6,7 @@ import { createClient, Code, ConnectError } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { NextRequest } from "next/server";
 import { RunService } from "@/gen/flyteidl2/workflow/run_service_pb";
+import type { ActionStatus } from "@/gen/flyteidl2/workflow/run_definition_pb";
 import { getKubernetesClientConfig } from "@/server/kubernetes/client";
 import { errorEnvelope, okEnvelope, statusError } from "@/server/http/response";
 import {
@@ -45,11 +46,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const runId = await resolveFlyteRunIdentifier(sourceOrRunId);
     const response = await createFlyteRunClient().getRunDetails({ runId });
     const action = response.details?.action;
-    const durationMs = action?.status?.durationMs;
+    const status = action?.status;
     return okEnvelope({
-      phase: action?.status?.phase ?? 0,
+      runId: formatFlyteRunId(runId),
+      phase: status?.phase ?? 0,
       error: getActionError(action?.result),
-      durationSeconds: durationMs ? Math.floor(Number(durationMs) / 1000) : 0,
+      durationSeconds: getActionDurationSeconds(status),
     });
   } catch (error) {
     return errorEnvelope(error);
@@ -103,6 +105,44 @@ function parseFlyteWorkflowId(id: string): FlyteRunIdentifier | null {
     return { org, project, domain, name };
   }
   return null;
+}
+
+function formatFlyteRunId(runId: FlyteRunIdentifier) {
+  return `${runId.org}/${runId.project}/${runId.domain}/${runId.name}`;
+}
+
+function getActionDurationSeconds(status?: ActionStatus) {
+  const durationMs = status?.durationMs;
+  if (durationMs !== undefined) {
+    const durationMsNumber = Number(durationMs);
+    if (Number.isFinite(durationMsNumber) && durationMsNumber > 0) {
+      return Math.floor(durationMsNumber / 1000);
+    }
+  }
+
+  const startTimeMs = timestampToMilliseconds(status?.startTime);
+  if (startTimeMs === undefined) {
+    return 0;
+  }
+
+  const endTimeMs = timestampToMilliseconds(status?.endTime) ?? Date.now();
+  return Math.max(0, Math.floor((endTimeMs - startTimeMs) / 1000));
+}
+
+function timestampToMilliseconds(
+  timestamp?: { seconds?: bigint | number; nanos?: number },
+) {
+  if (timestamp?.seconds === undefined) {
+    return undefined;
+  }
+
+  const seconds = Number(timestamp.seconds);
+  if (!Number.isFinite(seconds)) {
+    return undefined;
+  }
+
+  const nanos = Number(timestamp.nanos ?? 0);
+  return seconds * 1000 + Math.floor(nanos / 1_000_000);
 }
 
 function getActionError(

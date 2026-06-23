@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ActionPhase } from "@/gen/flyteidl2/common/phase_pb";
@@ -71,6 +71,10 @@ describe("aione external status route", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("returns phase, error, and duration seconds for the latest Flyte run recorded for an instance", async () => {
     const { GET } = await import("./route");
     const response = await GET(
@@ -94,6 +98,7 @@ describe("aione external status route", () => {
     expect(body).toEqual({
       status: 200,
       data: {
+        runId: "aione/aione/development/ins-contract-1-r1",
         phase: ActionPhase.FAILED,
         error: "image pull failed",
         durationSeconds: 65,
@@ -132,9 +137,52 @@ describe("aione external status route", () => {
     expect(body).toEqual({
       status: 200,
       data: {
+        runId: "aione/aione/development/ins-contract-1-r1",
         phase: ActionPhase.ABORTED,
         error: "stopped by external request",
         durationSeconds: 0,
+      },
+    });
+  });
+
+  it("computes running duration from start time and returns the resolved run id", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-22T00:01:05.432Z"));
+    getRunDetailsMock.mockResolvedValue({
+      details: {
+        action: {
+          status: {
+            phase: ActionPhase.RUNNING,
+            startTime: {
+              seconds: BigInt(
+                Math.floor(Date.parse("2026-06-22T00:00:00Z") / 1000),
+              ),
+              nanos: 0,
+            },
+          },
+          result: { case: undefined },
+        },
+      },
+    });
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      new NextRequest("http://localhost/v2/api/aione/ins-contract-1/status", {
+        method: "GET",
+        headers: { authorization: "Bearer external-key" },
+      }),
+      { params: Promise.resolve({ id: "ins-contract-1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      status: 200,
+      data: {
+        runId: "aione/aione/development/ins-contract-1-r1",
+        phase: ActionPhase.RUNNING,
+        error: "",
+        durationSeconds: 65,
       },
     });
   });
@@ -182,6 +230,7 @@ describe("aione external status route", () => {
     expect(body).toEqual({
       status: 200,
       data: {
+        runId: "aione/aione/development/ins-contract-1-r2",
         phase: ActionPhase.RUNNING,
         error: "",
         durationSeconds: 0,
