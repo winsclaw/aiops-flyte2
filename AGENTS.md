@@ -30,7 +30,7 @@ Source-built console NodePort:           http://172.19.65.230:30081/v2/projects
 Kubernetes namespace:                    flyte
 Remote host:                             aione-flyte2
 Remote checkout:                         /opt/aiops-flyte2
-Active branch:                           codex/flyte-ssh-workspace
+Active branch:                           main
 ```
 
 ## Development Rules
@@ -83,14 +83,14 @@ git diff --check
 
 ## Backend Build And Deployment
 
-Remote deployment steps must start from committed code already pushed to `origin/codex/flyte-ssh-workspace`; update the remote checkout with `git pull --ff-only` only.
+Remote deployment steps must start from committed code already pushed to `origin/main`; update the remote checkout with `git pull --ff-only` only.
 
 Pull current code on the remote server:
 
 ```bash
 ssh aione-flyte2
 cd /opt/aiops-flyte2
-git pull --ff-only origin codex/flyte-ssh-workspace
+git pull --ff-only origin main
 git log -1 --oneline
 ```
 
@@ -121,7 +121,7 @@ For incremental backend-only rebuilds after k3s and Helm are already installed:
 ```bash
 ssh aione-flyte2
 cd /opt/aiops-flyte2
-git pull --ff-only origin codex/flyte-ssh-workspace
+git pull --ff-only origin main
 
 docker build -f Dockerfile -t flyte-binary-v2:ssh-workspace .
 docker save flyte-binary-v2:ssh-workspace | k3s ctr images import -
@@ -170,7 +170,7 @@ Remote frontend build:
 ```bash
 ssh aione-flyte2
 cd /opt/aiops-flyte2
-git pull --ff-only origin codex/flyte-ssh-workspace
+git pull --ff-only origin main
 
 COMMIT="$(git rev-parse --short HEAD)"
 docker build \
