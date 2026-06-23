@@ -175,17 +175,8 @@ ENDPOINT=http://172.19.65.230:30080 bash deploy/tests/get_run_status.sh /flytesn
 }
 ```
 
-`phase` 为数字状态码。脚本会把常见 Flyte v2 字符串状态转换为数字：
-
-- `ACTION_PHASE_UNDEFINED`: `0`
-- `ACTION_PHASE_QUEUED`: `1`
-- `ACTION_PHASE_INITIALIZING`: `2`
-- `ACTION_PHASE_STARTING`: `3`
-- `ACTION_PHASE_RUNNING`: `4`
-- `ACTION_PHASE_SUCCEEDED`: `5`
-- `ACTION_PHASE_FAILED`: `6`
-- `ACTION_PHASE_ABORTED`: `7`
-- `ACTION_PHASE_TIMED_OUT`: `8`
+`phase` 为 Flyte 2 `ActionPhase` 数字状态码。完整枚举说明见
+[`docs/aione-api-enums.md`](aione-api-enums.md)。
 
 ## 单元测试
 
