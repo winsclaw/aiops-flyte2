@@ -211,15 +211,23 @@ build_aione_instance_payload() {
   local memory="${10}"
 
   python_json -c '
-import json, sys
+import json, math, sys
 source_org, project, domain, name, instance_id, authorized_key, image, timeout_hours, cpu, memory = sys.argv[1:11]
+def parse_positive_number(value, field):
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise SystemExit(f"{field} must be a positive number") from exc
+    if not math.isfinite(number) or number <= 0:
+        raise SystemExit(f"{field} must be a positive number")
+    return int(number) if number.is_integer() else number
 payload = {
     "org": source_org,
     "project": project,
     "domain": domain,
     "name": name,
     "id": instance_id,
-    "timeout": int(timeout_hours),
+    "timeout": parse_positive_number(timeout_hours, "timeout_hours"),
     "authorizedKey": authorized_key,
     "imageType": "BASE",
     "baseImage": {

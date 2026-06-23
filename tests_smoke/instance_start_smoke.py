@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import math
 import sys
 import urllib.error
 import urllib.request
@@ -51,6 +52,17 @@ def read_authorized_key(config: dict[str, str]) -> str | None:
     return None
 
 
+def parse_positive_number(value: str, field: str) -> int | float:
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise ValueError(f"{field} must be a positive number") from exc
+
+    if not math.isfinite(number) or number <= 0:
+        raise ValueError(f"{field} must be a positive number")
+    return int(number) if number.is_integer() else number
+
+
 def build_payload() -> dict:
     config = load_config()
     resource_definition = {
@@ -68,7 +80,7 @@ def build_payload() -> dict:
         "domain": config["DOMAIN"],
         "name": config["INSTANCE_NAME"],
         "id": config["INSTANCE_ID"],
-        "timeout": int(config["TIMEOUT_HOURS"]),
+        "timeout": parse_positive_number(config["TIMEOUT_HOURS"], "TIMEOUT_HOURS"),
         "imageType": config["IMAGE_TYPE"],
         "image": config["IMAGE"],
         "imageKey": config["IMAGE_KEY"],

@@ -92,6 +92,17 @@ class InstanceSmokeCliTests(unittest.TestCase):
         self.assertEqual({"cpu": "4", "memory": "8Gi"}, payload["resourceDefinition"])
         self.assertEqual("code-token", payload["codes"][0]["token"])
 
+    def test_start_payload_accepts_fractional_timeout_hours(self):
+        content = self.env_path.read_text(encoding="utf-8")
+        self.env_path.write_text(
+            content.replace("TIMEOUT_HOURS=2", "TIMEOUT_HOURS=0.1"),
+            encoding="utf-8",
+        )
+
+        payload = instance_start_smoke.build_payload()
+
+        self.assertEqual(0.1, payload["timeout"])
+
     def test_status_prints_url_before_response_is_returned(self):
         output = io.StringIO()
         with mock.patch.object(
