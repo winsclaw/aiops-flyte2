@@ -51,6 +51,7 @@ import (
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/task"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow/workflowconnect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -323,6 +324,13 @@ func (r *TaskActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{RequeueAfter: TaskActionDefaultRequeueDuration}, nil
 	}
 
+	if timedOut, err := r.timeoutRunningActionIfExpired(ctx, taskAction, originalTaskActionInstance, p, tCtx); err != nil {
+		logger.Error(err, "failed to time out TaskAction", "plugin", p.GetID())
+		return ctrl.Result{RequeueAfter: TaskActionDefaultRequeueDuration}, nil
+	} else if timedOut {
+		return ctrl.Result{}, nil
+	}
+
 	// cacheShortCircuited is true when cache handling already decided the outcome,
 	// either via cache hit or waiting on the reservation owner.
 	var cacheShortCircuited bool
@@ -433,6 +441,88 @@ func (r *TaskActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	return ctrl.Result{RequeueAfter: TaskActionDefaultRequeueDuration}, nil
+}
+
+func (r *TaskActionReconciler) timeoutRunningActionIfExpired(
+	ctx context.Context,
+	taskAction *flyteorgv1.TaskAction,
+	original *flyteorgv1.TaskAction,
+	p pluginsCore.Plugin,
+	tCtx pluginsCore.TaskExecutionContext,
+) (bool, error) {
+	timeout, ok := taskTemplateTimeout(taskAction.Spec.TaskTemplate)
+	if !ok {
+		return false, nil
+	}
+	runningStartedAt, ok := runningPhaseStartedAt(taskAction)
+	if !ok {
+		return false, nil
+	}
+
+	now := time.Now()
+	elapsed := now.Sub(runningStartedAt)
+	if elapsed < timeout {
+		return false, nil
+	}
+
+	if err := p.Abort(ctx, tCtx); err != nil {
+		return false, err
+	}
+
+	reason := fmt.Sprintf(
+		"task exceeded timeout %s after running for %s",
+		timeout.Round(time.Second),
+		elapsed.Round(time.Second),
+	)
+	phaseInfo := pluginsCore.PhaseInfoTimedOut(now, pluginsCore.DefaultPhaseVersion, reason)
+	mapPhaseToConditions(taskAction, phaseInfo)
+
+	actionSpec, _ := taskAction.Spec.GetActionSpec()
+	if actionSpec != nil {
+		taskAction.Status.StateJSON = createStateJSON(actionSpec, phaseInfo.Phase().String())
+	}
+	taskAction.Status.SystemFailures = 0
+	taskAction.Status.PluginState = nil
+	taskAction.Status.PluginStateVersion = 0
+	taskAction.Status.PluginPhase = phaseInfo.Phase().String()
+	taskAction.Status.PluginPhaseVersion = phaseInfo.Version()
+	taskAction.Status.Attempts = observedAttempts(taskAction)
+	taskAction.Status.CacheStatus = observedCacheStatus(phaseInfo.Info())
+
+	if err := r.updateTaskActionStatus(ctx, original, taskAction, phaseInfo); err != nil {
+		return false, err
+	}
+	if err := r.ensureTerminalLabels(ctx, taskAction); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func taskTemplateTimeout(taskTemplateBytes []byte) (time.Duration, bool) {
+	if len(taskTemplateBytes) == 0 {
+		return 0, false
+	}
+
+	tmpl := &core.TaskTemplate{}
+	if err := proto.Unmarshal(taskTemplateBytes, tmpl); err != nil {
+		return 0, false
+	}
+	timeout := tmpl.GetMetadata().GetTimeout()
+	if timeout == nil || timeout.CheckValid() != nil {
+		return 0, false
+	}
+	duration := timeout.AsDuration()
+	return duration, duration > 0
+}
+
+func runningPhaseStartedAt(taskAction *flyteorgv1.TaskAction) (time.Time, bool) {
+	for i := len(taskAction.Status.PhaseHistory) - 1; i >= 0; i-- {
+		transition := taskAction.Status.PhaseHistory[i]
+		if transition.Phase == string(flyteorgv1.ConditionReasonExecuting) && !transition.OccurredAt.IsZero() {
+			return transition.OccurredAt.Time, true
+		}
+	}
+	return time.Time{}, false
 }
 
 // ensureTerminalLabels adds GC-related labels to a terminal TaskAction if not already present.
@@ -681,6 +771,8 @@ func phaseToActionPhase(phase pluginsCore.Phase) common.ActionPhase {
 		return common.ActionPhase_ACTION_PHASE_FAILED
 	case pluginsCore.PhaseAborted:
 		return common.ActionPhase_ACTION_PHASE_ABORTED
+	case pluginsCore.PhaseTimedOut:
+		return common.ActionPhase_ACTION_PHASE_TIMED_OUT
 	default:
 		return common.ActionPhase_ACTION_PHASE_UNSPECIFIED
 	}
@@ -858,6 +950,18 @@ func mapPhaseToConditions(ta *flyteorgv1.TaskAction, info pluginsCore.PhaseInfo)
 			flyteorgv1.ConditionReasonAborted, msg)
 		setCondition(ta, flyteorgv1.ConditionTypeFailed, metav1.ConditionTrue,
 			flyteorgv1.ConditionReasonAborted, msg)
+
+	case pluginsCore.PhaseTimedOut:
+		phaseName = string(flyteorgv1.ConditionReasonTimedOut)
+		msg = info.Reason()
+		if info.Err() != nil {
+			msg = info.Err().GetMessage()
+			ta.Status.ErrorState = errorStateFromExecError(info.Err())
+		}
+		setCondition(ta, flyteorgv1.ConditionTypeProgressing, metav1.ConditionFalse,
+			flyteorgv1.ConditionReasonTimedOut, msg)
+		setCondition(ta, flyteorgv1.ConditionTypeFailed, metav1.ConditionTrue,
+			flyteorgv1.ConditionReasonTimedOut, msg)
 	}
 
 	// Append to PhaseHistory if this is a new phase (dedup by checking last entry).

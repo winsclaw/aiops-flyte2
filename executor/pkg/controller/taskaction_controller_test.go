@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,6 +96,19 @@ func (r *recordingEventsClient) RecordedEvents() []*workflow.ActionEvent {
 // buildTaskTemplateBytes creates a minimal protobuf-serialized TaskTemplate
 // with a container spec that the pod plugin can use to build a Pod.
 func buildTaskTemplateBytes(taskType, image string) []byte {
+	return buildTaskTemplateBytesWithTimeout(taskType, image, 0)
+}
+
+func buildTaskTemplateBytesWithTimeout(taskType, image string, timeout time.Duration) []byte {
+	metadata := &core.TaskMetadata{
+		Runtime: &core.RuntimeMetadata{
+			Type: core.RuntimeMetadata_FLYTE_SDK,
+		},
+	}
+	if timeout > 0 {
+		metadata.Timeout = durationpb.New(timeout)
+	}
+
 	tmpl := &core.TaskTemplate{
 		Type: taskType,
 		Target: &core.TaskTemplate_Container{
@@ -104,11 +118,7 @@ func buildTaskTemplateBytes(taskType, image string) []byte {
 				Args:    []string{"hello"},
 			},
 		},
-		Metadata: &core.TaskMetadata{
-			Runtime: &core.RuntimeMetadata{
-				Type: core.RuntimeMetadata_FLYTE_SDK,
-			},
-		},
+		Metadata:  metadata,
 		Interface: &core.TypedInterface{},
 	}
 	data, err := proto.Marshal(tmpl)
@@ -407,6 +417,87 @@ var _ = Describe("TaskAction Controller", func() {
 			Expect(ta.Status.ErrorState.Kind).To(Equal("SYSTEM"))
 			Expect(ta.Status.ErrorState.Message).To(ContainSubstring("admission webhook"))
 			Expect(isTerminal(ta)).To(BeTrue())
+		})
+	})
+
+	Context("running timeout", func() {
+		const timeoutResourceName = "timeout-test-resource"
+		ctx := context.Background()
+		nn := types.NamespacedName{Name: timeoutResourceName, Namespace: "default"}
+
+		BeforeEach(func() {
+			resource := &flyteorgv1.TaskAction{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       timeoutResourceName,
+					Namespace:  "default",
+					Finalizers: []string{taskActionFinalizer},
+				},
+				Spec: flyteorgv1.TaskActionSpec{
+					RunName:       "timeout-run",
+					Project:       "timeout-project",
+					Domain:        "timeout-domain",
+					ActionName:    "timeout-action",
+					InputURI:      "/tmp/input",
+					RunOutputBase: "/tmp/output",
+					TaskType:      "python-task",
+					TaskTemplate:  buildTaskTemplateBytesWithTimeout("python-task", "python:3.11", time.Second),
+				},
+			}
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+
+			resource.Status.PhaseHistory = []flyteorgv1.PhaseTransition{
+				{
+					Phase:      string(flyteorgv1.ConditionReasonQueued),
+					OccurredAt: metav1.NewTime(time.Now().Add(-3 * time.Second)),
+				},
+				{
+					Phase:      string(flyteorgv1.ConditionReasonExecuting),
+					OccurredAt: metav1.NewTime(time.Now().Add(-2 * time.Second)),
+				},
+			}
+			resource.Status.PluginPhase = pluginsCore.PhaseRunning.String()
+			Expect(k8sClient.Status().Update(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &flyteorgv1.TaskAction{}
+			if err := k8sClient.Get(ctx, nn, resource); err == nil {
+				resource.Finalizers = nil
+				_ = k8sClient.Update(ctx, resource)
+				_ = k8sClient.Delete(ctx, resource)
+			}
+		})
+
+		It("aborts the plugin and emits a timed-out action event", func() {
+			recorder := &recordingEventsClient{}
+			reconciler := &TaskActionReconciler{
+				Client:         k8sClient,
+				Scheme:         k8sClient.Scheme(),
+				Recorder:       events.NewFakeRecorder(10),
+				PluginRegistry: pluginRegistry,
+				DataStore:      dataStore,
+				eventsClient:   recorder,
+			}
+
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: nn})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(BeZero())
+
+			updated := &flyteorgv1.TaskAction{}
+			Expect(k8sClient.Get(ctx, nn, updated)).To(Succeed())
+			Expect(updated.Status.PluginPhase).To(Equal(pluginsCore.PhaseTimedOut.String()))
+			Expect(updated.Status.ErrorState).NotTo(BeNil())
+			Expect(updated.Status.ErrorState.Code).To(Equal("TaskTimedOut"))
+			Expect(updated.Status.Conditions).To(ContainElement(SatisfyAll(
+				HaveField("Type", string(flyteorgv1.ConditionTypeFailed)),
+				HaveField("Status", metav1.ConditionTrue),
+				HaveField("Reason", string(flyteorgv1.ConditionReasonTimedOut)),
+			)))
+			Expect(updated.GetLabels()).To(HaveKeyWithValue(LabelTerminationStatus, LabelValueTerminated))
+
+			events := recorder.RecordedEvents()
+			Expect(events).NotTo(BeEmpty())
+			Expect(events[len(events)-1].GetPhase()).To(Equal(common.ActionPhase_ACTION_PHASE_TIMED_OUT))
 		})
 	})
 

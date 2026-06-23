@@ -38,6 +38,8 @@ const (
 	PhaseWaitingForCache
 	// Indicate the task has been aborted
 	PhaseAborted
+	// Indicates the task exceeded its configured execution timeout
+	PhaseTimedOut
 )
 
 var Phases = []Phase{
@@ -52,15 +54,16 @@ var Phases = []Phase{
 	PhasePermanentFailure,
 	PhaseWaitingForCache,
 	PhaseAborted,
+	PhaseTimedOut,
 }
 
 // Returns true if the given phase is failure, retryable failure or success
 func (p Phase) IsTerminal() bool {
-	return p.IsFailure() || p.IsSuccess() || p.IsAborted()
+	return p.IsFailure() || p.IsSuccess() || p.IsAborted() || p.IsTimedOut()
 }
 
 func (p Phase) IsFailure() bool {
-	return p == PhasePermanentFailure || p == PhaseRetryableFailure
+	return p == PhasePermanentFailure || p == PhaseRetryableFailure || p == PhaseTimedOut
 }
 
 func (p Phase) IsSuccess() bool {
@@ -69,6 +72,10 @@ func (p Phase) IsSuccess() bool {
 
 func (p Phase) IsAborted() bool {
 	return p == PhaseAborted
+}
+
+func (p Phase) IsTimedOut() bool {
+	return p == PhaseTimedOut
 }
 
 func (p Phase) IsWaitingForResources() bool {
@@ -276,6 +283,19 @@ func PhaseInfoSuccess(info *TaskInfo) PhaseInfo {
 
 func PhaseInfoAborted(t time.Time, version uint32, reason string) PhaseInfo {
 	pi := phaseInfo(PhaseAborted, version, nil, &TaskInfo{OccurredAt: &t}, false)
+	pi.reason = reason
+	return pi
+}
+
+func PhaseInfoTimedOut(t time.Time, version uint32, reason string) PhaseInfo {
+	if reason == "" {
+		reason = "task execution timed out"
+	}
+	pi := phaseInfo(PhaseTimedOut, version, &core.ExecutionError{
+		Code:    "TaskTimedOut",
+		Message: reason,
+		Kind:    core.ExecutionError_USER,
+	}, &TaskInfo{OccurredAt: &t}, false)
 	pi.reason = reason
 	return pi
 }

@@ -158,6 +158,8 @@ func ToPluginPhase(s core.Phase) (webapi.Phase, error) {
 	case core.PhasePermanentFailure:
 		fallthrough
 	case core.PhaseRetryableFailure:
+		fallthrough
+	case core.PhaseTimedOut:
 		return webapi.PhaseUserFailure, nil
 	default:
 		return webapi.PhaseSystemFailure, errors.Errorf(BadReturnCodeError, "default fallthrough case")

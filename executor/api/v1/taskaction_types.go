@@ -76,6 +76,9 @@ const (
 	// ConditionReasonAborted indicates the TaskAction was aborted
 	ConditionReasonAborted TaskActionConditionReason = "Aborted"
 
+	// ConditionReasonTimedOut indicates the TaskAction exceeded its configured timeout
+	ConditionReasonTimedOut TaskActionConditionReason = "TimedOut"
+
 	// ConditionReasonPluginNotFound indicates no plugin was found for the task type
 	ConditionReasonPluginNotFound TaskActionConditionReason = "PluginNotFound"
 

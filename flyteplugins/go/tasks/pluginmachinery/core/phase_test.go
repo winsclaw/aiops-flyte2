@@ -69,3 +69,9 @@ func TestPhaseInfo_WithReason_DoesNotAffectOtherFields(t *testing.T) {
 	assert.Equal(t, info, phaseInfo.info)
 	assert.Equal(t, "initial, additional", phaseInfo.reason)
 }
+
+func TestPhaseTimedOutIsTerminalFailure(t *testing.T) {
+	assert.True(t, PhaseTimedOut.IsTerminal())
+	assert.True(t, PhaseTimedOut.IsFailure())
+	assert.Equal(t, "PhaseTimedOut", PhaseTimedOut.String())
+}

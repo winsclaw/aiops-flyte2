@@ -178,6 +178,7 @@ func TestToPluginPhase(t *testing.T) {
 		{core.PhaseSuccess, webapi.PhaseSucceeded, false},
 		{core.PhasePermanentFailure, webapi.PhaseUserFailure, false},
 		{core.PhaseRetryableFailure, webapi.PhaseUserFailure, false},
+		{core.PhaseTimedOut, webapi.PhaseUserFailure, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.args.String(), func(t *testing.T) {
