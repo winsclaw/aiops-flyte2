@@ -4,7 +4,7 @@ import sys
 import urllib.error
 import urllib.request
 
-from py_test_config import require_config, resolve_env_path
+from env_config import require_config, resolve_env_path
 
 
 REQUIRED_KEYS = [

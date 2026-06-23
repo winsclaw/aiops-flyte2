@@ -6,10 +6,10 @@ import tempfile
 import unittest
 from unittest import mock
 
-import get_aione_instance_status
-import py_test_config
-import start_aione_instance
-import stop_aione_instance
+import instance_start_smoke
+import instance_status_smoke
+import instance_stop_smoke
+import env_config
 
 
 class FakeResponse:
@@ -26,7 +26,7 @@ class FakeResponse:
         return json.dumps(self.payload).encode("utf-8")
 
 
-class PrintUrlTests(unittest.TestCase):
+class InstanceSmokeCliTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)
@@ -62,19 +62,19 @@ class PrintUrlTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        self.env_patch = mock.patch.object(py_test_config, "ENV_PATH", self.env_path)
+        self.env_patch = mock.patch.object(env_config, "ENV_PATH", self.env_path)
         self.env_patch.start()
         self.addCleanup(self.env_patch.stop)
 
     def test_start_prints_url_before_response_is_returned(self):
         output = io.StringIO()
         with mock.patch.object(
-            start_aione_instance.urllib.request,
+            instance_start_smoke.urllib.request,
             "urlopen",
             return_value=FakeResponse({"status": 200, "data": {"id": "x"}}),
         ):
             with contextlib.redirect_stdout(output):
-                result = start_aione_instance.post_instance({"id": "x"})
+                result = instance_start_smoke.post_instance({"id": "x"})
 
         self.assertEqual({"status": 200, "data": {"id": "x"}}, result)
         self.assertEqual(
@@ -83,7 +83,7 @@ class PrintUrlTests(unittest.TestCase):
         )
 
     def test_start_payload_reads_values_from_same_directory_env(self):
-        payload = start_aione_instance.build_payload()
+        payload = instance_start_smoke.build_payload()
 
         self.assertEqual("env-instance", payload["id"])
         self.assertEqual("env-name", payload["name"])
@@ -95,12 +95,12 @@ class PrintUrlTests(unittest.TestCase):
     def test_status_prints_url_before_response_is_returned(self):
         output = io.StringIO()
         with mock.patch.object(
-            get_aione_instance_status.urllib.request,
+            instance_status_smoke.urllib.request,
             "urlopen",
             return_value=FakeResponse({"status": 200, "data": {}}),
         ):
             with contextlib.redirect_stdout(output):
-                result = get_aione_instance_status.post_status("abc/def")
+                result = instance_status_smoke.post_status("abc/def")
 
         self.assertEqual({"status": 200, "data": {}}, result)
         self.assertEqual(
@@ -111,12 +111,12 @@ class PrintUrlTests(unittest.TestCase):
     def test_stop_prints_url_before_response_is_returned(self):
         output = io.StringIO()
         with mock.patch.object(
-            stop_aione_instance.urllib.request,
+            instance_stop_smoke.urllib.request,
             "urlopen",
             return_value=FakeResponse({"status": 200, "data": {}}),
         ):
             with contextlib.redirect_stdout(output):
-                result = stop_aione_instance.post_stop("abc/def")
+                result = instance_stop_smoke.post_stop("abc/def")
 
         self.assertEqual({"status": 200, "data": {}}, result)
         self.assertEqual(
@@ -126,10 +126,10 @@ class PrintUrlTests(unittest.TestCase):
 
     def test_missing_env_file_stops_script_with_error(self):
         missing_env = Path(self.temp_dir.name) / "missing.env"
-        with mock.patch.object(py_test_config, "ENV_PATH", missing_env):
+        with mock.patch.object(env_config, "ENV_PATH", missing_env):
             stderr = io.StringIO()
             with contextlib.redirect_stderr(stderr):
-                exit_code = stop_aione_instance.main()
+                exit_code = instance_stop_smoke.main()
 
         self.assertEqual(1, exit_code)
         self.assertIn("ERROR:", stderr.getvalue())
@@ -149,7 +149,7 @@ class PrintUrlTests(unittest.TestCase):
 
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
-            exit_code = start_aione_instance.main()
+            exit_code = instance_start_smoke.main()
 
         self.assertEqual(1, exit_code)
         self.assertIn("ERROR:", stderr.getvalue())

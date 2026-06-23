@@ -2,32 +2,34 @@
 import json
 import sys
 import urllib.error
-import urllib.parse
 import urllib.request
+import urllib.parse
 
-from py_test_config import require_config
+from env_config import require_config
 
 
-REQUIRED_KEYS = ["ENDPOINT", "AIONE_API_KEY", "INSTANCE_ID", "STATUS_API_PATH_TEMPLATE"]
+REQUIRED_KEYS = ["ENDPOINT", "AIONE_API_KEY", "INSTANCE_ID", "STOP_API_PATH_TEMPLATE"]
 
 
 def load_config() -> dict[str, str]:
     return require_config(REQUIRED_KEYS)
 
 
-def post_status(workflow_id: str) -> dict:
+def post_stop(instance_id: str) -> dict:
     config = load_config()
-    if not workflow_id:
+    if not instance_id:
         raise RuntimeError("INSTANCE_ID is required")
 
-    path = config["STATUS_API_PATH_TEMPLATE"].format(id=urllib.parse.quote(workflow_id, safe=""))
+    path = config["STOP_API_PATH_TEMPLATE"].format(id=urllib.parse.quote(instance_id, safe=""))
     url = config["ENDPOINT"].rstrip("/") + path
     print("URL:", url)
     request = urllib.request.Request(
         url,
-        method="GET",
+        data=b"",
+        method="POST",
         headers={
             "Authorization": f"Bearer {config['AIONE_API_KEY']}",
+            "Content-Type": "application/json",
         },
     )
 
@@ -42,7 +44,7 @@ def post_status(workflow_id: str) -> dict:
 def main() -> int:
     try:
         config = load_config()
-        result = post_status(config["INSTANCE_ID"].strip())
+        result = post_stop(config["INSTANCE_ID"].strip())
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
