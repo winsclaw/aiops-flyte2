@@ -157,6 +157,14 @@ func (pm *PluginManager) checkResourcePhase(ctx context.Context, tCtx pluginsCor
 	}
 
 	if p.Phase() == pluginsCore.PhaseSuccess {
+		shouldReadOutputs, err := shouldReadTaskOutputs(ctx, tCtx, pCtx)
+		if err != nil {
+			return pluginsCore.UnknownTransition, err
+		}
+		if !shouldReadOutputs {
+			return pluginsCore.DoTransition(p), nil
+		}
+
 		var opReader io.OutputReader
 		if pCtx.ow == nil {
 			opReader = ioutils.NewRemoteFileOutputReader(ctx, tCtx.DataStore(), tCtx.OutputWriter(), 0)
@@ -200,6 +208,19 @@ func (pm *PluginManager) checkResourcePhase(ctx context.Context, tCtx pluginsCor
 	}
 
 	return pluginsCore.DoTransition(p), nil
+}
+
+func shouldReadTaskOutputs(ctx context.Context, tCtx pluginsCore.TaskExecutionContext, pCtx *pluginContext) (bool, error) {
+	if pCtx.ow != nil {
+		return true, nil
+	}
+
+	taskTemplate, err := tCtx.TaskReader().Read(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	return len(taskTemplate.GetInterface().GetOutputs().GetVariables()) > 0, nil
 }
 
 // Handle implements pluginsCore.Plugin. It is invoked for every reconciliation round.

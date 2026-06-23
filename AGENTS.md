@@ -1,0 +1,253 @@
+# AiOps Flyte 2 Agent Guide
+
+This file is the project-level instruction file for Codex and other coding agents working in this repository.
+
+## Project Layout
+
+Repository root:
+
+```text
+D:\flyte-work
+```
+
+Important areas:
+
+```text
+flyteplugins/aione/sshworkspace/   # Custom SSH workspace task plugin
+executor/                          # Flyte task/plugin execution and plugin registration
+charts/flyte-devbox/               # Single-node k3s Helm deployment
+deploy/tests/                      # Local scripts that call Flyte 2 APIs
+deploy/ui/                         # Kubernetes manifests for source-built console deployment
+flyte_console/                     # Flyte 2 Console frontend
+docs/                              # Human-facing project documentation
+```
+
+Current deployment defaults:
+
+```text
+Backend API and original console ingress: http://172.19.65.230:30080
+Source-built console NodePort:           http://172.19.65.230:30081/v2/projects
+Kubernetes namespace:                    flyte
+Remote host:                             aione-flyte2
+Remote checkout:                         /opt/aiops-flyte2
+Active branch:                           codex/flyte-ssh-workspace
+```
+
+## Development Rules
+
+- Prefer existing repository patterns over new abstractions.
+- All source changes must be committed to Git before deployment. Commit messages must clearly describe the functional purpose of the change.
+- Remote deployments must obtain repository changes only through `git pull --ff-only` from the active branch. Do not use direct local-to-remote overwrites such as `scp`, `rsync`, zip extraction, or ad hoc file replacement inside the remote checkout.
+- Keep generated or local build output out of commits.
+- `flyte_console/public/monaco/` is generated during frontend production builds and must not be committed.
+- `flyte_console/server.js` at source root is not needed. The runtime `server.js` comes from Next standalone output copied from `.next/standalone`.
+- The custom Flyte plugin code belongs under `flyteplugins/aione/`.
+- Use root-level commands from `D:\flyte-work` unless a command explicitly changes directory.
+
+## Local Verification
+
+Backend/plugin checks:
+
+```powershell
+cd D:\flyte-work
+
+go test ./executor/pkg/plugin/k8s -count=1
+go test ./flyteplugins/aione/sshworkspace -count=1
+bash deploy/tests/test_flyte_api_scripts.sh
+bash deploy/tests/test_deploy_aiops_flyte.sh
+```
+
+Frontend production build:
+
+```powershell
+cd D:\flyte-work\flyte_console
+pnpm install --no-frozen-lockfile
+pnpm run build:prod
+```
+
+`pnpm run build:prod` runs Next production build and then regenerates Monaco assets:
+
+```bash
+rm -rf public/monaco
+mkdir -p public/monaco
+cp -R node_modules/monaco-editor/min/vs public/monaco/vs
+```
+
+Before committing:
+
+```powershell
+cd D:\flyte-work
+git status --short
+git diff --check
+```
+
+## Backend Build And Deployment
+
+Remote deployment steps must start from committed code already pushed to `origin/codex/flyte-ssh-workspace`; update the remote checkout with `git pull --ff-only` only.
+
+Pull current code on the remote server:
+
+```bash
+ssh aione-flyte2
+cd /opt/aiops-flyte2
+git pull --ff-only origin codex/flyte-ssh-workspace
+git log -1 --oneline
+```
+
+For full backend deployment, including k3s, Helm dependencies, local images, PostgreSQL, RustFS, and Flyte binary:
+
+```bash
+cd /mnt/d/flyte-work
+bash scripts/deploy-aiops-flyte.sh
+```
+
+If the remote server needs a proxy for downloads:
+
+```bash
+PROXY_URL=http://172.19.210.24:7897 bash scripts/deploy-aiops-flyte.sh
+```
+
+The full deployment script builds and deploys:
+
+```text
+Image:     flyte-binary-v2:ssh-workspace
+Release:   flyte-devbox
+Namespace: flyte
+Ingress:   http://172.19.65.230:30080
+```
+
+For incremental backend-only rebuilds after k3s and Helm are already installed:
+
+```bash
+ssh aione-flyte2
+cd /opt/aiops-flyte2
+git pull --ff-only origin codex/flyte-ssh-workspace
+
+docker build -f Dockerfile -t flyte-binary-v2:ssh-workspace .
+docker save flyte-binary-v2:ssh-workspace | k3s ctr images import -
+kubectl -n flyte rollout restart deploy/flyte-binary
+kubectl -n flyte rollout status deploy/flyte-binary --timeout=10m
+```
+
+Backend verification:
+
+```bash
+kubectl -n flyte get pod,svc
+curl -I http://172.19.65.230:30080/v2/projects
+```
+
+API script checks from the local workspace:
+
+```powershell
+cd D:\flyte-work
+
+bash deploy/tests/start_ml_task.sh
+bash deploy/tests/get_run_status.sh /flytesnacks/development/<run-id>
+bash deploy/tests/start_ssh_workspace.sh
+bash deploy/tests/get_ssh_workspace_connection.sh /flytesnacks/development/<run-id>
+```
+
+## Frontend Build And Deployment
+
+Remote frontend builds must use the committed source already present in `/opt/aiops-flyte2` after `git pull --ff-only`; do not copy local frontend source files directly into the remote checkout.
+
+Frontend Dockerfile:
+
+```text
+flyte_console/Dockerfile
+```
+
+Base image:
+
+```text
+docker.fzyun.io/node:23.11.1-alpine3.22
+```
+
+The Dockerfile builds from source, runs `pnpm run build:prod`, copies `.next/standalone`, `.next/static`, generated `public`, and `proxy-server.js`, then serves through `node proxy-server.js` on port `8080`.
+
+Remote frontend build:
+
+```bash
+ssh aione-flyte2
+cd /opt/aiops-flyte2
+git pull --ff-only origin codex/flyte-ssh-workspace
+
+COMMIT="$(git rev-parse --short HEAD)"
+docker build \
+  -f flyte_console/Dockerfile \
+  -t "flyte-console-source:${COMMIT}" \
+  -t flyte-console-extracted:latest \
+  flyte_console
+```
+
+Import the frontend image into k3s containerd:
+
+```bash
+docker save "flyte-console-source:${COMMIT}" flyte-console-extracted:latest | k3s ctr images import -
+k3s ctr images ls | grep -E 'flyte-console-(source|extracted)'
+```
+
+Create or update the frontend Kubernetes resources:
+
+```bash
+kubectl apply -f deploy/ui/flyte-console-extracted.yaml
+```
+
+Current frontend Kubernetes deployment:
+
+```text
+Deployment:      flyte-console-extracted
+Service:         flyte-console-extracted
+Image:           flyte-console-extracted:latest
+ImagePullPolicy: Never
+Container port:  8080
+NodePort:        30081
+```
+
+Restart and verify:
+
+```bash
+kubectl -n flyte rollout restart deploy/flyte-console-extracted
+kubectl -n flyte rollout status deploy/flyte-console-extracted --timeout=180s
+kubectl -n flyte get pod -l app=flyte-console-extracted -o wide
+kubectl -n flyte logs deploy/flyte-console-extracted --tail=80
+curl -I http://172.19.65.230:30081/v2/projects
+```
+
+Expected HTTP result:
+
+```text
+HTTP/1.1 200 OK
+```
+
+## Browser Verification
+
+Use Playwright CLI for visual checks. Save screenshots under `output/playwright/`; that directory is ignored.
+
+```powershell
+cd D:\flyte-work
+
+npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify open http://172.19.65.230:30081/v2/projects
+npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify snapshot
+npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify console error
+npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify requests
+npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify screenshot --filename D:\flyte-work\output\playwright\flyte-console-projects.png --full-page
+npx --yes --package @playwright/cli playwright-cli -s=flyte-console-verify close
+```
+
+Expected browser checks:
+
+```text
+Page title: Projects | Flyte 2
+Visible project: flytesnacks
+Console errors: 0
+ListProjects request: 200
+```
+
+## Operational Notes
+
+- `aione-flyte2` now supports direct root SSH. `kubectl` should work directly after `ssh aione-flyte2`.
+- If `kubectl` connects to `localhost:8080`, the current user does not have kubeconfig. Use `sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl ...` or SSH as root.
+- SSH NodePort login must use `ssh -p <port> user@host`; do not use `ssh host:port`.
+- Long-running ML tasks stay running if their command contains `sleep 3600` or similar.
+- For a short ML verification task, override the command with a short command.

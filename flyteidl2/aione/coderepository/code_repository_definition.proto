@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package flyteidl2.aione.coderepository;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/coderepository";
+
+message CodeRepositoryIdentifier {
+  string org = 1 [(buf.validate.field).string.min_len = 1];
+  string project = 2 [(buf.validate.field).string.min_len = 1];
+  string domain = 3 [(buf.validate.field).string.min_len = 1];
+  string id = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+message CodeRepository {
+  CodeRepositoryIdentifier id = 1 [(buf.validate.field).required = true];
+  string repo_url = 2 [(buf.validate.field).string.min_len = 1];
+  string branch = 3 [(buf.validate.field).string.min_len = 1];
+  string mount_path = 4 [(buf.validate.field).string.min_len = 1];
+  string token = 5;
+  string creator = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message CodeRepositoryMount {
+  string code_repository_id = 1 [(buf.validate.field).string.min_len = 1];
+  string mount_path = 2 [(buf.validate.field).string.min_len = 1];
+}

@@ -1,0 +1,36 @@
+﻿{
+  "ok": true,
+  "run": {
+    "org": "aione",
+    "project": "aione",
+    "domain": "development",
+    "name": "ins-url-20260617181355"
+  },
+  "source": {
+    "org": "external-system",
+    "id": "ins-url-20260617181355"
+  },
+  "instance": {
+    "id": "ins-url-20260617181355",
+    "name": "�ⲿAPI���ص�ַ��֤ʵ��",
+    "status": "CREATED",
+    "ssh": {
+      "user": "dev",
+      "host": "172.19.65.230",
+      "port": 31000,
+      "command": "ssh -p 31000 dev@172.19.65.230"
+    },
+    "codeServer": {
+      "host": "172.19.65.230",
+      "port": 31001,
+      "url": "http://172.19.65.230:31001",
+      "workspaceUrl": "http://172.19.65.230:31001/?folder=/workspace"
+    },
+    "resources": {
+      "cpu": "2",
+      "memory": "4Gi",
+      "gpu": 0,
+      "workspaceSize": "20Gi"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+﻿{
+  "status": 200,
+  "data": {
+    "run": {
+      "org": "aione",
+      "project": "aione",
+      "domain": "development",
+      "name": "ins-json-20260617184702"
+    },
+    "source": {
+      "org": "external-system",
+      "id": "ins-json-20260617184702"
+    },
+    "info": {
+      "id": "ins-json-20260617184702",
+      "name": "ʵ��2",
+      "status": "CREATED",
+      "ssh": {
+        "user": "dev",
+        "host": "172.19.65.230",
+        "port": 31008,
+        "command": "ssh -p 31008 dev@172.19.65.230"
+      },
+      "codeServer": {
+        "host": "172.19.65.230",
+        "port": 31009,
+        "url": "http://172.19.65.230:31009",
+        "workspaceUrl": "http://172.19.65.230:31009/?folder=/workspace"
+      },
+      "resources": {
+        "cpu": "2",
+        "memory": "4Gi",
+        "gpu": 0,
+        "workspaceSize": "20Gi"
+      }
+    }
+  }
+}

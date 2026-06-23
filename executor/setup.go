@@ -35,7 +35,11 @@ import (
 	"github.com/flyteorg/flyte/v2/flytestdlib/storage"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow/workflowconnect"
 
+	// Plugin registrations — blank imports trigger init() which registers
+	// plugins with the global registry.
 	_ "github.com/flyteorg/flyte/v2/executor/plugins"
+	_ "github.com/flyteorg/flyte/v2/flyteplugins/aione/sshworkspace"
+	_ "github.com/flyteorg/flyte/v2/flyteplugins/aione/trainingtask"
 	_ "github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/plugins/k8s/clustered"
 	_ "github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/plugins/k8s/pod"
 )
