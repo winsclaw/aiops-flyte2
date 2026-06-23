@@ -3,8 +3,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getKubernetesClientConfig, requestKubernetes } from "../kubernetes";
-import { KubernetesServiceList, extractNodePorts } from "./helpers";
+import {
+  getKubernetesClientConfig,
+  requestKubernetes,
+} from "@/server/kubernetes/client";
+import {
+  KubernetesServiceList,
+  extractNodePorts,
+} from "@/server/development-instances/nodeports";
 
 export const runtime = "nodejs";
 

@@ -11,16 +11,16 @@ import {
   AbortRunRequestSchema,
   RunService,
 } from "@/gen/flyteidl2/workflow/run_service_pb";
-import { getKubernetesClientConfig } from "../../../development-instances/kubernetes";
-import { errorEnvelope, okEnvelope, statusError } from "../../response";
+import { getKubernetesClientConfig } from "@/server/kubernetes/client";
+import { errorEnvelope, okEnvelope, statusError } from "@/server/aione/response";
 import {
   AIONE_RUNTIME_NAMESPACE,
   authenticateAioneRequest,
-} from "../../instances/helpers";
+} from "@/server/aione/helpers";
 import {
   readAioneInstanceRecord,
   writeAioneInstanceRecord,
-} from "../../instances/state";
+} from "@/server/aione/state";
 
 export const runtime = "nodejs";
 

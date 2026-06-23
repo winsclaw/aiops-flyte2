@@ -23,12 +23,12 @@ vi.mock("@connectrpc/connect-web", () => ({
   createConnectTransport: vi.fn(() => ({})),
 }));
 
-vi.mock("../../development-instances/kubernetes", () => ({
+vi.mock("@/server/kubernetes/client", () => ({
   getKubernetesClientConfig: getKubernetesClientConfigMock,
   requestKubernetes: requestKubernetesMock,
 }));
 
-vi.mock("../instances/state", () => ({
+vi.mock("@/server/aione/state", () => ({
   isAioneInstanceActive: vi.fn((status?: string) =>
     ["STARTING", "RUNNING", "STOPPING"].includes(status ?? ""),
   ),

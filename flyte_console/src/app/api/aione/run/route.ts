@@ -13,12 +13,12 @@ import { RunService } from "@/gen/flyteidl2/workflow/run_service_pb";
 import {
   getKubernetesClientConfig,
   requestKubernetes,
-} from "../../development-instances/kubernetes";
+} from "@/server/kubernetes/client";
 import {
   KubernetesServiceList,
   extractNodePorts,
-} from "../../development-instances/nodeports/helpers";
-import { errorEnvelope, okEnvelope, statusError } from "../response";
+} from "@/server/development-instances/nodeports";
+import { errorEnvelope, okEnvelope, statusError } from "@/server/aione/response";
 import {
   AIONE_RUNTIME_NAMESPACE,
   CodeRepositoryWithToken,
@@ -33,13 +33,13 @@ import {
   buildDockerConfigJson,
   buildWorkspaceLabels,
   getAioneNodePortRange,
-} from "../instances/helpers";
+} from "@/server/aione/helpers";
 import {
   isAioneInstanceActive,
   nextAioneInstanceGeneration,
   readAioneInstanceRecord,
   writeAioneInstanceRecord,
-} from "../instances/state";
+} from "@/server/aione/state";
 
 export const runtime = "nodejs";
 

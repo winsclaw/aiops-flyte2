@@ -29,7 +29,7 @@ assert_file_contains() {
 assert_file_contains "$ROOT_DIR/tests/start_ssh_workspace.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
 assert_file_contains "$ROOT_DIR/tests/start_ml_task.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
 assert_file_contains "$ROOT_DIR/tests/get_run_status.sh" "ENDPOINT=\"\${ENDPOINT:-$DEFAULT_ENDPOINT}\""
-assert_file_contains "$ROOT_DIR/tests/start_aione_instance.sh" "API_PATH=\"\${API_PATH:-/v2/api/aione/instances}\""
+assert_file_contains "$ROOT_DIR/tests/start_aione_instance.sh" "API_PATH=\"\${API_PATH:-/v2/api/aione/run}\""
 
 json_get() {
   local json="$1"

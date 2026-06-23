@@ -3,12 +3,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getKubernetesClientConfig, requestKubernetes } from "../kubernetes";
+import {
+  getKubernetesClientConfig,
+  requestKubernetes,
+} from "@/server/kubernetes/client";
 import {
   DeleteDevelopmentInstanceRequest,
   buildDeleteCollectionRequests,
   buildWorkspaceLabelSelector,
-} from "./helpers";
+} from "@/server/development-instances/delete";
 
 export const runtime = "nodejs";
 
