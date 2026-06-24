@@ -23,6 +23,7 @@ export default async function RootLayout({
 }) {
   const envLoader = {
     NODE_ENV: env('NODE_ENV'),
+    UNION_ORG_OVERRIDE: env('UNION_ORG_OVERRIDE'),
   }
 
   return (
