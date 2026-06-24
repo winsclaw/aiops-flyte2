@@ -698,6 +698,242 @@ var _ interface {
 	ErrorName() string
 } = GetCloudStorageResponseValidationError{}
 
+// Validate checks the field values on GetCloudStorageByIdRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetCloudStorageByIdRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetCloudStorageByIdRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetCloudStorageByIdRequestMultiError, or nil if none found.
+func (m *GetCloudStorageByIdRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetCloudStorageByIdRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	if len(errors) > 0 {
+		return GetCloudStorageByIdRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetCloudStorageByIdRequestMultiError is an error wrapping multiple
+// validation errors returned by GetCloudStorageByIdRequest.ValidateAll() if
+// the designated constraints aren't met.
+type GetCloudStorageByIdRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetCloudStorageByIdRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetCloudStorageByIdRequestMultiError) AllErrors() []error { return m }
+
+// GetCloudStorageByIdRequestValidationError is the validation error returned
+// by GetCloudStorageByIdRequest.Validate if the designated constraints aren't met.
+type GetCloudStorageByIdRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetCloudStorageByIdRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetCloudStorageByIdRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetCloudStorageByIdRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetCloudStorageByIdRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetCloudStorageByIdRequestValidationError) ErrorName() string {
+	return "GetCloudStorageByIdRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetCloudStorageByIdRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetCloudStorageByIdRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetCloudStorageByIdRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetCloudStorageByIdRequestValidationError{}
+
+// Validate checks the field values on GetCloudStorageByIdResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetCloudStorageByIdResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetCloudStorageByIdResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetCloudStorageByIdResponseMultiError, or nil if none found.
+func (m *GetCloudStorageByIdResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetCloudStorageByIdResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetCloudStorage()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, GetCloudStorageByIdResponseValidationError{
+					field:  "CloudStorage",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, GetCloudStorageByIdResponseValidationError{
+					field:  "CloudStorage",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetCloudStorage()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return GetCloudStorageByIdResponseValidationError{
+				field:  "CloudStorage",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return GetCloudStorageByIdResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetCloudStorageByIdResponseMultiError is an error wrapping multiple
+// validation errors returned by GetCloudStorageByIdResponse.ValidateAll() if
+// the designated constraints aren't met.
+type GetCloudStorageByIdResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetCloudStorageByIdResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetCloudStorageByIdResponseMultiError) AllErrors() []error { return m }
+
+// GetCloudStorageByIdResponseValidationError is the validation error returned
+// by GetCloudStorageByIdResponse.Validate if the designated constraints
+// aren't met.
+type GetCloudStorageByIdResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetCloudStorageByIdResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetCloudStorageByIdResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetCloudStorageByIdResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetCloudStorageByIdResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetCloudStorageByIdResponseValidationError) ErrorName() string {
+	return "GetCloudStorageByIdResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetCloudStorageByIdResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetCloudStorageByIdResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetCloudStorageByIdResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetCloudStorageByIdResponseValidationError{}
+
 // Validate checks the field values on ListCloudStoragesRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -1498,3 +1734,244 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = MaterializeCloudStorageResponseValidationError{}
+
+// Validate checks the field values on ClearCloudStorageMaterializationsRequest
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the first error encountered is returned, or nil if
+// there are no violations.
+func (m *ClearCloudStorageMaterializationsRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on
+// ClearCloudStorageMaterializationsRequest with the rules defined in the
+// proto definition for this message. If any rules are violated, the result is
+// a list of violation errors wrapped in
+// ClearCloudStorageMaterializationsRequestMultiError, or nil if none found.
+func (m *ClearCloudStorageMaterializationsRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClearCloudStorageMaterializationsRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ClearCloudStorageMaterializationsRequestValidationError{
+					field:  "Id",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ClearCloudStorageMaterializationsRequestValidationError{
+					field:  "Id",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ClearCloudStorageMaterializationsRequestValidationError{
+				field:  "Id",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return ClearCloudStorageMaterializationsRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClearCloudStorageMaterializationsRequestMultiError is an error wrapping
+// multiple validation errors returned by
+// ClearCloudStorageMaterializationsRequest.ValidateAll() if the designated
+// constraints aren't met.
+type ClearCloudStorageMaterializationsRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClearCloudStorageMaterializationsRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClearCloudStorageMaterializationsRequestMultiError) AllErrors() []error { return m }
+
+// ClearCloudStorageMaterializationsRequestValidationError is the validation
+// error returned by ClearCloudStorageMaterializationsRequest.Validate if the
+// designated constraints aren't met.
+type ClearCloudStorageMaterializationsRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClearCloudStorageMaterializationsRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClearCloudStorageMaterializationsRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClearCloudStorageMaterializationsRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClearCloudStorageMaterializationsRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClearCloudStorageMaterializationsRequestValidationError) ErrorName() string {
+	return "ClearCloudStorageMaterializationsRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClearCloudStorageMaterializationsRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClearCloudStorageMaterializationsRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClearCloudStorageMaterializationsRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClearCloudStorageMaterializationsRequestValidationError{}
+
+// Validate checks the field values on
+// ClearCloudStorageMaterializationsResponse with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *ClearCloudStorageMaterializationsResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on
+// ClearCloudStorageMaterializationsResponse with the rules defined in the
+// proto definition for this message. If any rules are violated, the result is
+// a list of violation errors wrapped in
+// ClearCloudStorageMaterializationsResponseMultiError, or nil if none found.
+func (m *ClearCloudStorageMaterializationsResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClearCloudStorageMaterializationsResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return ClearCloudStorageMaterializationsResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClearCloudStorageMaterializationsResponseMultiError is an error wrapping
+// multiple validation errors returned by
+// ClearCloudStorageMaterializationsResponse.ValidateAll() if the designated
+// constraints aren't met.
+type ClearCloudStorageMaterializationsResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClearCloudStorageMaterializationsResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClearCloudStorageMaterializationsResponseMultiError) AllErrors() []error { return m }
+
+// ClearCloudStorageMaterializationsResponseValidationError is the validation
+// error returned by ClearCloudStorageMaterializationsResponse.Validate if the
+// designated constraints aren't met.
+type ClearCloudStorageMaterializationsResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClearCloudStorageMaterializationsResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClearCloudStorageMaterializationsResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClearCloudStorageMaterializationsResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClearCloudStorageMaterializationsResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClearCloudStorageMaterializationsResponseValidationError) ErrorName() string {
+	return "ClearCloudStorageMaterializationsResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClearCloudStorageMaterializationsResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClearCloudStorageMaterializationsResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClearCloudStorageMaterializationsResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClearCloudStorageMaterializationsResponseValidationError{}

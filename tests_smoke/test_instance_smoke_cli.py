@@ -9,6 +9,7 @@ from unittest import mock
 import instance_start_smoke
 import instance_status_smoke
 import instance_stop_smoke
+import instance_clear_smoke
 import env_config
 
 
@@ -40,6 +41,7 @@ class InstanceSmokeCliTests(unittest.TestCase):
                     "API_PATH_TEMPLATE=/v2/api/aione/{type}/run",
                     "STOP_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/stop",
                     "STATUS_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/status",
+                    "CLEAR_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/clear",
                     "AUTHORIZED_KEY=",
                     "AUTHORIZED_KEY_FILE=",
                     "IMAGE_TYPE=BASE",
@@ -133,6 +135,22 @@ class InstanceSmokeCliTests(unittest.TestCase):
         self.assertEqual({"status": 200, "data": {}}, result)
         self.assertEqual(
             "URL: http://example.test/v2/api/aione/instance/abc%2Fdef/stop",
+            output.getvalue().splitlines()[0],
+        )
+
+    def test_clear_prints_url_before_response_is_returned(self):
+        output = io.StringIO()
+        with mock.patch.object(
+            instance_clear_smoke.urllib.request,
+            "urlopen",
+            return_value=FakeResponse({"status": 200, "data": {}}),
+        ):
+            with contextlib.redirect_stdout(output):
+                result = instance_clear_smoke.delete_clear("abc/def")
+
+        self.assertEqual({"status": 200, "data": {}}, result)
+        self.assertEqual(
+            "URL: http://example.test/v2/api/aione/instance/abc%2Fdef/clear",
             output.getvalue().splitlines()[0],
         )
 

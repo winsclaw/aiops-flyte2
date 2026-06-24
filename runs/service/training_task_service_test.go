@@ -127,6 +127,46 @@ func TestBuildTrainingTaskSpecPreservesDirectResourceFields(t *testing.T) {
 	require.Equal(t, "10Gbps", custom["bandwidth"].GetStringValue())
 }
 
+func TestResolveTrainingTaskCloudStorageMountsMaterializesInRuntimeNamespace(t *testing.T) {
+	repo := repositorymocks.NewRepository(t)
+	cloudStorageRepo := &fakeTrainingTaskCloudStorageRepo{
+		items: map[string]*models.CloudStorage{
+			"cs-1": {
+				CloudStorageKey: models.CloudStorageKey{
+					Org:     "testorg",
+					Project: "flytesnacks",
+					Domain:  "development",
+					ID:      "cs-1",
+				},
+				StorageClass: "bj1-ebs",
+				SizeGB:       100,
+			},
+		},
+	}
+	repo.EXPECT().CloudStorageRepo().Return(cloudStorageRepo).Maybe()
+	svc := NewTrainingTaskService(repo, nil)
+	task := &models.TrainingTask{
+		TrainingTaskKey: models.TrainingTaskKey{
+			ID:      "train-1",
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+		},
+		CloudStorageMounts: []models.TrainingTaskCloudStorageMount{
+			{CloudStorageID: "cs-1", MountPath: "/mnt/storage"},
+		},
+	}
+
+	err := svc.resolveTrainingTaskCloudStorageMounts(context.Background(), task)
+
+	require.NoError(t, err)
+	require.Equal(t, "flyte", cloudStorageRepo.materializedNamespace)
+	require.Equal(t, "cs-cs-1", cloudStorageRepo.materializedPVC)
+	require.Len(t, task.CloudStorageMounts, 1)
+	require.Equal(t, "cs-cs-1", task.CloudStorageMounts[0].PVCName)
+	require.Equal(t, "100Gi", task.CloudStorageMounts[0].Size)
+}
+
 func TestListResourceSpecsIncludesSmallCPUAndT4Specs(t *testing.T) {
 	svc := NewTrainingTaskService(nil, nil)
 
@@ -553,6 +593,51 @@ func (r *fakeTrainingTaskRepo) List(_ context.Context, input models.TrainingTask
 }
 
 func (r *fakeTrainingTaskRepo) SetLatestRun(context.Context, models.TrainingTaskKey, string) error {
+	return nil
+}
+
+type fakeTrainingTaskCloudStorageRepo struct {
+	items                 map[string]*models.CloudStorage
+	materializedNamespace string
+	materializedPVC       string
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) Create(context.Context, *models.CloudStorage) error {
+	return nil
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) Get(_ context.Context, key models.CloudStorageKey) (*models.CloudStorage, error) {
+	storage := r.items[key.ID]
+	if storage == nil {
+		return nil, fmt.Errorf("not found")
+	}
+	copy := *storage
+	return &copy, nil
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) GetByID(_ context.Context, id string) (*models.CloudStorage, error) {
+	return r.Get(context.Background(), models.CloudStorageKey{ID: id})
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) Delete(context.Context, models.CloudStorageKey) error {
+	return nil
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) List(context.Context, models.CloudStorageListInput) (*models.CloudStorageListResult, error) {
+	return nil, nil
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) SetMaterialized(_ context.Context, _ models.CloudStorageKey, namespace, pvcName string) error {
+	r.materializedNamespace = namespace
+	r.materializedPVC = pvcName
+	return nil
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) ListMaterializations(context.Context, models.CloudStorageKey) ([]models.CloudStoragePVC, error) {
+	return nil, nil
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) ClearMaterializations(context.Context, models.CloudStorageKey) error {
 	return nil
 }
 

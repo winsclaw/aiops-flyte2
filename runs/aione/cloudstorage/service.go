@@ -2,6 +2,7 @@ package cloudstorage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -57,6 +58,24 @@ func (s *Service) GetCloudStorage(ctx context.Context, req *connect.Request[clou
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewResponse(&cloudstoragepb.GetCloudStorageResponse{CloudStorage: modelToProto(model)}), nil
+}
+
+func (s *Service) GetCloudStorageById(ctx context.Context, req *connect.Request[cloudstoragepb.GetCloudStorageByIdRequest]) (*connect.Response[cloudstoragepb.GetCloudStorageByIdResponse], error) {
+	if s.repo == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("cloud storage repository is required"))
+	}
+	id := strings.TrimSpace(req.Msg.GetId())
+	if id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("id is required"))
+	}
+	model, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, interfaces.ErrCloudStorageIDAmbiguous) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&cloudstoragepb.GetCloudStorageByIdResponse{CloudStorage: modelToProto(model)}), nil
 }
 
 func (s *Service) ListCloudStorages(ctx context.Context, req *connect.Request[cloudstoragepb.ListCloudStoragesRequest]) (*connect.Response[cloudstoragepb.ListCloudStoragesResponse], error) {
@@ -134,6 +153,23 @@ func (s *Service) MaterializeCloudStorage(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&cloudstoragepb.MaterializeCloudStorageResponse{CloudStorage: modelToProto(model)}), nil
+}
+
+func (s *Service) ClearCloudStorageMaterializations(ctx context.Context, req *connect.Request[cloudstoragepb.ClearCloudStorageMaterializationsRequest]) (*connect.Response[cloudstoragepb.ClearCloudStorageMaterializationsResponse], error) {
+	if s.repo == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("cloud storage repository is required"))
+	}
+	key := keyFromProto(req.Msg.GetId())
+	if key.Org == "" || key.Project == "" || key.Domain == "" || key.ID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("cloud storage id is required"))
+	}
+	if _, err := s.repo.Get(ctx, key); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err := s.repo.ClearMaterializations(ctx, key); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&cloudstoragepb.ClearCloudStorageMaterializationsResponse{}), nil
 }
 
 func buildModel(req *cloudstoragepb.CreateCloudStorageRequest) (*models.CloudStorage, error) {

@@ -13,11 +13,15 @@ service CloudStorageService {
   rpc GetCloudStorage(GetCloudStorageRequest) returns (GetCloudStorageResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  rpc GetCloudStorageById(GetCloudStorageByIdRequest) returns (GetCloudStorageByIdResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
   rpc ListCloudStorages(ListCloudStoragesRequest) returns (ListCloudStoragesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   rpc DeleteCloudStorage(DeleteCloudStorageRequest) returns (DeleteCloudStorageResponse) {}
   rpc MaterializeCloudStorage(MaterializeCloudStorageRequest) returns (MaterializeCloudStorageResponse) {}
+  rpc ClearCloudStorageMaterializations(ClearCloudStorageMaterializationsRequest) returns (ClearCloudStorageMaterializationsResponse) {}
 }
 
 message CloudStorageInput {
@@ -41,6 +45,14 @@ message GetCloudStorageRequest {
 }
 
 message GetCloudStorageResponse {
+  CloudStorage cloud_storage = 1;
+}
+
+message GetCloudStorageByIdRequest {
+  string id = 1;
+}
+
+message GetCloudStorageByIdResponse {
   CloudStorage cloud_storage = 1;
 }
 
@@ -70,3 +82,9 @@ message MaterializeCloudStorageRequest {
 message MaterializeCloudStorageResponse {
   CloudStorage cloud_storage = 1;
 }
+
+message ClearCloudStorageMaterializationsRequest {
+  CloudStorageIdentifier id = 1;
+}
+
+message ClearCloudStorageMaterializationsResponse {}

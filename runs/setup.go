@@ -94,7 +94,7 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 
 	runsSvc := service.NewRunService(repo, actionsClient, projectClient, cfg.StoragePrefix, sc.DataStore, abortReconciler, cfg.AuthMetadata.ExternalAuthServerBaseURL, cfg.TrustForwardedIdentityHeaders, cfg.IdentityHeaders)
 	taskSvc := service.NewTaskService(repo, projectClient)
-	trainingTaskSvc := service.NewTrainingTaskService(repo, runsSvc)
+	trainingTaskSvc := service.NewTrainingTaskService(repo, runsSvc, sc.Namespace)
 
 	runsPath, runsHandler := workflowconnect.NewRunServiceHandler(runsSvc, connect.WithInterceptors(otelInterceptor))
 	sc.Mux.Handle(runsPath, runsHandler)

@@ -53,6 +53,7 @@ type ProjectDomainParams = {
 const fieldClass =
   "mt-1 w-full border border-zinc-400 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 dark:border-zinc-700 dark:bg-zinc-900";
 const labelClass = "block text-sm font-medium text-zinc-900 dark:text-zinc-100";
+const AIONE_RUNTIME_NAMESPACE = "flyte";
 
 export function DevelopmentInstanceCreatePage() {
   const params = useParams<ProjectDomainParams>();
@@ -319,7 +320,7 @@ export function DevelopmentInstanceCreatePage() {
                 domain: projectId.domain,
                 id: mount.cloudStorageId,
               }),
-              targetNamespace: `${projectId.name}-${projectId.domain}`,
+              targetNamespace: AIONE_RUNTIME_NAMESPACE,
               pvcName: mount.pvcName,
             }),
           ),

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 )
 
@@ -61,4 +62,86 @@ func TestCloudStorageRepoCreateGetListAndMaterialize(t *testing.T) {
 	require.NoError(t, repo.Delete(ctx, key))
 	_, err = repo.Get(ctx, key)
 	require.Error(t, err)
+}
+
+func TestCloudStorageRepoGetByIDRequiresUniqueID(t *testing.T) {
+	ctx := context.Background()
+	repo := NewCloudStorageRepo(testDB)
+	uniqueKey := models.CloudStorageKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "storage-unique"}
+	duplicateKeyA := models.CloudStorageKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "storage-duplicate"}
+	duplicateKeyB := models.CloudStorageKey{Org: "otherorg", Project: "otherproject", Domain: "development", ID: "storage-duplicate"}
+	_ = repo.Delete(ctx, uniqueKey)
+	_ = repo.Delete(ctx, duplicateKeyA)
+	_ = repo.Delete(ctx, duplicateKeyB)
+
+	require.NoError(t, repo.Create(ctx, &models.CloudStorage{
+		CloudStorageKey: uniqueKey,
+		Name:            "unique",
+		SizeGB:          10,
+		StorageClass:    "bj1-ebs",
+		Creator:         "test",
+	}))
+	require.NoError(t, repo.Create(ctx, &models.CloudStorage{
+		CloudStorageKey: duplicateKeyA,
+		Name:            "duplicate-a",
+		SizeGB:          10,
+		StorageClass:    "bj1-ebs",
+		Creator:         "test",
+	}))
+	require.NoError(t, repo.Create(ctx, &models.CloudStorage{
+		CloudStorageKey: duplicateKeyB,
+		Name:            "duplicate-b",
+		SizeGB:          10,
+		StorageClass:    "bj1-ebs",
+		Creator:         "test",
+	}))
+
+	got, err := repo.GetByID(ctx, "storage-unique")
+	require.NoError(t, err)
+	require.Equal(t, uniqueKey, got.CloudStorageKey)
+
+	_, err = repo.GetByID(ctx, "storage-missing")
+	require.Error(t, err)
+
+	_, err = repo.GetByID(ctx, "storage-duplicate")
+	require.ErrorIs(t, err, interfaces.ErrCloudStorageIDAmbiguous)
+
+	require.NoError(t, repo.Delete(ctx, uniqueKey))
+	require.NoError(t, repo.Delete(ctx, duplicateKeyA))
+	require.NoError(t, repo.Delete(ctx, duplicateKeyB))
+}
+
+func TestCloudStorageRepoClearMaterializations(t *testing.T) {
+	ctx := context.Background()
+	repo := NewCloudStorageRepo(testDB)
+	key := models.CloudStorageKey{
+		Org:     "testorg",
+		Project: "flytesnacks",
+		Domain:  "development",
+		ID:      "storage-clear",
+	}
+	_ = repo.Delete(ctx, key)
+	require.NoError(t, repo.Create(ctx, &models.CloudStorage{
+		CloudStorageKey: key,
+		Name:            "clear-me",
+		SizeGB:          10,
+		StorageClass:    "bj1-ebs",
+		Creator:         "test",
+	}))
+	require.NoError(t, repo.SetMaterialized(ctx, key, "flyte", "storage-clear-flyte"))
+	require.NoError(t, repo.SetMaterialized(ctx, key, "flyte-dev", "storage-clear-dev"))
+
+	materialized, err := repo.Get(ctx, key)
+	require.NoError(t, err)
+	require.Len(t, materialized.Materializations, 2)
+
+	require.NoError(t, repo.ClearMaterializations(ctx, key))
+	cleared, err := repo.Get(ctx, key)
+	require.NoError(t, err)
+	require.Empty(t, cleared.Materializations)
+	require.Empty(t, cleared.TargetNamespace)
+	require.Empty(t, cleared.PVCName)
+	require.True(t, cleared.MaterializedAt.IsZero())
+
+	require.NoError(t, repo.Delete(ctx, key))
 }

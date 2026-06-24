@@ -39,6 +39,9 @@ const (
 	// CloudStorageServiceGetCloudStorageProcedure is the fully-qualified name of the
 	// CloudStorageService's GetCloudStorage RPC.
 	CloudStorageServiceGetCloudStorageProcedure = "/flyteidl2.aione.cloudstorage.CloudStorageService/GetCloudStorage"
+	// CloudStorageServiceGetCloudStorageByIdProcedure is the fully-qualified name of the
+	// CloudStorageService's GetCloudStorageById RPC.
+	CloudStorageServiceGetCloudStorageByIdProcedure = "/flyteidl2.aione.cloudstorage.CloudStorageService/GetCloudStorageById"
 	// CloudStorageServiceListCloudStoragesProcedure is the fully-qualified name of the
 	// CloudStorageService's ListCloudStorages RPC.
 	CloudStorageServiceListCloudStoragesProcedure = "/flyteidl2.aione.cloudstorage.CloudStorageService/ListCloudStorages"
@@ -48,16 +51,21 @@ const (
 	// CloudStorageServiceMaterializeCloudStorageProcedure is the fully-qualified name of the
 	// CloudStorageService's MaterializeCloudStorage RPC.
 	CloudStorageServiceMaterializeCloudStorageProcedure = "/flyteidl2.aione.cloudstorage.CloudStorageService/MaterializeCloudStorage"
+	// CloudStorageServiceClearCloudStorageMaterializationsProcedure is the fully-qualified name of the
+	// CloudStorageService's ClearCloudStorageMaterializations RPC.
+	CloudStorageServiceClearCloudStorageMaterializationsProcedure = "/flyteidl2.aione.cloudstorage.CloudStorageService/ClearCloudStorageMaterializations"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
-	cloudStorageServiceServiceDescriptor                       = cloudstorage.File_flyteidl2_aione_cloudstorage_cloud_storage_service_proto.Services().ByName("CloudStorageService")
-	cloudStorageServiceCreateCloudStorageMethodDescriptor      = cloudStorageServiceServiceDescriptor.Methods().ByName("CreateCloudStorage")
-	cloudStorageServiceGetCloudStorageMethodDescriptor         = cloudStorageServiceServiceDescriptor.Methods().ByName("GetCloudStorage")
-	cloudStorageServiceListCloudStoragesMethodDescriptor       = cloudStorageServiceServiceDescriptor.Methods().ByName("ListCloudStorages")
-	cloudStorageServiceDeleteCloudStorageMethodDescriptor      = cloudStorageServiceServiceDescriptor.Methods().ByName("DeleteCloudStorage")
-	cloudStorageServiceMaterializeCloudStorageMethodDescriptor = cloudStorageServiceServiceDescriptor.Methods().ByName("MaterializeCloudStorage")
+	cloudStorageServiceServiceDescriptor                                 = cloudstorage.File_flyteidl2_aione_cloudstorage_cloud_storage_service_proto.Services().ByName("CloudStorageService")
+	cloudStorageServiceCreateCloudStorageMethodDescriptor                = cloudStorageServiceServiceDescriptor.Methods().ByName("CreateCloudStorage")
+	cloudStorageServiceGetCloudStorageMethodDescriptor                   = cloudStorageServiceServiceDescriptor.Methods().ByName("GetCloudStorage")
+	cloudStorageServiceGetCloudStorageByIdMethodDescriptor               = cloudStorageServiceServiceDescriptor.Methods().ByName("GetCloudStorageById")
+	cloudStorageServiceListCloudStoragesMethodDescriptor                 = cloudStorageServiceServiceDescriptor.Methods().ByName("ListCloudStorages")
+	cloudStorageServiceDeleteCloudStorageMethodDescriptor                = cloudStorageServiceServiceDescriptor.Methods().ByName("DeleteCloudStorage")
+	cloudStorageServiceMaterializeCloudStorageMethodDescriptor           = cloudStorageServiceServiceDescriptor.Methods().ByName("MaterializeCloudStorage")
+	cloudStorageServiceClearCloudStorageMaterializationsMethodDescriptor = cloudStorageServiceServiceDescriptor.Methods().ByName("ClearCloudStorageMaterializations")
 )
 
 // CloudStorageServiceClient is a client for the flyteidl2.aione.cloudstorage.CloudStorageService
@@ -65,9 +73,11 @@ var (
 type CloudStorageServiceClient interface {
 	CreateCloudStorage(context.Context, *connect.Request[cloudstorage.CreateCloudStorageRequest]) (*connect.Response[cloudstorage.CreateCloudStorageResponse], error)
 	GetCloudStorage(context.Context, *connect.Request[cloudstorage.GetCloudStorageRequest]) (*connect.Response[cloudstorage.GetCloudStorageResponse], error)
+	GetCloudStorageById(context.Context, *connect.Request[cloudstorage.GetCloudStorageByIdRequest]) (*connect.Response[cloudstorage.GetCloudStorageByIdResponse], error)
 	ListCloudStorages(context.Context, *connect.Request[cloudstorage.ListCloudStoragesRequest]) (*connect.Response[cloudstorage.ListCloudStoragesResponse], error)
 	DeleteCloudStorage(context.Context, *connect.Request[cloudstorage.DeleteCloudStorageRequest]) (*connect.Response[cloudstorage.DeleteCloudStorageResponse], error)
 	MaterializeCloudStorage(context.Context, *connect.Request[cloudstorage.MaterializeCloudStorageRequest]) (*connect.Response[cloudstorage.MaterializeCloudStorageResponse], error)
+	ClearCloudStorageMaterializations(context.Context, *connect.Request[cloudstorage.ClearCloudStorageMaterializationsRequest]) (*connect.Response[cloudstorage.ClearCloudStorageMaterializationsResponse], error)
 }
 
 // NewCloudStorageServiceClient constructs a client for the
@@ -94,6 +104,13 @@ func NewCloudStorageServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getCloudStorageById: connect.NewClient[cloudstorage.GetCloudStorageByIdRequest, cloudstorage.GetCloudStorageByIdResponse](
+			httpClient,
+			baseURL+CloudStorageServiceGetCloudStorageByIdProcedure,
+			connect.WithSchema(cloudStorageServiceGetCloudStorageByIdMethodDescriptor),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		listCloudStorages: connect.NewClient[cloudstorage.ListCloudStoragesRequest, cloudstorage.ListCloudStoragesResponse](
 			httpClient,
 			baseURL+CloudStorageServiceListCloudStoragesProcedure,
@@ -113,16 +130,24 @@ func NewCloudStorageServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(cloudStorageServiceMaterializeCloudStorageMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		clearCloudStorageMaterializations: connect.NewClient[cloudstorage.ClearCloudStorageMaterializationsRequest, cloudstorage.ClearCloudStorageMaterializationsResponse](
+			httpClient,
+			baseURL+CloudStorageServiceClearCloudStorageMaterializationsProcedure,
+			connect.WithSchema(cloudStorageServiceClearCloudStorageMaterializationsMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // cloudStorageServiceClient implements CloudStorageServiceClient.
 type cloudStorageServiceClient struct {
-	createCloudStorage      *connect.Client[cloudstorage.CreateCloudStorageRequest, cloudstorage.CreateCloudStorageResponse]
-	getCloudStorage         *connect.Client[cloudstorage.GetCloudStorageRequest, cloudstorage.GetCloudStorageResponse]
-	listCloudStorages       *connect.Client[cloudstorage.ListCloudStoragesRequest, cloudstorage.ListCloudStoragesResponse]
-	deleteCloudStorage      *connect.Client[cloudstorage.DeleteCloudStorageRequest, cloudstorage.DeleteCloudStorageResponse]
-	materializeCloudStorage *connect.Client[cloudstorage.MaterializeCloudStorageRequest, cloudstorage.MaterializeCloudStorageResponse]
+	createCloudStorage                *connect.Client[cloudstorage.CreateCloudStorageRequest, cloudstorage.CreateCloudStorageResponse]
+	getCloudStorage                   *connect.Client[cloudstorage.GetCloudStorageRequest, cloudstorage.GetCloudStorageResponse]
+	getCloudStorageById               *connect.Client[cloudstorage.GetCloudStorageByIdRequest, cloudstorage.GetCloudStorageByIdResponse]
+	listCloudStorages                 *connect.Client[cloudstorage.ListCloudStoragesRequest, cloudstorage.ListCloudStoragesResponse]
+	deleteCloudStorage                *connect.Client[cloudstorage.DeleteCloudStorageRequest, cloudstorage.DeleteCloudStorageResponse]
+	materializeCloudStorage           *connect.Client[cloudstorage.MaterializeCloudStorageRequest, cloudstorage.MaterializeCloudStorageResponse]
+	clearCloudStorageMaterializations *connect.Client[cloudstorage.ClearCloudStorageMaterializationsRequest, cloudstorage.ClearCloudStorageMaterializationsResponse]
 }
 
 // CreateCloudStorage calls flyteidl2.aione.cloudstorage.CloudStorageService.CreateCloudStorage.
@@ -133,6 +158,11 @@ func (c *cloudStorageServiceClient) CreateCloudStorage(ctx context.Context, req 
 // GetCloudStorage calls flyteidl2.aione.cloudstorage.CloudStorageService.GetCloudStorage.
 func (c *cloudStorageServiceClient) GetCloudStorage(ctx context.Context, req *connect.Request[cloudstorage.GetCloudStorageRequest]) (*connect.Response[cloudstorage.GetCloudStorageResponse], error) {
 	return c.getCloudStorage.CallUnary(ctx, req)
+}
+
+// GetCloudStorageById calls flyteidl2.aione.cloudstorage.CloudStorageService.GetCloudStorageById.
+func (c *cloudStorageServiceClient) GetCloudStorageById(ctx context.Context, req *connect.Request[cloudstorage.GetCloudStorageByIdRequest]) (*connect.Response[cloudstorage.GetCloudStorageByIdResponse], error) {
+	return c.getCloudStorageById.CallUnary(ctx, req)
 }
 
 // ListCloudStorages calls flyteidl2.aione.cloudstorage.CloudStorageService.ListCloudStorages.
@@ -151,14 +181,22 @@ func (c *cloudStorageServiceClient) MaterializeCloudStorage(ctx context.Context,
 	return c.materializeCloudStorage.CallUnary(ctx, req)
 }
 
+// ClearCloudStorageMaterializations calls
+// flyteidl2.aione.cloudstorage.CloudStorageService.ClearCloudStorageMaterializations.
+func (c *cloudStorageServiceClient) ClearCloudStorageMaterializations(ctx context.Context, req *connect.Request[cloudstorage.ClearCloudStorageMaterializationsRequest]) (*connect.Response[cloudstorage.ClearCloudStorageMaterializationsResponse], error) {
+	return c.clearCloudStorageMaterializations.CallUnary(ctx, req)
+}
+
 // CloudStorageServiceHandler is an implementation of the
 // flyteidl2.aione.cloudstorage.CloudStorageService service.
 type CloudStorageServiceHandler interface {
 	CreateCloudStorage(context.Context, *connect.Request[cloudstorage.CreateCloudStorageRequest]) (*connect.Response[cloudstorage.CreateCloudStorageResponse], error)
 	GetCloudStorage(context.Context, *connect.Request[cloudstorage.GetCloudStorageRequest]) (*connect.Response[cloudstorage.GetCloudStorageResponse], error)
+	GetCloudStorageById(context.Context, *connect.Request[cloudstorage.GetCloudStorageByIdRequest]) (*connect.Response[cloudstorage.GetCloudStorageByIdResponse], error)
 	ListCloudStorages(context.Context, *connect.Request[cloudstorage.ListCloudStoragesRequest]) (*connect.Response[cloudstorage.ListCloudStoragesResponse], error)
 	DeleteCloudStorage(context.Context, *connect.Request[cloudstorage.DeleteCloudStorageRequest]) (*connect.Response[cloudstorage.DeleteCloudStorageResponse], error)
 	MaterializeCloudStorage(context.Context, *connect.Request[cloudstorage.MaterializeCloudStorageRequest]) (*connect.Response[cloudstorage.MaterializeCloudStorageResponse], error)
+	ClearCloudStorageMaterializations(context.Context, *connect.Request[cloudstorage.ClearCloudStorageMaterializationsRequest]) (*connect.Response[cloudstorage.ClearCloudStorageMaterializationsResponse], error)
 }
 
 // NewCloudStorageServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -177,6 +215,13 @@ func NewCloudStorageServiceHandler(svc CloudStorageServiceHandler, opts ...conne
 		CloudStorageServiceGetCloudStorageProcedure,
 		svc.GetCloudStorage,
 		connect.WithSchema(cloudStorageServiceGetCloudStorageMethodDescriptor),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	cloudStorageServiceGetCloudStorageByIdHandler := connect.NewUnaryHandler(
+		CloudStorageServiceGetCloudStorageByIdProcedure,
+		svc.GetCloudStorageById,
+		connect.WithSchema(cloudStorageServiceGetCloudStorageByIdMethodDescriptor),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -199,18 +244,28 @@ func NewCloudStorageServiceHandler(svc CloudStorageServiceHandler, opts ...conne
 		connect.WithSchema(cloudStorageServiceMaterializeCloudStorageMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	cloudStorageServiceClearCloudStorageMaterializationsHandler := connect.NewUnaryHandler(
+		CloudStorageServiceClearCloudStorageMaterializationsProcedure,
+		svc.ClearCloudStorageMaterializations,
+		connect.WithSchema(cloudStorageServiceClearCloudStorageMaterializationsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/flyteidl2.aione.cloudstorage.CloudStorageService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CloudStorageServiceCreateCloudStorageProcedure:
 			cloudStorageServiceCreateCloudStorageHandler.ServeHTTP(w, r)
 		case CloudStorageServiceGetCloudStorageProcedure:
 			cloudStorageServiceGetCloudStorageHandler.ServeHTTP(w, r)
+		case CloudStorageServiceGetCloudStorageByIdProcedure:
+			cloudStorageServiceGetCloudStorageByIdHandler.ServeHTTP(w, r)
 		case CloudStorageServiceListCloudStoragesProcedure:
 			cloudStorageServiceListCloudStoragesHandler.ServeHTTP(w, r)
 		case CloudStorageServiceDeleteCloudStorageProcedure:
 			cloudStorageServiceDeleteCloudStorageHandler.ServeHTTP(w, r)
 		case CloudStorageServiceMaterializeCloudStorageProcedure:
 			cloudStorageServiceMaterializeCloudStorageHandler.ServeHTTP(w, r)
+		case CloudStorageServiceClearCloudStorageMaterializationsProcedure:
+			cloudStorageServiceClearCloudStorageMaterializationsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -228,6 +283,10 @@ func (UnimplementedCloudStorageServiceHandler) GetCloudStorage(context.Context, 
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.aione.cloudstorage.CloudStorageService.GetCloudStorage is not implemented"))
 }
 
+func (UnimplementedCloudStorageServiceHandler) GetCloudStorageById(context.Context, *connect.Request[cloudstorage.GetCloudStorageByIdRequest]) (*connect.Response[cloudstorage.GetCloudStorageByIdResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.aione.cloudstorage.CloudStorageService.GetCloudStorageById is not implemented"))
+}
+
 func (UnimplementedCloudStorageServiceHandler) ListCloudStorages(context.Context, *connect.Request[cloudstorage.ListCloudStoragesRequest]) (*connect.Response[cloudstorage.ListCloudStoragesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.aione.cloudstorage.CloudStorageService.ListCloudStorages is not implemented"))
 }
@@ -238,4 +297,8 @@ func (UnimplementedCloudStorageServiceHandler) DeleteCloudStorage(context.Contex
 
 func (UnimplementedCloudStorageServiceHandler) MaterializeCloudStorage(context.Context, *connect.Request[cloudstorage.MaterializeCloudStorageRequest]) (*connect.Response[cloudstorage.MaterializeCloudStorageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.aione.cloudstorage.CloudStorageService.MaterializeCloudStorage is not implemented"))
+}
+
+func (UnimplementedCloudStorageServiceHandler) ClearCloudStorageMaterializations(context.Context, *connect.Request[cloudstorage.ClearCloudStorageMaterializationsRequest]) (*connect.Response[cloudstorage.ClearCloudStorageMaterializationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.aione.cloudstorage.CloudStorageService.ClearCloudStorageMaterializations is not implemented"))
 }

@@ -11,6 +11,7 @@ import (
 
 	cloudstoragepb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/cloudstorage"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/common"
+	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 )
 
@@ -65,15 +66,69 @@ func TestCloudStorageServiceMaterializeWritesRuntimePVC(t *testing.T) {
 	require.Equal(t, "cs-cs-1", resp.Msg.GetCloudStorage().GetPvcName())
 }
 
+func TestCloudStorageServiceGetCloudStorageById(t *testing.T) {
+	repo := newFakeCloudStorageRepo()
+	svc := NewService(repo)
+	repo.items["cs-1"] = &models.CloudStorage{
+		CloudStorageKey: models.CloudStorageKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "cs-1"},
+		Name:            "storage-disk",
+		SizeGB:          100,
+		StorageClass:    DefaultStorageClassName,
+	}
+
+	resp, err := svc.GetCloudStorageById(context.Background(), connect.NewRequest(&cloudstoragepb.GetCloudStorageByIdRequest{
+		Id: "cs-1",
+	}))
+
+	require.NoError(t, err)
+	require.Equal(t, "cs-1", resp.Msg.GetCloudStorage().GetId().GetId())
+}
+
+func TestCloudStorageServiceGetCloudStorageByIdRejectsAmbiguousID(t *testing.T) {
+	repo := newFakeCloudStorageRepo()
+	svc := NewService(repo)
+	repo.ambiguousIDs["cs-1"] = true
+
+	_, err := svc.GetCloudStorageById(context.Background(), connect.NewRequest(&cloudstoragepb.GetCloudStorageByIdRequest{
+		Id: "cs-1",
+	}))
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed_precondition")
+}
+
+func TestCloudStorageServiceClearMaterializations(t *testing.T) {
+	repo := newFakeCloudStorageRepo()
+	svc := NewService(repo)
+	repo.items["cs-1"] = &models.CloudStorage{
+		CloudStorageKey: models.CloudStorageKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "cs-1"},
+		Name:            "storage-disk",
+		SizeGB:          100,
+		StorageClass:    DefaultStorageClassName,
+	}
+	repo.materializations["cs-1"] = []models.CloudStoragePVC{
+		{CloudStorageKey: repo.items["cs-1"].CloudStorageKey, TargetNamespace: "flyte", PVCName: "cs-cs-1"},
+	}
+
+	_, err := svc.ClearCloudStorageMaterializations(context.Background(), connect.NewRequest(&cloudstoragepb.ClearCloudStorageMaterializationsRequest{
+		Id: &cloudstoragepb.CloudStorageIdentifier{Org: "testorg", Project: "flytesnacks", Domain: "development", Id: "cs-1"},
+	}))
+
+	require.NoError(t, err)
+	require.Empty(t, repo.materializations["cs-1"])
+}
+
 type fakeCloudStorageRepo struct {
 	items            map[string]*models.CloudStorage
 	materializations map[string][]models.CloudStoragePVC
+	ambiguousIDs     map[string]bool
 }
 
 func newFakeCloudStorageRepo() *fakeCloudStorageRepo {
 	return &fakeCloudStorageRepo{
 		items:            map[string]*models.CloudStorage{},
 		materializations: map[string][]models.CloudStoragePVC{},
+		ambiguousIDs:     map[string]bool{},
 	}
 }
 
@@ -95,6 +150,19 @@ func (r *fakeCloudStorageRepo) Get(_ context.Context, key models.CloudStorageKey
 		copy.PVCName = copy.Materializations[0].PVCName
 		copy.MaterializedAt = copy.Materializations[0].MaterializedAt
 	}
+	return &copy, nil
+}
+
+func (r *fakeCloudStorageRepo) GetByID(_ context.Context, id string) (*models.CloudStorage, error) {
+	if r.ambiguousIDs[id] {
+		return nil, interfaces.ErrCloudStorageIDAmbiguous
+	}
+	storage := r.items[id]
+	if storage == nil {
+		return nil, fmt.Errorf("not found")
+	}
+	copy := *storage
+	copy.Materializations = r.materializations[id]
 	return &copy, nil
 }
 
@@ -130,4 +198,9 @@ func (r *fakeCloudStorageRepo) SetMaterialized(_ context.Context, key models.Clo
 
 func (r *fakeCloudStorageRepo) ListMaterializations(_ context.Context, key models.CloudStorageKey) ([]models.CloudStoragePVC, error) {
 	return r.materializations[key.ID], nil
+}
+
+func (r *fakeCloudStorageRepo) ClearMaterializations(_ context.Context, key models.CloudStorageKey) error {
+	r.materializations[key.ID] = nil
+	return nil
 }

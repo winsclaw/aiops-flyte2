@@ -54,6 +54,29 @@ func (r *cloudStorageRepo) Get(ctx context.Context, key models.CloudStorageKey) 
 	return &storage, nil
 }
 
+func (r *cloudStorageRepo) GetByID(ctx context.Context, id string) (*models.CloudStorage, error) {
+	var storages []models.CloudStorage
+	if err := sqlx.SelectContext(ctx, r.db, &storages, `
+SELECT *
+FROM aione_cloud_storages
+WHERE id = $1
+ORDER BY created_at DESC
+LIMIT 2`, id); err != nil {
+		return nil, fmt.Errorf("failed to get cloud storage by id %s: %w", id, err)
+	}
+	if len(storages) == 0 {
+		return nil, fmt.Errorf("cloud storage not found: %s", id)
+	}
+	if len(storages) > 1 {
+		return nil, fmt.Errorf("%w: %s", interfaces.ErrCloudStorageIDAmbiguous, id)
+	}
+	storage := storages[0]
+	if err := r.populateMaterializations(ctx, &storage); err != nil {
+		return nil, err
+	}
+	return &storage, nil
+}
+
 func (r *cloudStorageRepo) Delete(ctx context.Context, key models.CloudStorageKey) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM aione_cloud_storages WHERE org = $1 AND project = $2 AND domain = $3 AND id = $4`,
 		key.Org, key.Project, key.Domain, key.ID)
@@ -145,6 +168,17 @@ ORDER BY materialized_at DESC`,
 		return nil, fmt.Errorf("failed to list cloud storage pvcs %s/%s/%s/%s: %w", key.Org, key.Project, key.Domain, key.ID, err)
 	}
 	return pvcs, nil
+}
+
+func (r *cloudStorageRepo) ClearMaterializations(ctx context.Context, key models.CloudStorageKey) error {
+	_, err := r.db.ExecContext(ctx, `
+DELETE FROM aione_cloud_storage_pvcs
+WHERE org = $1 AND project = $2 AND domain = $3 AND cloud_storage_id = $4`,
+		key.Org, key.Project, key.Domain, key.ID)
+	if err != nil {
+		return fmt.Errorf("failed to clear cloud storage pvcs %s/%s/%s/%s: %w", key.Org, key.Project, key.Domain, key.ID, err)
+	}
+	return nil
 }
 
 func (r *cloudStorageRepo) populateMaterializations(ctx context.Context, storage *models.CloudStorage) error {

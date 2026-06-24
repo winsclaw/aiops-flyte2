@@ -25,12 +25,17 @@ import (
 
 type TrainingTaskService struct {
 	trainingtaskconnect.UnimplementedTrainingTaskServiceHandler
-	repo       interfaces.Repository
-	runService *RunService
+	repo             interfaces.Repository
+	runService       *RunService
+	runtimeNamespace string
 }
 
-func NewTrainingTaskService(repo interfaces.Repository, runService *RunService) *TrainingTaskService {
-	return &TrainingTaskService{repo: repo, runService: runService}
+func NewTrainingTaskService(repo interfaces.Repository, runService *RunService, runtimeNamespace ...string) *TrainingTaskService {
+	namespace := "flyte"
+	if len(runtimeNamespace) > 0 && strings.TrimSpace(runtimeNamespace[0]) != "" {
+		namespace = strings.TrimSpace(runtimeNamespace[0])
+	}
+	return &TrainingTaskService{repo: repo, runService: runService, runtimeNamespace: namespace}
 }
 
 var _ trainingtaskconnect.TrainingTaskServiceHandler = (*TrainingTaskService)(nil)
@@ -535,7 +540,7 @@ func (s *TrainingTaskService) resolveTrainingTaskCloudStorageMounts(ctx context.
 	if s.repo.CloudStorageRepo() == nil {
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("cloud storage repository is required"))
 	}
-	namespace := cloudStorageNamespace(task.Project, task.Domain)
+	namespace := s.runtimeNamespace
 	resolved := make([]models.TrainingTaskCloudStorageMount, 0, len(selected))
 	for _, mount := range selected {
 		storage, err := s.repo.CloudStorageRepo().Get(ctx, models.CloudStorageKey{
@@ -666,8 +671,4 @@ func resolveTrainingTaskCodeRepositoryMounts(ctx context.Context, repo interface
 
 func cloudStoragePVCName(id string) string {
 	return pluginutils.ConvertToDNS1123SubdomainCompatibleString("cs-" + id)
-}
-
-func cloudStorageNamespace(project, domain string) string {
-	return pluginutils.ConvertToDNS1123SubdomainCompatibleString(project + "-" + domain)
 }

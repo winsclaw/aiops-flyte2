@@ -101,3 +101,20 @@ UNSPECIFIED, QUEUED, WAITING_FOR_RESOURCES, INITIALIZING, RUNNING, PAUSED
 | `phase` | 数字 `ActionPhase` 值。例如 `4` 表示 `RUNNING`。 |
 | `error` | 失败或终止时的错误信息。空字符串表示当前没有错误信息。 |
 | `durationSeconds` | 已运行时长，单位为秒。优先使用 Flyte 返回的 `durationMs`；没有该值时，根据 `startTime` 到 `endTime` 或当前时间计算。 |
+
+## 资源清理接口
+
+AIONE 外部资源清理使用 `DELETE` 方法：
+
+```text
+DELETE /v2/api/aione/instance/{id}/clear
+DELETE /v2/api/aione/task/{id}/clear
+DELETE /v2/api/aione/store/{id}/clear
+```
+
+`instance` 和 `task` 只清理已停止后的运行期 Kubernetes 资源。运行中返回 `409`，需要先调用
+对应 stop 接口。清理开发实例/训练任务时会删除匹配运行 label 的 `Secret`、`Service`、
+`Ingress` 等运行资源，不删除 PVC。
+
+`store` 按云存储 id 清理 `flyte` namespace 下带云存储 label 的 PVC，并清除
+CloudStorage 物化记录。若 PVC 仍被非终态 Pod 引用，返回 `409`。

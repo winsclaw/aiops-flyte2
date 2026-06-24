@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file flyteidl2/aione/cloudstorage/cloud_storage_service.proto.
  */
 export const file_flyteidl2_aione_cloudstorage_cloud_storage_service: GenFile = /*@__PURE__*/
-  fileDesc("CjhmbHl0ZWlkbDIvYWlvbmUvY2xvdWRzdG9yYWdlL2Nsb3VkX3N0b3JhZ2Vfc2VydmljZS5wcm90bxIcZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZSJHChFDbG91ZFN0b3JhZ2VJbnB1dBIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEg8KB3NpemVfZ2IYAyABKA0iqgEKGUNyZWF0ZUNsb3VkU3RvcmFnZVJlcXVlc3QSNAoHcHJvamVjdBgBIAEoCzIjLmZseXRlaWRsMi5jb21tb24uUHJvamVjdElkZW50aWZpZXISRgoNY2xvdWRfc3RvcmFnZRgCIAEoCzIvLmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuQ2xvdWRTdG9yYWdlSW5wdXQSDwoHY3JlYXRvchgDIAEoCSJfChpDcmVhdGVDbG91ZFN0b3JhZ2VSZXNwb25zZRJBCg1jbG91ZF9zdG9yYWdlGAEgASgLMiouZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2UiWgoWR2V0Q2xvdWRTdG9yYWdlUmVxdWVzdBJACgJpZBgBIAEoCzI0LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuQ2xvdWRTdG9yYWdlSWRlbnRpZmllciJcChdHZXRDbG91ZFN0b3JhZ2VSZXNwb25zZRJBCg1jbG91ZF9zdG9yYWdlGAEgASgLMiouZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2UigAEKGExpc3RDbG91ZFN0b3JhZ2VzUmVxdWVzdBIuCgdyZXF1ZXN0GAEgASgLMh0uZmx5dGVpZGwyLmNvbW1vbi5MaXN0UmVxdWVzdBI0Cgdwcm9qZWN0GAIgASgLMiMuZmx5dGVpZGwyLmNvbW1vbi5Qcm9qZWN0SWRlbnRpZmllciJ9ChlMaXN0Q2xvdWRTdG9yYWdlc1Jlc3BvbnNlEkIKDmNsb3VkX3N0b3JhZ2VzGAEgAygLMiouZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2USDQoFdG9rZW4YAiABKAkSDQoFdG90YWwYAyABKA0iXQoZRGVsZXRlQ2xvdWRTdG9yYWdlUmVxdWVzdBJACgJpZBgBIAEoCzI0LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuQ2xvdWRTdG9yYWdlSWRlbnRpZmllciIcChpEZWxldGVDbG91ZFN0b3JhZ2VSZXNwb25zZSKOAQoeTWF0ZXJpYWxpemVDbG91ZFN0b3JhZ2VSZXF1ZXN0EkAKAmlkGAEgASgLMjQuZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2VJZGVudGlmaWVyEhgKEHRhcmdldF9uYW1lc3BhY2UYAiABKAkSEAoIcHZjX25hbWUYAyABKAkiZAofTWF0ZXJpYWxpemVDbG91ZFN0b3JhZ2VSZXNwb25zZRJBCg1jbG91ZF9zdG9yYWdlGAEgASgLMiouZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2Uy2gUKE0Nsb3VkU3RvcmFnZVNlcnZpY2USiQEKEkNyZWF0ZUNsb3VkU3RvcmFnZRI3LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuQ3JlYXRlQ2xvdWRTdG9yYWdlUmVxdWVzdBo4LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuQ3JlYXRlQ2xvdWRTdG9yYWdlUmVzcG9uc2UiABKDAQoPR2V0Q2xvdWRTdG9yYWdlEjQuZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5HZXRDbG91ZFN0b3JhZ2VSZXF1ZXN0GjUuZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5HZXRDbG91ZFN0b3JhZ2VSZXNwb25zZSIDkAIBEokBChFMaXN0Q2xvdWRTdG9yYWdlcxI2LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuTGlzdENsb3VkU3RvcmFnZXNSZXF1ZXN0GjcuZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5MaXN0Q2xvdWRTdG9yYWdlc1Jlc3BvbnNlIgOQAgESiQEKEkRlbGV0ZUNsb3VkU3RvcmFnZRI3LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuRGVsZXRlQ2xvdWRTdG9yYWdlUmVxdWVzdBo4LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuRGVsZXRlQ2xvdWRTdG9yYWdlUmVzcG9uc2UiABKYAQoXTWF0ZXJpYWxpemVDbG91ZFN0b3JhZ2USPC5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLk1hdGVyaWFsaXplQ2xvdWRTdG9yYWdlUmVxdWVzdBo9LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuTWF0ZXJpYWxpemVDbG91ZFN0b3JhZ2VSZXNwb25zZSIAQpICCiBjb20uZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZUIYQ2xvdWRTdG9yYWdlU2VydmljZVByb3RvSAJQAVpAZ2l0aHViLmNvbS9mbHl0ZW9yZy9mbHl0ZS92Mi9nZW4vZ28vZmx5dGVpZGwyL2Fpb25lL2Nsb3Vkc3RvcmFnZaICA0ZBQ6oCHEZseXRlaWRsMi5BaW9uZS5DbG91ZHN0b3JhZ2XKAhxGbHl0ZWlkbDJcQWlvbmVcQ2xvdWRzdG9yYWdl4gIoRmx5dGVpZGwyXEFpb25lXENsb3Vkc3RvcmFnZVxHUEJNZXRhZGF0YeoCHkZseXRlaWRsMjo6QWlvbmU6OkNsb3Vkc3RvcmFnZWIGcHJvdG8z", [file_flyteidl2_aione_cloudstorage_cloud_storage_definition, file_flyteidl2_common_identifier, file_flyteidl2_common_list]);
+  fileDesc("CjhmbHl0ZWlkbDIvYWlvbmUvY2xvdWRzdG9yYWdlL2Nsb3VkX3N0b3JhZ2Vfc2VydmljZS5wcm90bxIcZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZSJHChFDbG91ZFN0b3JhZ2VJbnB1dBIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEg8KB3NpemVfZ2IYAyABKA0iqgEKGUNyZWF0ZUNsb3VkU3RvcmFnZVJlcXVlc3QSNAoHcHJvamVjdBgBIAEoCzIjLmZseXRlaWRsMi5jb21tb24uUHJvamVjdElkZW50aWZpZXISRgoNY2xvdWRfc3RvcmFnZRgCIAEoCzIvLmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuQ2xvdWRTdG9yYWdlSW5wdXQSDwoHY3JlYXRvchgDIAEoCSJfChpDcmVhdGVDbG91ZFN0b3JhZ2VSZXNwb25zZRJBCg1jbG91ZF9zdG9yYWdlGAEgASgLMiouZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2UiWgoWR2V0Q2xvdWRTdG9yYWdlUmVxdWVzdBJACgJpZBgBIAEoCzI0LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuQ2xvdWRTdG9yYWdlSWRlbnRpZmllciJcChdHZXRDbG91ZFN0b3JhZ2VSZXNwb25zZRJBCg1jbG91ZF9zdG9yYWdlGAEgASgLMiouZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2UiKAoaR2V0Q2xvdWRTdG9yYWdlQnlJZFJlcXVlc3QSCgoCaWQYASABKAkiYAobR2V0Q2xvdWRTdG9yYWdlQnlJZFJlc3BvbnNlEkEKDWNsb3VkX3N0b3JhZ2UYASABKAsyKi5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkNsb3VkU3RvcmFnZSKAAQoYTGlzdENsb3VkU3RvcmFnZXNSZXF1ZXN0Ei4KB3JlcXVlc3QYASABKAsyHS5mbHl0ZWlkbDIuY29tbW9uLkxpc3RSZXF1ZXN0EjQKB3Byb2plY3QYAiABKAsyIy5mbHl0ZWlkbDIuY29tbW9uLlByb2plY3RJZGVudGlmaWVyIn0KGUxpc3RDbG91ZFN0b3JhZ2VzUmVzcG9uc2USQgoOY2xvdWRfc3RvcmFnZXMYASADKAsyKi5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkNsb3VkU3RvcmFnZRINCgV0b2tlbhgCIAEoCRINCgV0b3RhbBgDIAEoDSJdChlEZWxldGVDbG91ZFN0b3JhZ2VSZXF1ZXN0EkAKAmlkGAEgASgLMjQuZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2VJZGVudGlmaWVyIhwKGkRlbGV0ZUNsb3VkU3RvcmFnZVJlc3BvbnNlIo4BCh5NYXRlcmlhbGl6ZUNsb3VkU3RvcmFnZVJlcXVlc3QSQAoCaWQYASABKAsyNC5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkNsb3VkU3RvcmFnZUlkZW50aWZpZXISGAoQdGFyZ2V0X25hbWVzcGFjZRgCIAEoCRIQCghwdmNfbmFtZRgDIAEoCSJkCh9NYXRlcmlhbGl6ZUNsb3VkU3RvcmFnZVJlc3BvbnNlEkEKDWNsb3VkX3N0b3JhZ2UYASABKAsyKi5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkNsb3VkU3RvcmFnZSJsCihDbGVhckNsb3VkU3RvcmFnZU1hdGVyaWFsaXphdGlvbnNSZXF1ZXN0EkAKAmlkGAEgASgLMjQuZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2VJZGVudGlmaWVyIisKKUNsZWFyQ2xvdWRTdG9yYWdlTWF0ZXJpYWxpemF0aW9uc1Jlc3BvbnNlMqUIChNDbG91ZFN0b3JhZ2VTZXJ2aWNlEokBChJDcmVhdGVDbG91ZFN0b3JhZ2USNy5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkNyZWF0ZUNsb3VkU3RvcmFnZVJlcXVlc3QaOC5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkNyZWF0ZUNsb3VkU3RvcmFnZVJlc3BvbnNlIgASgwEKD0dldENsb3VkU3RvcmFnZRI0LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuR2V0Q2xvdWRTdG9yYWdlUmVxdWVzdBo1LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuR2V0Q2xvdWRTdG9yYWdlUmVzcG9uc2UiA5ACARKPAQoTR2V0Q2xvdWRTdG9yYWdlQnlJZBI4LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuR2V0Q2xvdWRTdG9yYWdlQnlJZFJlcXVlc3QaOS5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkdldENsb3VkU3RvcmFnZUJ5SWRSZXNwb25zZSIDkAIBEokBChFMaXN0Q2xvdWRTdG9yYWdlcxI2LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuTGlzdENsb3VkU3RvcmFnZXNSZXF1ZXN0GjcuZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5MaXN0Q2xvdWRTdG9yYWdlc1Jlc3BvbnNlIgOQAgESiQEKEkRlbGV0ZUNsb3VkU3RvcmFnZRI3LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuRGVsZXRlQ2xvdWRTdG9yYWdlUmVxdWVzdBo4LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuRGVsZXRlQ2xvdWRTdG9yYWdlUmVzcG9uc2UiABKYAQoXTWF0ZXJpYWxpemVDbG91ZFN0b3JhZ2USPC5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLk1hdGVyaWFsaXplQ2xvdWRTdG9yYWdlUmVxdWVzdBo9LmZseXRlaWRsMi5haW9uZS5jbG91ZHN0b3JhZ2UuTWF0ZXJpYWxpemVDbG91ZFN0b3JhZ2VSZXNwb25zZSIAErYBCiFDbGVhckNsb3VkU3RvcmFnZU1hdGVyaWFsaXphdGlvbnMSRi5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkNsZWFyQ2xvdWRTdG9yYWdlTWF0ZXJpYWxpemF0aW9uc1JlcXVlc3QaRy5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlLkNsZWFyQ2xvdWRTdG9yYWdlTWF0ZXJpYWxpemF0aW9uc1Jlc3BvbnNlIgBCkgIKIGNvbS5mbHl0ZWlkbDIuYWlvbmUuY2xvdWRzdG9yYWdlQhhDbG91ZFN0b3JhZ2VTZXJ2aWNlUHJvdG9IAlABWkBnaXRodWIuY29tL2ZseXRlb3JnL2ZseXRlL3YyL2dlbi9nby9mbHl0ZWlkbDIvYWlvbmUvY2xvdWRzdG9yYWdlogIDRkFDqgIcRmx5dGVpZGwyLkFpb25lLkNsb3Vkc3RvcmFnZcoCHEZseXRlaWRsMlxBaW9uZVxDbG91ZHN0b3JhZ2XiAihGbHl0ZWlkbDJcQWlvbmVcQ2xvdWRzdG9yYWdlXEdQQk1ldGFkYXRh6gIeRmx5dGVpZGwyOjpBaW9uZTo6Q2xvdWRzdG9yYWdlYgZwcm90bzM", [file_flyteidl2_aione_cloudstorage_cloud_storage_definition, file_flyteidl2_common_identifier, file_flyteidl2_common_list]);
 
 /**
  * @generated from message flyteidl2.aione.cloudstorage.CloudStorageInput
@@ -124,6 +124,40 @@ export const GetCloudStorageResponseSchema: GenMessage<GetCloudStorageResponse> 
   messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 4);
 
 /**
+ * @generated from message flyteidl2.aione.cloudstorage.GetCloudStorageByIdRequest
+ */
+export type GetCloudStorageByIdRequest = Message<"flyteidl2.aione.cloudstorage.GetCloudStorageByIdRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message flyteidl2.aione.cloudstorage.GetCloudStorageByIdRequest.
+ * Use `create(GetCloudStorageByIdRequestSchema)` to create a new message.
+ */
+export const GetCloudStorageByIdRequestSchema: GenMessage<GetCloudStorageByIdRequest> = /*@__PURE__*/
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 5);
+
+/**
+ * @generated from message flyteidl2.aione.cloudstorage.GetCloudStorageByIdResponse
+ */
+export type GetCloudStorageByIdResponse = Message<"flyteidl2.aione.cloudstorage.GetCloudStorageByIdResponse"> & {
+  /**
+   * @generated from field: flyteidl2.aione.cloudstorage.CloudStorage cloud_storage = 1;
+   */
+  cloudStorage?: CloudStorage;
+};
+
+/**
+ * Describes the message flyteidl2.aione.cloudstorage.GetCloudStorageByIdResponse.
+ * Use `create(GetCloudStorageByIdResponseSchema)` to create a new message.
+ */
+export const GetCloudStorageByIdResponseSchema: GenMessage<GetCloudStorageByIdResponse> = /*@__PURE__*/
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 6);
+
+/**
  * @generated from message flyteidl2.aione.cloudstorage.ListCloudStoragesRequest
  */
 export type ListCloudStoragesRequest = Message<"flyteidl2.aione.cloudstorage.ListCloudStoragesRequest"> & {
@@ -143,7 +177,7 @@ export type ListCloudStoragesRequest = Message<"flyteidl2.aione.cloudstorage.Lis
  * Use `create(ListCloudStoragesRequestSchema)` to create a new message.
  */
 export const ListCloudStoragesRequestSchema: GenMessage<ListCloudStoragesRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 5);
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 7);
 
 /**
  * @generated from message flyteidl2.aione.cloudstorage.ListCloudStoragesResponse
@@ -170,7 +204,7 @@ export type ListCloudStoragesResponse = Message<"flyteidl2.aione.cloudstorage.Li
  * Use `create(ListCloudStoragesResponseSchema)` to create a new message.
  */
 export const ListCloudStoragesResponseSchema: GenMessage<ListCloudStoragesResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 6);
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 8);
 
 /**
  * @generated from message flyteidl2.aione.cloudstorage.DeleteCloudStorageRequest
@@ -187,7 +221,7 @@ export type DeleteCloudStorageRequest = Message<"flyteidl2.aione.cloudstorage.De
  * Use `create(DeleteCloudStorageRequestSchema)` to create a new message.
  */
 export const DeleteCloudStorageRequestSchema: GenMessage<DeleteCloudStorageRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 7);
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 9);
 
 /**
  * @generated from message flyteidl2.aione.cloudstorage.DeleteCloudStorageResponse
@@ -200,7 +234,7 @@ export type DeleteCloudStorageResponse = Message<"flyteidl2.aione.cloudstorage.D
  * Use `create(DeleteCloudStorageResponseSchema)` to create a new message.
  */
 export const DeleteCloudStorageResponseSchema: GenMessage<DeleteCloudStorageResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 8);
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 10);
 
 /**
  * @generated from message flyteidl2.aione.cloudstorage.MaterializeCloudStorageRequest
@@ -227,7 +261,7 @@ export type MaterializeCloudStorageRequest = Message<"flyteidl2.aione.cloudstora
  * Use `create(MaterializeCloudStorageRequestSchema)` to create a new message.
  */
 export const MaterializeCloudStorageRequestSchema: GenMessage<MaterializeCloudStorageRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 9);
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 11);
 
 /**
  * @generated from message flyteidl2.aione.cloudstorage.MaterializeCloudStorageResponse
@@ -244,7 +278,37 @@ export type MaterializeCloudStorageResponse = Message<"flyteidl2.aione.cloudstor
  * Use `create(MaterializeCloudStorageResponseSchema)` to create a new message.
  */
 export const MaterializeCloudStorageResponseSchema: GenMessage<MaterializeCloudStorageResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 10);
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 12);
+
+/**
+ * @generated from message flyteidl2.aione.cloudstorage.ClearCloudStorageMaterializationsRequest
+ */
+export type ClearCloudStorageMaterializationsRequest = Message<"flyteidl2.aione.cloudstorage.ClearCloudStorageMaterializationsRequest"> & {
+  /**
+   * @generated from field: flyteidl2.aione.cloudstorage.CloudStorageIdentifier id = 1;
+   */
+  id?: CloudStorageIdentifier;
+};
+
+/**
+ * Describes the message flyteidl2.aione.cloudstorage.ClearCloudStorageMaterializationsRequest.
+ * Use `create(ClearCloudStorageMaterializationsRequestSchema)` to create a new message.
+ */
+export const ClearCloudStorageMaterializationsRequestSchema: GenMessage<ClearCloudStorageMaterializationsRequest> = /*@__PURE__*/
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 13);
+
+/**
+ * @generated from message flyteidl2.aione.cloudstorage.ClearCloudStorageMaterializationsResponse
+ */
+export type ClearCloudStorageMaterializationsResponse = Message<"flyteidl2.aione.cloudstorage.ClearCloudStorageMaterializationsResponse"> & {
+};
+
+/**
+ * Describes the message flyteidl2.aione.cloudstorage.ClearCloudStorageMaterializationsResponse.
+ * Use `create(ClearCloudStorageMaterializationsResponseSchema)` to create a new message.
+ */
+export const ClearCloudStorageMaterializationsResponseSchema: GenMessage<ClearCloudStorageMaterializationsResponse> = /*@__PURE__*/
+  messageDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 14);
 
 /**
  * @generated from service flyteidl2.aione.cloudstorage.CloudStorageService
@@ -265,6 +329,14 @@ export const CloudStorageService: GenService<{
     methodKind: "unary";
     input: typeof GetCloudStorageRequestSchema;
     output: typeof GetCloudStorageResponseSchema;
+  },
+  /**
+   * @generated from rpc flyteidl2.aione.cloudstorage.CloudStorageService.GetCloudStorageById
+   */
+  getCloudStorageById: {
+    methodKind: "unary";
+    input: typeof GetCloudStorageByIdRequestSchema;
+    output: typeof GetCloudStorageByIdResponseSchema;
   },
   /**
    * @generated from rpc flyteidl2.aione.cloudstorage.CloudStorageService.ListCloudStorages
@@ -289,6 +361,14 @@ export const CloudStorageService: GenService<{
     methodKind: "unary";
     input: typeof MaterializeCloudStorageRequestSchema;
     output: typeof MaterializeCloudStorageResponseSchema;
+  },
+  /**
+   * @generated from rpc flyteidl2.aione.cloudstorage.CloudStorageService.ClearCloudStorageMaterializations
+   */
+  clearCloudStorageMaterializations: {
+    methodKind: "unary";
+    input: typeof ClearCloudStorageMaterializationsRequestSchema;
+    output: typeof ClearCloudStorageMaterializationsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_flyteidl2_aione_cloudstorage_cloud_storage_service, 0);

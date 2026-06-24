@@ -14,6 +14,14 @@ import {
   TrainingTaskIdentifierSchema,
 } from "@/gen/flyteidl2/trainingtask/training_task_definition_pb";
 import {
+  CloudStorageIdentifierSchema,
+} from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
+import {
+  ClearCloudStorageMaterializationsRequestSchema,
+  CloudStorageService,
+  GetCloudStorageByIdRequestSchema,
+} from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_service_pb";
+import {
   CreateTrainingTaskRequestSchema,
   StartTrainingTaskRequestSchema,
   StopTrainingTaskRequestSchema,
@@ -33,6 +41,10 @@ import {
   KubernetesServiceList,
   extractNodePorts,
 } from "@/server/development-instances/nodeports";
+import {
+  buildDeleteCollectionRequests,
+  buildWorkspaceLabelSelector,
+} from "@/server/development-instances/delete";
 import { statusError } from "@/server/http/response";
 import {
   AIONE_RUNTIME_NAMESPACE,
@@ -59,14 +71,49 @@ import {
 } from "@/server/aione/state";
 
 export type AioneExternalType = "instance" | "task";
+export type AioneClearType = AioneExternalType | "store";
 
 const NODE_PORT_RETRIES = 3;
+const TASK_DELETABLE_KINDS = [
+  {
+    apiPath: "/apis/batch/v1",
+    kind: "jobs",
+  },
+  {
+    apiPath: "/api/v1",
+    kind: "pods",
+  },
+  {
+    apiPath: "/api/v1",
+    kind: "services",
+  },
+  {
+    apiPath: "/api/v1",
+    kind: "secrets",
+  },
+  {
+    apiPath: "/apis/networking.k8s.io/v1",
+    kind: "ingresses",
+  },
+] as const;
 let allocationLock: Promise<void> = Promise.resolve();
 
 export function parseAioneExternalType(type: string): AioneExternalType {
   const resolved = type.trim();
   if (resolved !== "instance" && resolved !== "task") {
     throw statusError("type must be instance or task", 400);
+  }
+  return resolved;
+}
+
+export function parseAioneClearType(type: string): AioneClearType {
+  const resolved = type.trim();
+  if (
+    resolved !== "instance" &&
+    resolved !== "task" &&
+    resolved !== "store"
+  ) {
+    throw statusError("type must be instance, task, or store", 400);
   }
   return resolved;
 }
@@ -85,6 +132,20 @@ export async function stopAioneExternalRun(
   sourceId: string,
 ) {
   return type === "task" ? stopTrainingTaskRun(sourceId) : stopInstanceRun(sourceId);
+}
+
+export async function clearAioneExternalResources(
+  type: AioneClearType,
+  sourceId: string,
+) {
+  switch (type) {
+    case "instance":
+      return clearInstanceRuntimeResources(sourceId);
+    case "task":
+      return clearTaskRuntimeResources(sourceId);
+    case "store":
+      return clearStoreRuntimeResources(sourceId);
+  }
 }
 
 export async function getAioneExternalStatus(
@@ -457,6 +518,167 @@ async function stopTrainingTaskRun(sourceTaskId: string) {
   return {};
 }
 
+async function clearInstanceRuntimeResources(sourceInstanceId: string) {
+  const sourceId = sourceInstanceId.trim();
+  if (!sourceId) {
+    throw statusError("id is required", 400);
+  }
+  const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
+    AIONE_RUNTIME_NAMESPACE,
+  );
+  const kubeContext = { apiOrigin, namespace, token, ca };
+  const record = await readAioneInstanceRecord(kubeContext, sourceId);
+  if (!record) {
+    throw statusError("instance record not found", 404);
+  }
+  await assertLatestRunIsNotActive({
+    type: "instance",
+    org: record.org,
+    project: record.project,
+    domain: record.domain,
+    runName: record.latestRunName,
+  });
+  const labelSelector = buildWorkspaceLabelSelector({
+    org: record.org,
+    project: record.project,
+    domain: record.domain,
+    runName: record.latestRunName,
+  });
+  const deleted = await deleteRuntimeCollections(
+    kubeContext,
+    buildDeleteCollectionRequests({
+      apiOrigin,
+      namespace,
+      labelSelector,
+    }),
+  );
+  return { type: "instance", id: sourceId, deleted };
+}
+
+async function clearTaskRuntimeResources(sourceTaskId: string) {
+  const sourceId = sourceTaskId.trim();
+  if (!sourceId) {
+    throw statusError("id is required", 400);
+  }
+  const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
+    AIONE_RUNTIME_NAMESPACE,
+  );
+  const kubeContext = { apiOrigin, namespace, token, ca };
+  const record = await readAioneTaskRecord(kubeContext, sourceId);
+  if (!record) {
+    throw statusError("task record not found", 404);
+  }
+  if (!record.latestRunName) {
+    throw statusError("task has no run", 404);
+  }
+  await assertLatestRunIsNotActive({
+    type: "task",
+    org: record.org,
+    project: record.project,
+    domain: record.domain,
+    runName: record.latestRunName,
+  });
+  const labelSelector = buildTaskLabelSelector({
+    org: record.org,
+    project: record.project,
+    domain: record.domain,
+    runName: record.latestRunName,
+  });
+  const deleted = await deleteRuntimeCollections(
+    kubeContext,
+    TASK_DELETABLE_KINDS.map(({ apiPath, kind }) => ({
+      method: "DELETE" as const,
+      kind,
+      url: `${apiOrigin}${apiPath}/namespaces/${encodeURIComponent(namespace)}/${kind}?labelSelector=${encodeURIComponent(labelSelector)}`,
+    })),
+  );
+  return { type: "task", id: sourceId, deleted };
+}
+
+async function clearStoreRuntimeResources(sourceStoreId: string) {
+  const sourceId = sourceStoreId.trim();
+  if (!sourceId) {
+    throw statusError("id is required", 400);
+  }
+  const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
+    AIONE_RUNTIME_NAMESPACE,
+  );
+  const cloudStorageClient = createCloudStorageClient();
+  let cloudStorage;
+  try {
+    const response = await cloudStorageClient.getCloudStorageById(
+      create(GetCloudStorageByIdRequestSchema, { id: sourceId }),
+    );
+    cloudStorage = response.cloudStorage;
+  } catch (error) {
+    if (error instanceof ConnectError && error.code === Code.FailedPrecondition) {
+      throw statusError(error.message, 409);
+    }
+    throw error;
+  }
+  const cloudStorageId = cloudStorage?.id;
+  if (!cloudStorageId?.id) {
+    throw statusError("cloud storage record not found", 404);
+  }
+
+  const labelSelector = [
+    ["flyte.org/cloud-storage", "true"],
+    ["flyte.org/cloud-storage-id", sourceId],
+  ]
+    .map(([key, value]) => `${key}=${value}`)
+    .join(",");
+  const pvcList = await listKubernetesResources<KubernetesPVCList>({
+    apiOrigin,
+    namespace,
+    token,
+    ca,
+    apiPath: "/api/v1",
+    kind: "persistentvolumeclaims",
+    labelSelector,
+  });
+  const pvcNames = pvcList.items
+    .map((item) => item.metadata?.name?.trim() ?? "")
+    .filter(Boolean);
+  await assertPVCsAreUnused({
+    apiOrigin,
+    namespace,
+    token,
+    ca,
+    pvcNames,
+  });
+
+  const deleted = await Promise.all(
+    pvcNames.map(async (pvcName) => {
+      const response = await requestKubernetes({
+        url: `${apiOrigin}/api/v1/namespaces/${encodeURIComponent(namespace)}/persistentvolumeclaims/${encodeURIComponent(pvcName)}`,
+        method: "DELETE",
+        token,
+        ca,
+      });
+      if (!response.ok && response.status !== 404) {
+        throw statusError(
+          response.text || `failed to delete PVC ${pvcName}`,
+          502,
+        );
+      }
+      return {
+        kind: "persistentvolumeclaims",
+        name: pvcName,
+        ok: true,
+        status: response.status,
+      };
+    }),
+  );
+
+  await cloudStorageClient.clearCloudStorageMaterializations(
+    create(ClearCloudStorageMaterializationsRequestSchema, {
+      id: create(CloudStorageIdentifierSchema, cloudStorageId),
+    }),
+  );
+
+  return { type: "store", id: sourceId, deleted };
+}
+
 async function resolveInstanceRunIdentifier(
   id: string,
 ): Promise<FlyteRunIdentifier> {
@@ -534,6 +756,37 @@ async function hasActiveLatestRun(record: AioneTaskRecord) {
   } catch (error) {
     if (isNotFound(error)) {
       return false;
+    }
+    throw error;
+  }
+}
+
+async function assertLatestRunIsNotActive({
+  type,
+  org,
+  project,
+  domain,
+  runName,
+}: {
+  type: "instance" | "task";
+  org: string;
+  project: string;
+  domain: string;
+  runName: string;
+}) {
+  if (!runName) {
+    return;
+  }
+  try {
+    const response = await createFlyteRunClient().getRunDetails({
+      runId: { org, project, domain, name: runName },
+    });
+    if (isActiveActionPhase(response.details?.action?.status?.phase)) {
+      throw statusError(`${type} is running; stop it before clear`, 409);
+    }
+  } catch (error) {
+    if (isNotFound(error)) {
+      return;
     }
     throw error;
   }
@@ -633,11 +886,154 @@ function createTrainingTaskClient() {
   );
 }
 
+function createCloudStorageClient() {
+  return createClient(
+    CloudStorageService,
+    createConnectTransport({
+      baseUrl: getFlyteApiOrigin(),
+    }),
+  );
+}
+
 function getFlyteApiOrigin() {
   return (
     process.env.FLYTE_API_ORIGIN?.trim() ||
     "http://flyte-binary-http.flyte.svc.cluster.local:8090"
   );
+}
+
+function buildTaskLabelSelector({
+  org,
+  project,
+  domain,
+  runName,
+}: {
+  org: string;
+  project: string;
+  domain: string;
+  runName: string;
+}) {
+  return [
+    ["flyte.org/run-name", runName],
+    ["flyte.org/project", project],
+    ["flyte.org/domain", domain],
+    ["flyte.org/org", org],
+  ]
+    .map(([key, value]) => `${key}=${value}`)
+    .join(",");
+}
+
+async function deleteRuntimeCollections(
+  kubeContext: {
+    token: string;
+    ca: string;
+  },
+  deleteRequests: Array<{ method: "DELETE"; kind: string; url: string }>,
+) {
+  const results = await Promise.all(
+    deleteRequests.map(async (deleteRequest) => {
+      const response = await requestKubernetes({
+        url: deleteRequest.url,
+        method: deleteRequest.method,
+        token: kubeContext.token,
+        ca: kubeContext.ca,
+      });
+      if (!response.ok && response.status !== 404) {
+        return {
+          kind: deleteRequest.kind,
+          ok: false,
+          status: response.status,
+          body: response.text,
+        };
+      }
+      return {
+        kind: deleteRequest.kind,
+        ok: true,
+        status: response.status,
+      };
+    }),
+  );
+  const failures = results.filter((result) => !result.ok);
+  if (failures.length > 0) {
+    throw statusError(
+      `failed to delete runtime resources: ${failures
+        .map((failure) => `${failure.kind}(${failure.status})`)
+        .join(", ")}`,
+      502,
+    );
+  }
+  return results;
+}
+
+async function listKubernetesResources<T>({
+  apiOrigin,
+  namespace,
+  token,
+  ca,
+  apiPath,
+  kind,
+  labelSelector,
+}: {
+  apiOrigin: string;
+  namespace: string;
+  token: string;
+  ca: string;
+  apiPath: string;
+  kind: string;
+  labelSelector?: string;
+}) {
+  const search = labelSelector
+    ? `?labelSelector=${encodeURIComponent(labelSelector)}`
+    : "";
+  const response = await requestKubernetes({
+    url: `${apiOrigin}${apiPath}/namespaces/${encodeURIComponent(namespace)}/${kind}${search}`,
+    token,
+    ca,
+  });
+  if (!response.ok) {
+    throw statusError(response.text || `failed to list ${kind}`, 502);
+  }
+  return response.json<T>();
+}
+
+async function assertPVCsAreUnused({
+  apiOrigin,
+  namespace,
+  token,
+  ca,
+  pvcNames,
+}: {
+  apiOrigin: string;
+  namespace: string;
+  token: string;
+  ca: string;
+  pvcNames: string[];
+}) {
+  if (pvcNames.length === 0) {
+    return;
+  }
+  const pvcSet = new Set(pvcNames);
+  const podList = await listKubernetesResources<KubernetesPodList>({
+    apiOrigin,
+    namespace,
+    token,
+    ca,
+    apiPath: "/api/v1",
+    kind: "pods",
+  });
+  for (const pod of podList.items) {
+    const phase = pod.status?.phase ?? "";
+    if (phase === "Succeeded" || phase === "Failed") {
+      continue;
+    }
+    const podName = pod.metadata?.name ?? "";
+    for (const volume of pod.spec?.volumes ?? []) {
+      const claimName = volume.persistentVolumeClaim?.claimName;
+      if (claimName && pvcSet.has(claimName)) {
+        throw statusError(`store PVC is still used by pod ${podName}`, 409);
+      }
+    }
+  }
 }
 
 async function allocateNodePorts({
@@ -826,6 +1222,34 @@ type FlyteRunIdentifier = {
   project: string;
   domain: string;
   name: string;
+};
+
+type KubernetesPVCList = {
+  items: Array<{
+    metadata?: {
+      name?: string;
+      namespace?: string;
+    };
+  }>;
+};
+
+type KubernetesPodList = {
+  items: Array<{
+    metadata?: {
+      name?: string;
+      namespace?: string;
+    };
+    status?: {
+      phase?: string;
+    };
+    spec?: {
+      volumes?: Array<{
+        persistentVolumeClaim?: {
+          claimName?: string;
+        };
+      }>;
+    };
+  }>;
 };
 
 function parseFlyteWorkflowId(id: string): FlyteRunIdentifier | null {

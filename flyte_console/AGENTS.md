@@ -90,6 +90,12 @@ return errorEnvelope(statusError("id is required", 400));
 - `ActionPhase` 枚举说明见 `../docs/aione-api-enums.md`。
 - `runId` 如需返回，应表示接口实际读取的完整 Flyte run id，格式为
   `org/project/domain/name`。
+- 外部 clear 接口使用 `DELETE /v2/api/aione/{type}/{id}/clear`。`type` 支持
+  `instance`、`task`、`store`；其中 run/status/stop 仍只支持 `instance` 和 `task`。
+- `instance/task clear` 必须先确认最新 run 不处于非终态，再删除匹配 label 的运行期
+  Kubernetes 资源，包括 Secret、Service、Ingress；不得删除 PVC。
+- `store clear` 必须按 `flyte.org/cloud-storage=true` 和
+  `flyte.org/cloud-storage-id=<id>` 查找并删除 PVC；不得按 PVC 名推导云存储。
 
 示例状态响应：
 
@@ -124,7 +130,7 @@ return errorEnvelope(statusError("id is required", 400));
 cd D:\flyte-work\flyte_console
 
 pnpm exec vitest run "src/app/api/aione/[type]/[id]/status/route.test.ts"
-pnpm exec vitest run "src/app/api/aione/[type]/run/route.test.ts" "src/app/api/aione/[type]/[id]/status/route.test.ts" "src/app/api/aione/[type]/[id]/stop/route.test.ts"
+pnpm exec vitest run "src/app/api/aione/[type]/run/route.test.ts" "src/app/api/aione/[type]/[id]/status/route.test.ts" "src/app/api/aione/[type]/[id]/stop/route.test.ts" "src/app/api/aione/[type]/[id]/clear/route.test.ts"
 pnpm exec tsc --project tsconfig.typecheck.json --noEmit
 pnpm run build:prod
 ```
@@ -175,4 +181,5 @@ C:\Users\admin\AppData\Local\Programs\Python\Python312\python.exe D:\flyte-work\
 
 - 对应 `tests_smoke/*_smoke.py`。
 - `tests_smoke/test_instance_smoke_cli.py` 中的脚本行为测试。
+- `tests_smoke/test_task_smoke_cli.py` 和 `tests_smoke/test_store_smoke_cli.py` 中的脚本行为测试。
 - 相关 `route.test.ts`。

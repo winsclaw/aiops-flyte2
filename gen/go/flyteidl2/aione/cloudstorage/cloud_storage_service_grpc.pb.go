@@ -19,11 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	CloudStorageService_CreateCloudStorage_FullMethodName      = "/flyteidl2.aione.cloudstorage.CloudStorageService/CreateCloudStorage"
-	CloudStorageService_GetCloudStorage_FullMethodName         = "/flyteidl2.aione.cloudstorage.CloudStorageService/GetCloudStorage"
-	CloudStorageService_ListCloudStorages_FullMethodName       = "/flyteidl2.aione.cloudstorage.CloudStorageService/ListCloudStorages"
-	CloudStorageService_DeleteCloudStorage_FullMethodName      = "/flyteidl2.aione.cloudstorage.CloudStorageService/DeleteCloudStorage"
-	CloudStorageService_MaterializeCloudStorage_FullMethodName = "/flyteidl2.aione.cloudstorage.CloudStorageService/MaterializeCloudStorage"
+	CloudStorageService_CreateCloudStorage_FullMethodName                = "/flyteidl2.aione.cloudstorage.CloudStorageService/CreateCloudStorage"
+	CloudStorageService_GetCloudStorage_FullMethodName                   = "/flyteidl2.aione.cloudstorage.CloudStorageService/GetCloudStorage"
+	CloudStorageService_GetCloudStorageById_FullMethodName               = "/flyteidl2.aione.cloudstorage.CloudStorageService/GetCloudStorageById"
+	CloudStorageService_ListCloudStorages_FullMethodName                 = "/flyteidl2.aione.cloudstorage.CloudStorageService/ListCloudStorages"
+	CloudStorageService_DeleteCloudStorage_FullMethodName                = "/flyteidl2.aione.cloudstorage.CloudStorageService/DeleteCloudStorage"
+	CloudStorageService_MaterializeCloudStorage_FullMethodName           = "/flyteidl2.aione.cloudstorage.CloudStorageService/MaterializeCloudStorage"
+	CloudStorageService_ClearCloudStorageMaterializations_FullMethodName = "/flyteidl2.aione.cloudstorage.CloudStorageService/ClearCloudStorageMaterializations"
 )
 
 // CloudStorageServiceClient is the client API for CloudStorageService service.
@@ -32,9 +34,11 @@ const (
 type CloudStorageServiceClient interface {
 	CreateCloudStorage(ctx context.Context, in *CreateCloudStorageRequest, opts ...grpc.CallOption) (*CreateCloudStorageResponse, error)
 	GetCloudStorage(ctx context.Context, in *GetCloudStorageRequest, opts ...grpc.CallOption) (*GetCloudStorageResponse, error)
+	GetCloudStorageById(ctx context.Context, in *GetCloudStorageByIdRequest, opts ...grpc.CallOption) (*GetCloudStorageByIdResponse, error)
 	ListCloudStorages(ctx context.Context, in *ListCloudStoragesRequest, opts ...grpc.CallOption) (*ListCloudStoragesResponse, error)
 	DeleteCloudStorage(ctx context.Context, in *DeleteCloudStorageRequest, opts ...grpc.CallOption) (*DeleteCloudStorageResponse, error)
 	MaterializeCloudStorage(ctx context.Context, in *MaterializeCloudStorageRequest, opts ...grpc.CallOption) (*MaterializeCloudStorageResponse, error)
+	ClearCloudStorageMaterializations(ctx context.Context, in *ClearCloudStorageMaterializationsRequest, opts ...grpc.CallOption) (*ClearCloudStorageMaterializationsResponse, error)
 }
 
 type cloudStorageServiceClient struct {
@@ -57,6 +61,15 @@ func (c *cloudStorageServiceClient) CreateCloudStorage(ctx context.Context, in *
 func (c *cloudStorageServiceClient) GetCloudStorage(ctx context.Context, in *GetCloudStorageRequest, opts ...grpc.CallOption) (*GetCloudStorageResponse, error) {
 	out := new(GetCloudStorageResponse)
 	err := c.cc.Invoke(ctx, CloudStorageService_GetCloudStorage_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cloudStorageServiceClient) GetCloudStorageById(ctx context.Context, in *GetCloudStorageByIdRequest, opts ...grpc.CallOption) (*GetCloudStorageByIdResponse, error) {
+	out := new(GetCloudStorageByIdResponse)
+	err := c.cc.Invoke(ctx, CloudStorageService_GetCloudStorageById_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -90,15 +103,26 @@ func (c *cloudStorageServiceClient) MaterializeCloudStorage(ctx context.Context,
 	return out, nil
 }
 
+func (c *cloudStorageServiceClient) ClearCloudStorageMaterializations(ctx context.Context, in *ClearCloudStorageMaterializationsRequest, opts ...grpc.CallOption) (*ClearCloudStorageMaterializationsResponse, error) {
+	out := new(ClearCloudStorageMaterializationsResponse)
+	err := c.cc.Invoke(ctx, CloudStorageService_ClearCloudStorageMaterializations_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CloudStorageServiceServer is the server API for CloudStorageService service.
 // All implementations should embed UnimplementedCloudStorageServiceServer
 // for forward compatibility
 type CloudStorageServiceServer interface {
 	CreateCloudStorage(context.Context, *CreateCloudStorageRequest) (*CreateCloudStorageResponse, error)
 	GetCloudStorage(context.Context, *GetCloudStorageRequest) (*GetCloudStorageResponse, error)
+	GetCloudStorageById(context.Context, *GetCloudStorageByIdRequest) (*GetCloudStorageByIdResponse, error)
 	ListCloudStorages(context.Context, *ListCloudStoragesRequest) (*ListCloudStoragesResponse, error)
 	DeleteCloudStorage(context.Context, *DeleteCloudStorageRequest) (*DeleteCloudStorageResponse, error)
 	MaterializeCloudStorage(context.Context, *MaterializeCloudStorageRequest) (*MaterializeCloudStorageResponse, error)
+	ClearCloudStorageMaterializations(context.Context, *ClearCloudStorageMaterializationsRequest) (*ClearCloudStorageMaterializationsResponse, error)
 }
 
 // UnimplementedCloudStorageServiceServer should be embedded to have forward compatible implementations.
@@ -111,6 +135,9 @@ func (UnimplementedCloudStorageServiceServer) CreateCloudStorage(context.Context
 func (UnimplementedCloudStorageServiceServer) GetCloudStorage(context.Context, *GetCloudStorageRequest) (*GetCloudStorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCloudStorage not implemented")
 }
+func (UnimplementedCloudStorageServiceServer) GetCloudStorageById(context.Context, *GetCloudStorageByIdRequest) (*GetCloudStorageByIdResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCloudStorageById not implemented")
+}
 func (UnimplementedCloudStorageServiceServer) ListCloudStorages(context.Context, *ListCloudStoragesRequest) (*ListCloudStoragesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListCloudStorages not implemented")
 }
@@ -119,6 +146,9 @@ func (UnimplementedCloudStorageServiceServer) DeleteCloudStorage(context.Context
 }
 func (UnimplementedCloudStorageServiceServer) MaterializeCloudStorage(context.Context, *MaterializeCloudStorageRequest) (*MaterializeCloudStorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MaterializeCloudStorage not implemented")
+}
+func (UnimplementedCloudStorageServiceServer) ClearCloudStorageMaterializations(context.Context, *ClearCloudStorageMaterializationsRequest) (*ClearCloudStorageMaterializationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearCloudStorageMaterializations not implemented")
 }
 
 // UnsafeCloudStorageServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -164,6 +194,24 @@ func _CloudStorageService_GetCloudStorage_Handler(srv interface{}, ctx context.C
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CloudStorageServiceServer).GetCloudStorage(ctx, req.(*GetCloudStorageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CloudStorageService_GetCloudStorageById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCloudStorageByIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CloudStorageServiceServer).GetCloudStorageById(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CloudStorageService_GetCloudStorageById_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CloudStorageServiceServer).GetCloudStorageById(ctx, req.(*GetCloudStorageByIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -222,6 +270,24 @@ func _CloudStorageService_MaterializeCloudStorage_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CloudStorageService_ClearCloudStorageMaterializations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearCloudStorageMaterializationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CloudStorageServiceServer).ClearCloudStorageMaterializations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CloudStorageService_ClearCloudStorageMaterializations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CloudStorageServiceServer).ClearCloudStorageMaterializations(ctx, req.(*ClearCloudStorageMaterializationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CloudStorageService_ServiceDesc is the grpc.ServiceDesc for CloudStorageService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -238,6 +304,10 @@ var CloudStorageService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CloudStorageService_GetCloudStorage_Handler,
 		},
 		{
+			MethodName: "GetCloudStorageById",
+			Handler:    _CloudStorageService_GetCloudStorageById_Handler,
+		},
+		{
 			MethodName: "ListCloudStorages",
 			Handler:    _CloudStorageService_ListCloudStorages_Handler,
 		},
@@ -248,6 +318,10 @@ var CloudStorageService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MaterializeCloudStorage",
 			Handler:    _CloudStorageService_MaterializeCloudStorage_Handler,
+		},
+		{
+			MethodName: "ClearCloudStorageMaterializations",
+			Handler:    _CloudStorageService_ClearCloudStorageMaterializations_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
