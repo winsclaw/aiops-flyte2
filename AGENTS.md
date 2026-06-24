@@ -110,11 +110,13 @@ PROXY_URL=http://172.19.210.24:7897 bash scripts/deploy-aiops-flyte.sh
 The full deployment script builds and deploys:
 
 ```text
-Image:     flyte-binary-v2:ssh-workspace
+Image:     flyte-binary-v2:main-<commit>
 Release:   flyte-devbox
 Namespace: flyte
 Ingress:   http://172.19.65.230:30080
 ```
+
+By default, `scripts/deploy-aiops-flyte.sh` generates `IMAGE_TAG=main-$(git rev-parse --short HEAD)`. It keeps only the latest three backend release images matching `flyte-binary-v2:main-*` in Docker and k3s containerd. Override `IMAGE_TAG` only for an explicit one-off deployment.
 
 For incremental backend-only rebuilds after k3s and Helm are already installed:
 
@@ -123,9 +125,12 @@ ssh aione-flyte2
 cd /opt/aiops-flyte2
 git pull --ff-only origin main
 
-docker build -f Dockerfile -t flyte-binary-v2:ssh-workspace .
-docker save flyte-binary-v2:ssh-workspace | k3s ctr images import -
-kubectl -n flyte rollout restart deploy/flyte-binary
+COMMIT="$(git rev-parse --short HEAD)"
+IMAGE_TAG="main-${COMMIT}"
+
+docker build -f Dockerfile -t "flyte-binary-v2:${IMAGE_TAG}" .
+docker save "flyte-binary-v2:${IMAGE_TAG}" | k3s ctr images import -
+kubectl -n flyte set image deploy/flyte-binary flyte-binary="flyte-binary-v2:${IMAGE_TAG}"
 kubectl -n flyte rollout status deploy/flyte-binary --timeout=10m
 ```
 

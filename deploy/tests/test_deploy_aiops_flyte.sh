@@ -9,7 +9,12 @@ if [[ ! -f "$SCRIPT" ]]; then
   exit 1
 fi
 
-output="$(DRY_RUN=1 REMOTE_HOST=aione-flyte2 PROXY_URL=http://172.19.210.24:7890 bash "$SCRIPT")"
+short_head="$(git -C "$ROOT_DIR" rev-parse --short HEAD)"
+output="$(
+  env -u IMAGE_TAG -u IMAGE_TAG_PREFIX -u IMAGE_TAG_KEEP \
+    DRY_RUN=1 REMOTE_HOST=aione-flyte2 PROXY_URL=http://172.19.210.24:7890 \
+    bash "$SCRIPT"
+)"
 
 assert_contains() {
   local needle="$1"
@@ -34,8 +39,13 @@ assert_contains 'get_helm.sh'
 assert_contains 'docker-buildx'
 assert_contains 'sudo env DOCKER_BUILDKIT=1 docker build'
 assert_contains "IMAGE_REPOSITORY='flyte-binary-v2'"
-assert_contains "IMAGE_TAG='ssh-workspace'"
+assert_contains "IMAGE_TAG='main-${short_head}'"
+assert_contains "IMAGE_TAG_PREFIX='main-'"
+assert_contains "IMAGE_TAG_KEEP='3'"
 assert_contains 'k3s ctr images import'
+assert_contains 'prune_old_release_images'
+assert_contains 'sudo docker image rm'
+assert_contains 'sudo k3s ctr images rm'
 assert_contains 'import_docker_image rancher/mirrored-coredns-coredns:1.14.3'
 assert_contains 'import_docker_image rancher/mirrored-library-busybox:1.37.0'
 assert_contains 'import_docker_image rancher/mirrored-library-traefik:3.6.13'

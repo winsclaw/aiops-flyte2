@@ -6,7 +6,9 @@ REMOTE_DIR="${REMOTE_DIR:-flyte-work}"
 NAMESPACE="${NAMESPACE:-flyte}"
 RELEASE="${RELEASE:-flyte-devbox}"
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-flyte-binary-v2}"
-IMAGE_TAG="${IMAGE_TAG:-ssh-workspace}"
+IMAGE_TAG_PREFIX="${IMAGE_TAG_PREFIX:-main-}"
+IMAGE_TAG_KEEP="${IMAGE_TAG_KEEP:-3}"
+IMAGE_TAG="${IMAGE_TAG:-${IMAGE_TAG_PREFIX}$(git rev-parse --short HEAD)}"
 PROXY_URL="${PROXY_URL:-}"
 DRY_RUN="${DRY_RUN:-0}"
 
@@ -15,13 +17,15 @@ shell_quote() {
 }
 
 remote_env() {
-  printf "REMOTE_HOST=%s REMOTE_DIR=%s NAMESPACE=%s RELEASE=%s IMAGE_REPOSITORY=%s IMAGE_TAG=%s PROXY_URL=%s" \
+  printf "REMOTE_HOST=%s REMOTE_DIR=%s NAMESPACE=%s RELEASE=%s IMAGE_REPOSITORY=%s IMAGE_TAG=%s IMAGE_TAG_PREFIX=%s IMAGE_TAG_KEEP=%s PROXY_URL=%s" \
     "$(shell_quote "$REMOTE_HOST")" \
     "$(shell_quote "$REMOTE_DIR")" \
     "$(shell_quote "$NAMESPACE")" \
     "$(shell_quote "$RELEASE")" \
     "$(shell_quote "$IMAGE_REPOSITORY")" \
     "$(shell_quote "$IMAGE_TAG")" \
+    "$(shell_quote "$IMAGE_TAG_PREFIX")" \
+    "$(shell_quote "$IMAGE_TAG_KEEP")" \
     "$(shell_quote "$PROXY_URL")"
 }
 
@@ -113,6 +117,60 @@ sudo env DOCKER_BUILDKIT=1 docker build "${build_proxy_args[@]}" -t "${IMAGE_REP
 tmp_image="/tmp/${IMAGE_REPOSITORY}-${IMAGE_TAG}.tar"
 sudo docker save "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -o "$tmp_image"
 sudo k3s ctr images import "$tmp_image"
+sudo rm -f "$tmp_image"
+
+prune_old_release_images() {
+  if [[ "$IMAGE_TAG" != "$IMAGE_TAG_PREFIX"* ]]; then
+    printf 'Skipping release image pruning for non-release tag: %s\n' "$IMAGE_TAG"
+    return 0
+  fi
+  if ! [[ "$IMAGE_TAG_KEEP" =~ ^[0-9]+$ ]] || (( IMAGE_TAG_KEEP < 1 )); then
+    printf 'IMAGE_TAG_KEEP must be a positive integer, got: %s\n' "$IMAGE_TAG_KEEP" >&2
+    return 1
+  fi
+
+  local keep_file
+  keep_file="$(mktemp)"
+  {
+    sudo docker image ls "$IMAGE_REPOSITORY" --format '{{.Repository}}:{{.Tag}}' \
+      | awk -v prefix="${IMAGE_REPOSITORY}:${IMAGE_TAG_PREFIX}" 'index($0, prefix) == 1 {print}' \
+      | while IFS= read -r image; do
+          created="$(sudo docker image inspect --format '{{.Created}}' "$image" 2>/dev/null || true)"
+          tag="${image#${IMAGE_REPOSITORY}:}"
+          if [[ -n "$created" && -n "$tag" ]]; then
+            printf '%s %s\n' "$created" "$tag"
+          fi
+        done
+    printf '9999-12-31T23:59:59Z %s\n' "$IMAGE_TAG"
+  } | sort \
+    | awk '{rows[$2] = $0} END {for (tag in rows) print rows[tag]}' \
+    | sort \
+    | tail -n "$IMAGE_TAG_KEEP" \
+    | awk '{print $2}' > "$keep_file"
+
+  sudo docker image ls "$IMAGE_REPOSITORY" --format '{{.Repository}}:{{.Tag}}' \
+    | awk -v prefix="${IMAGE_REPOSITORY}:${IMAGE_TAG_PREFIX}" 'index($0, prefix) == 1 {print}' \
+    | while IFS= read -r image; do
+        tag="${image#${IMAGE_REPOSITORY}:}"
+        if ! grep -Fxq "$tag" "$keep_file"; then
+          sudo docker image rm "$image" || true
+        fi
+      done
+
+  sudo k3s ctr images ls -q \
+    | while IFS= read -r image; do
+        case "$image" in
+          "${IMAGE_REPOSITORY}:${IMAGE_TAG_PREFIX}"*|*/"${IMAGE_REPOSITORY}:${IMAGE_TAG_PREFIX}"*)
+            tag="${image##*:}"
+            if ! grep -Fxq "$tag" "$keep_file"; then
+              sudo k3s ctr images rm "$image" || true
+            fi
+            ;;
+        esac
+      done
+
+  rm -f "$keep_file"
+}
 
 import_docker_image() {
   local image="$1"
@@ -231,6 +289,7 @@ helm upgrade --install "$RELEASE" charts/flyte-devbox \
 kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary-console --timeout=5m
 kubectl -n "$NAMESPACE" rollout status deploy/rustfs --timeout=5m
 kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary --timeout=10m
+prune_old_release_images
 kubectl -n "$NAMESPACE" get svc,pod
 node_ip="$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
 ingress_port="$(kubectl -n kube-system get svc traefik -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}')"
