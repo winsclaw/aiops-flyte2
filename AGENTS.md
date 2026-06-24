@@ -130,7 +130,7 @@ IMAGE_TAG="main-${COMMIT}"
 
 docker build -f Dockerfile -t "flyte-binary-v2:${IMAGE_TAG}" .
 docker save "flyte-binary-v2:${IMAGE_TAG}" | k3s ctr images import -
-kubectl -n flyte set image deploy/flyte-binary flyte-binary="flyte-binary-v2:${IMAGE_TAG}"
+kubectl -n flyte set image deploy/flyte-binary flyte="flyte-binary-v2:${IMAGE_TAG}"
 kubectl -n flyte rollout status deploy/flyte-binary --timeout=10m
 ```
 
