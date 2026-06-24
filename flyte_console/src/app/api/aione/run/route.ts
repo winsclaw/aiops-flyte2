@@ -4,11 +4,23 @@
 
 import { createClient, Code, ConnectError } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { create } from "@bufbuild/protobuf";
 import { NextRequest } from "next/server";
 import {
   buildCreateDevelopmentInstanceRequest,
   getNextNodePort,
 } from "@/components/pages/DevelopmentInstances/utils";
+import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
+import {
+  ImageType,
+  TrainingTaskIdentifier,
+} from "@/gen/flyteidl2/trainingtask/training_task_definition_pb";
+import {
+  CreateTrainingTaskRequestSchema,
+  StartTrainingTaskRequestSchema,
+  TrainingTaskInputSchema,
+  TrainingTaskService,
+} from "@/gen/flyteidl2/trainingtask/training_task_service_pb";
 import { RunService } from "@/gen/flyteidl2/workflow/run_service_pb";
 import {
   getKubernetesClientConfig,
@@ -45,6 +57,7 @@ export const runtime = "nodejs";
 
 const NODE_PORT_RETRIES = 3;
 let allocationLock: Promise<void> = Promise.resolve();
+type AioneRunType = "INSTANCE" | "TASK";
 
 export async function POST(request: NextRequest) {
   if (
@@ -55,11 +68,24 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload = await request.json();
-    const result = await withNodePortAllocation(async () => createRun(payload));
+    const runType = getAioneRunType(payload);
+    const result =
+      runType === "TASK"
+        ? await createTrainingTaskRun(payload)
+        : await withNodePortAllocation(async () => createRun(payload));
     return okEnvelope(result);
   } catch (error) {
     return errorEnvelope(error);
   }
+}
+
+function getAioneRunType(payload: unknown): AioneRunType {
+  const type = getPayloadObject(payload).type;
+  const resolved = typeof type === "string" && type.trim() ? type.trim() : "INSTANCE";
+  if (resolved !== "INSTANCE" && resolved !== "TASK") {
+    throw statusError("type must be INSTANCE or TASK", 400);
+  }
+  return resolved;
 }
 
 async function createRun(payload: unknown) {
@@ -209,15 +235,157 @@ async function createRun(payload: unknown) {
   );
 }
 
+async function createTrainingTaskRun(payload: unknown) {
+  const values = buildExternalTrainingTaskValues(payload);
+  const client = createTrainingTaskClient();
+  const created = await client.createTrainingTask(
+    create(CreateTrainingTaskRequestSchema, {
+      project: create(ProjectIdentifierSchema, {
+        organization: values.internalOrg,
+        name: values.project,
+        domain: values.domain,
+      }),
+      trainingTask: create(TrainingTaskInputSchema, {
+        name: values.name,
+        description: values.description,
+        command: values.command,
+        maxRuntimeHours: values.maxRuntimeHours,
+        imageType: ImageType.CUSTOM,
+        imageName: values.image,
+        imageUri: values.image,
+        cpu: values.cpu,
+        memory: values.memory,
+        gpuCount: values.gpuCount,
+        gpuModel: values.gpuModel,
+        bandwidth: values.bandwidth,
+      }),
+      creator: values.sourceOrg || "external-api",
+    }),
+  );
+  const taskID = created.trainingTask?.id;
+  if (!taskID?.id) {
+    throw statusError("failed to create training task", 502);
+  }
+
+  const started = await client.startTrainingTask(
+    create(StartTrainingTaskRequestSchema, { id: taskID }),
+  );
+  const task = started.trainingTask ?? created.trainingTask;
+  const runName = started.runName || task?.latestRunName;
+  if (!runName) {
+    throw statusError("failed to start training task", 502);
+  }
+
+  return buildAioneCreateTaskResponse({
+    sourceOrg: values.sourceOrg,
+    sourceId: values.sourceId,
+    taskID,
+    taskName: task?.name || values.name,
+    runName,
+  });
+}
+
+function buildExternalTrainingTaskValues(payload: unknown) {
+  const object = getPayloadObject(payload);
+  const internalOrg =
+    process.env.EXTERNAL_API_FLYTE_ORG?.trim() || DEFAULT_AIONE_INTERNAL_ORG;
+  const sourceOrg = stringField(object, "org");
+  const sourceId = stringField(object, "id") || stringField(object, "name");
+  if (!sourceId) {
+    throw statusError("id or name is required", 400);
+  }
+  const name = stringField(object, "name") || sourceId;
+  const command = stringField(object, "command");
+  if (!command) {
+    throw statusError("command is required", 400);
+  }
+  const image = resolveTrainingTaskImage(object);
+  const resources = getPayloadObject(object.resourceDefinition);
+  return {
+    internalOrg,
+    sourceOrg,
+    sourceId,
+    project: requiredStringField(object, "project"),
+    domain: requiredStringField(object, "domain"),
+    name,
+    description: sourceOrg ? `${sourceOrg}/${sourceId}` : sourceId,
+    command,
+    maxRuntimeHours: positiveNumberField(object.timeout, 24, "timeout"),
+    image,
+    cpu: requiredStringField(resources, "cpu"),
+    memory: requiredStringField(resources, "memory"),
+    gpuCount: nonNegativeIntegerField(resources.gpu, 0, "resourceDefinition.gpu"),
+    gpuModel: stringField(resources, "gpuModel"),
+    bandwidth: stringField(resources, "bandwidth"),
+  };
+}
+
+function buildAioneCreateTaskResponse({
+  sourceOrg,
+  sourceId,
+  taskID,
+  taskName,
+  runName,
+}: {
+  sourceOrg: string;
+  sourceId: string;
+  taskID: TrainingTaskIdentifier;
+  taskName: string;
+  runName: string;
+}) {
+  return {
+    id: sourceId,
+    run: {
+      org: taskID.org,
+      project: taskID.project,
+      domain: taskID.domain,
+      name: runName,
+    },
+    source: {
+      org: sourceOrg,
+      id: sourceId,
+    },
+    task: {
+      id: taskID.id,
+      name: taskName,
+      latestRunName: runName,
+    },
+  };
+}
+
+function resolveTrainingTaskImage(payload: Record<string, unknown>) {
+  const imageType = stringField(payload, "imageType") || "BASE";
+  if (imageType === "OWN") {
+    return requiredStringField(payload, "image");
+  }
+  if (imageType !== "BASE") {
+    throw statusError("imageType must be BASE or OWN", 400);
+  }
+  return requiredStringField(getPayloadObject(payload.baseImage), "image", "baseImage.image");
+}
+
 function createFlyteRunClient() {
-  const baseUrl =
-    process.env.FLYTE_API_ORIGIN?.trim() ||
-    "http://flyte-binary-http.flyte.svc.cluster.local:8090";
   return createClient(
     RunService,
     createConnectTransport({
-      baseUrl,
+      baseUrl: getFlyteApiOrigin(),
     }),
+  );
+}
+
+function createTrainingTaskClient() {
+  return createClient(
+    TrainingTaskService,
+    createConnectTransport({
+      baseUrl: getFlyteApiOrigin(),
+    }),
+  );
+}
+
+function getFlyteApiOrigin() {
+  return (
+    process.env.FLYTE_API_ORIGIN?.trim() ||
+    "http://flyte-binary-http.flyte.svc.cluster.local:8090"
   );
 }
 
@@ -377,4 +545,53 @@ function isAlreadyExists(error: unknown) {
 function isLikelyNodePortConflict(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return message.includes("provided port is already allocated");
+}
+
+function getPayloadObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function stringField(
+  object: Record<string, unknown>,
+  field: string,
+): string {
+  const value = object[field];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function requiredStringField(
+  object: Record<string, unknown>,
+  field: string,
+  label = field,
+): string {
+  const value = stringField(object, field);
+  if (!value) {
+    throw statusError(`${label} is required`, 400);
+  }
+  return value;
+}
+
+function positiveNumberField(value: unknown, fallback: number, field: string) {
+  const resolved = value ?? fallback;
+  const number = typeof resolved === "number" ? resolved : Number(resolved);
+  if (!Number.isFinite(number) || number <= 0) {
+    throw statusError(`${field} must be a positive number`, 400);
+  }
+  return Math.ceil(number);
+}
+
+function nonNegativeIntegerField(
+  value: unknown,
+  fallback: number,
+  field: string,
+) {
+  const resolved = value ?? fallback;
+  const number = typeof resolved === "number" ? resolved : Number(resolved);
+  if (!Number.isInteger(number) || number < 0) {
+    throw statusError(`${field} must be a non-negative integer`, 400);
+  }
+  return number;
 }

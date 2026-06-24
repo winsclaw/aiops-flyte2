@@ -243,7 +243,7 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 	if input.GetMaxRuntimeHours() == 0 || input.GetMaxRuntimeHours() > 360 {
 		return nil, fmt.Errorf("max runtime hours must be between 1 and 360")
 	}
-	spec, err := trainingTaskResourceSpecByID(input.GetResourceSpecId())
+	resourceSpecID, resourceDisplay, cpu, memory, gpuCount, gpuModel, bandwidth, err := resolveTrainingTaskResources(input)
 	if err != nil {
 		return nil, err
 	}
@@ -299,13 +299,13 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 		},
 		Name:                     strings.TrimSpace(input.GetName()),
 		Description:              truncateShortDescription(input.GetDescription()),
-		ResourceSpecID:           spec.GetId(),
-		ResourceDisplay:          spec.GetDisplayLabel(),
-		CPU:                      spec.GetCpu(),
-		Memory:                   spec.GetMemory(),
-		GPUCount:                 spec.GetGpuCount(),
-		GPUModel:                 spec.GetGpuModel(),
-		Bandwidth:                spec.GetBandwidth(),
+		ResourceSpecID:           resourceSpecID,
+		ResourceDisplay:          resourceDisplay,
+		CPU:                      cpu,
+		Memory:                   memory,
+		GPUCount:                 gpuCount,
+		GPUModel:                 gpuModel,
+		Bandwidth:                bandwidth,
 		Command:                  strings.TrimSpace(input.GetCommand()),
 		MaxRuntimeHours:          input.GetMaxRuntimeHours(),
 		ImageType:                imageType,
@@ -318,6 +318,51 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 		CloudStorageMounts:       mounts,
 		CodeRepositoryMounts:     codeRepositoryMounts,
 	}, nil
+}
+
+func resolveTrainingTaskResources(input *trainingtaskpb.TrainingTaskInput) (string, string, string, string, uint32, string, string, error) {
+	cpu := strings.TrimSpace(input.GetCpu())
+	memory := strings.TrimSpace(input.GetMemory())
+	gpuCount := input.GetGpuCount()
+	gpuModel := strings.TrimSpace(input.GetGpuModel())
+	bandwidth := strings.TrimSpace(input.GetBandwidth())
+	if cpu != "" || memory != "" || gpuCount > 0 || gpuModel != "" || bandwidth != "" {
+		if cpu == "" || memory == "" {
+			return "", "", "", "", 0, "", "", fmt.Errorf("cpu and memory are required")
+		}
+		return "external", formatExternalResourceDisplay(cpu, memory, gpuCount, gpuModel, bandwidth), cpu, memory, gpuCount, gpuModel, bandwidth, nil
+	}
+
+	spec, err := trainingTaskResourceSpecByID(input.GetResourceSpecId())
+	if err != nil {
+		return "", "", "", "", 0, "", "", err
+	}
+	return spec.GetId(), spec.GetDisplayLabel(), spec.GetCpu(), spec.GetMemory(), spec.GetGpuCount(), spec.GetGpuModel(), spec.GetBandwidth(), nil
+}
+
+func formatExternalResourceDisplay(cpu string, memory string, gpuCount uint32, gpuModel string, bandwidth string) string {
+	parts := []string{fmt.Sprintf("%svCPU", cpu), fmt.Sprintf("%s RAM", displayMemory(memory))}
+	if gpuCount > 0 {
+		model := gpuModel
+		if model == "" {
+			model = "GPU"
+		}
+		parts = append(parts, fmt.Sprintf("%d*%s", gpuCount, model))
+	}
+	if bandwidth != "" {
+		parts = append(parts, bandwidth)
+	}
+	return strings.Join(parts, ", ")
+}
+
+func displayMemory(memory string) string {
+	if strings.HasSuffix(memory, "Gi") {
+		return strings.TrimSuffix(memory, "Gi") + "GiB"
+	}
+	if strings.HasSuffix(memory, "Mi") {
+		return strings.TrimSuffix(memory, "Mi") + "MiB"
+	}
+	return memory
 }
 
 func trainingTaskKeyFromProto(id *trainingtaskpb.TrainingTaskIdentifier) models.TrainingTaskKey {

@@ -86,11 +86,35 @@ class InstanceSmokeCliTests(unittest.TestCase):
         payload = instance_start_smoke.build_payload()
 
         self.assertEqual("env-instance", payload["id"])
+        self.assertEqual("INSTANCE", payload["type"])
         self.assertEqual("env-name", payload["name"])
         self.assertEqual(2, payload["timeout"])
         self.assertEqual("docker.fzyun.io/custom/image:latest", payload["image"])
         self.assertEqual({"cpu": "4", "memory": "8Gi"}, payload["resourceDefinition"])
         self.assertEqual("code-token", payload["codes"][0]["token"])
+
+    def test_start_payload_supports_task_type_and_command(self):
+        content = self.env_path.read_text(encoding="utf-8")
+        self.env_path.write_text(
+            content + "\nRUN_TYPE=TASK\nTASK_COMMAND=python train.py\n",
+            encoding="utf-8",
+        )
+
+        payload = instance_start_smoke.build_payload()
+
+        self.assertEqual("TASK", payload["type"])
+        self.assertEqual("python train.py", payload["command"])
+        self.assertEqual({"cpu": "4", "memory": "8Gi"}, payload["resourceDefinition"])
+
+    def test_start_payload_requires_task_command(self):
+        content = self.env_path.read_text(encoding="utf-8")
+        self.env_path.write_text(
+            content + "\nRUN_TYPE=TASK\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "TASK_COMMAND is required"):
+            instance_start_smoke.build_payload()
 
     def test_start_payload_accepts_fractional_timeout_hours(self):
         content = self.env_path.read_text(encoding="utf-8")

@@ -65,6 +65,7 @@ def parse_positive_number(value: str, field: str) -> int | float:
 
 def build_payload() -> dict:
     config = load_config()
+    run_type = config.get("RUN_TYPE", "INSTANCE").strip().upper() or "INSTANCE"
     resource_definition = {
         "cpu": config["CPU"],
         "memory": config["MEMORY"],
@@ -76,6 +77,7 @@ def build_payload() -> dict:
 
     payload = {
         "org": config["SOURCE_ORG"],
+        "type": run_type,
         "project": config["PROJECT"],
         "domain": config["DOMAIN"],
         "name": config["INSTANCE_NAME"],
@@ -113,6 +115,11 @@ def build_payload() -> dict:
         ],
         "resourceDefinition": resource_definition,
     }
+    if run_type == "TASK":
+        command = config.get("TASK_COMMAND", "").strip()
+        if not command:
+            raise ValueError("TASK_COMMAND is required when RUN_TYPE=TASK")
+        payload["command"] = command
     authorized_key = read_authorized_key(config)
     if authorized_key:
         payload["authorizedKeys"] = [authorized_key]
@@ -154,7 +161,12 @@ def main() -> int:
     print(json.dumps(result, ensure_ascii=False, indent=2))
     data = result.get("data")
     if isinstance(data, dict):
-        print("INSTANCE:", data.get("id") or data.get("source", {}).get("id"))
+        if data.get("task"):
+            print("TASK:", data.get("task", {}).get("id"))
+            if data.get("task", {}).get("latestRunName"):
+                print("RUN:", data["task"]["latestRunName"])
+        else:
+            print("INSTANCE:", data.get("id") or data.get("source", {}).get("id"))
         code_server = data.get("info", {}).get("codeServer", {})
         if code_server.get("workspaceUrl"):
             print("CODE_SERVER:", code_server["workspaceUrl"])

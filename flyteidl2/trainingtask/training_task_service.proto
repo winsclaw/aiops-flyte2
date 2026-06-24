@@ -42,6 +42,11 @@ message TrainingTaskInput {
   string image_uri = 9;
   repeated aione.cloudstorage.CloudStorageMount cloud_storage_mounts = 10;
   repeated aione.coderepository.CodeRepositoryMount code_repository_mounts = 11;
+  string cpu = 12;
+  string memory = 13;
+  uint32 gpu_count = 14;
+  string gpu_model = 15;
+  string bandwidth = 16;
 }
 
 message ListTrainingTasksRequest {

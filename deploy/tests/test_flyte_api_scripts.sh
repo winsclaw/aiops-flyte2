@@ -120,6 +120,7 @@ aione_payload="$(build_aione_instance_payload \
   "external-org" "aione" "development" "External Dev" "ins-123" \
   "ssh-rsa AAAA user@example" "docker.fzyun.io/founder/aione.ide:1.0.0.60" "1" "2" "4Gi")"
 assert_eq "external-org" "$(json_get "$aione_payload" "org")" "aione source org"
+assert_eq "INSTANCE" "$(json_get "$aione_payload" "type")" "aione run type"
 assert_eq "BASE" "$(json_get "$aione_payload" "imageType")" "aione image type"
 assert_eq "/data/lib1" "$(json_get "$aione_payload" "baseImage.mountPath")" "aione base image mount path"
 

@@ -223,6 +223,7 @@ def parse_positive_number(value, field):
     return int(number) if number.is_integer() else number
 payload = {
     "org": source_org,
+    "type": "INSTANCE",
     "project": project,
     "domain": domain,
     "name": name,

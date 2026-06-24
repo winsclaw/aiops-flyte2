@@ -42,6 +42,91 @@ func TestBuildTrainingTaskSpecUsesTrainingTaskPlugin(t *testing.T) {
 	require.Equal(t, float64(1), spec.GetTaskTemplate().GetCustom().GetFields()["maxRuntimeHours"].GetNumberValue())
 }
 
+func TestBuildTrainingTaskModelUsesDirectResourceFields(t *testing.T) {
+	model, err := buildTrainingTaskModel(
+		&common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
+		&trainingtaskpb.TrainingTaskInput{
+			Name:            "外部训练任务",
+			Command:         "python train.py",
+			MaxRuntimeHours: 2,
+			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_CUSTOM,
+			ImageName:       "custom-train",
+			ImageUri:        "docker.fzyun.io/founder/train:1.0.0",
+			Cpu:             "3",
+			Memory:          "7Gi",
+			GpuCount:        2,
+			GpuModel:        "NVIDIA T4",
+			Bandwidth:       "10Gbps",
+		},
+		"external-api",
+		"external-task-1",
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, "external-task-1", model.ID)
+	require.Equal(t, "external", model.ResourceSpecID)
+	require.Equal(t, "3vCPU, 7GiB RAM, 2*NVIDIA T4, 10Gbps", model.ResourceDisplay)
+	require.Equal(t, "3", model.CPU)
+	require.Equal(t, "7Gi", model.Memory)
+	require.Equal(t, uint32(2), model.GPUCount)
+	require.Equal(t, "NVIDIA T4", model.GPUModel)
+	require.Equal(t, "10Gbps", model.Bandwidth)
+}
+
+func TestBuildTrainingTaskModelDoesNotDefaultDirectBandwidth(t *testing.T) {
+	model, err := buildTrainingTaskModel(
+		&common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
+		&trainingtaskpb.TrainingTaskInput{
+			Name:            "外部训练任务",
+			Command:         "python train.py",
+			MaxRuntimeHours: 2,
+			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_CUSTOM,
+			ImageName:       "custom-train",
+			ImageUri:        "docker.fzyun.io/founder/train:1.0.0",
+			Cpu:             "3",
+			Memory:          "7Gi",
+			GpuCount:        2,
+		},
+		"external-api",
+		"external-task-1",
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, "3vCPU, 7GiB RAM, 2*GPU", model.ResourceDisplay)
+	require.Empty(t, model.GPUModel)
+	require.Empty(t, model.Bandwidth)
+}
+
+func TestBuildTrainingTaskSpecPreservesDirectResourceFields(t *testing.T) {
+	spec, err := BuildTrainingTaskSpec(&models.TrainingTask{
+		TrainingTaskKey: models.TrainingTaskKey{
+			ID:      "external-task-1",
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+		},
+		Name:            "外部训练任务",
+		ResourceSpecID:  "external",
+		ResourceDisplay: "3vCPU, 7GiB RAM, 2*NVIDIA T4, 10Gbps",
+		CPU:             "3",
+		Memory:          "7Gi",
+		GPUCount:        2,
+		GPUModel:        "NVIDIA T4",
+		Bandwidth:       "10Gbps",
+		Command:         "python train.py",
+		MaxRuntimeHours: 2,
+		ImageURI:        "docker.fzyun.io/founder/train:1.0.0",
+	})
+
+	require.NoError(t, err)
+	custom := spec.GetTaskTemplate().GetCustom().GetFields()
+	require.Equal(t, "3", custom["cpu"].GetStringValue())
+	require.Equal(t, "7Gi", custom["memory"].GetStringValue())
+	require.Equal(t, float64(2), custom["gpuCount"].GetNumberValue())
+	require.Equal(t, "NVIDIA T4", custom["gpuModel"].GetStringValue())
+	require.Equal(t, "10Gbps", custom["bandwidth"].GetStringValue())
+}
+
 func TestListResourceSpecsIncludesSmallCPUAndT4Specs(t *testing.T) {
 	svc := NewTrainingTaskService(nil, nil)
 
