@@ -116,7 +116,7 @@ Namespace: flyte
 Ingress:   http://172.19.65.230:30080
 ```
 
-By default, `scripts/deploy-aiops-flyte.sh` generates `IMAGE_TAG=main-$(git rev-parse --short HEAD)`. It keeps only the latest three backend release images matching `flyte-binary-v2:main-*` in Docker and k3s containerd. Override `IMAGE_TAG` only for an explicit one-off deployment.
+By default, `scripts/deploy-aiops-flyte.sh` generates `IMAGE_TAG=main-$(git rev-parse --short HEAD)`. It deploys both `flyte-binary` and the Flyte co-pilot image setting with that same tag. It keeps only the latest three backend release images matching `flyte-binary-v2:main-*` in Docker and k3s containerd. Override `IMAGE_TAG` only for an explicit one-off deployment.
 
 For incremental backend-only rebuilds after k3s and Helm are already installed:
 

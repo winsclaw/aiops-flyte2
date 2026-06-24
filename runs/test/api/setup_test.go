@@ -15,10 +15,15 @@ import (
 
 	"github.com/flyteorg/flyte/v2/flytestdlib/database"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/actions/actionsconnect"
+	projectpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/project"
+	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/project/projectconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/task/taskconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow/workflowconnect"
+	"github.com/flyteorg/flyte/v2/runs/config"
 	"github.com/flyteorg/flyte/v2/runs/migrations"
 	"github.com/flyteorg/flyte/v2/runs/repository"
+	"github.com/flyteorg/flyte/v2/runs/repository/impl"
+	"github.com/flyteorg/flyte/v2/runs/repository/models"
 	"github.com/flyteorg/flyte/v2/runs/service"
 )
 
@@ -108,12 +113,30 @@ func TestMain(m *testing.M) {
 		exitCode = 1
 		return
 	}
-	taskSvc := service.NewTaskService(repo, nil)
+
+	state := int32(projectpb.ProjectState_PROJECT_STATE_ACTIVE)
+	if err := impl.NewProjectRepo(testDB).CreateProject(ctx, &models.Project{
+		Identifier: testProject,
+		Name:       testProject,
+		State:      &state,
+	}); err != nil {
+		log.Printf("Failed to seed test project: %v", err)
+		exitCode = 1
+		return
+	}
 
 	// Create RunService with a no-op actions client (points at test server; not used by watch tests)
 	endpointURL := fmt.Sprintf("http://localhost:%d", testPort)
 	actionsClient := actionsconnect.NewActionsServiceClient(http.DefaultClient, endpointURL)
-	runSvc := service.NewRunService(repo, actionsClient, nil, nil, "", nil, nil)
+	projectClient := projectconnect.NewProjectServiceClient(http.DefaultClient, endpointURL)
+	runSvc := service.NewRunService(repo, actionsClient, projectClient, "", nil, nil, "", true, config.GetConfig().IdentityHeaders)
+	taskSvc := service.NewTaskService(repo, projectClient)
+	projectSvc := service.NewProjectService(impl.NewProjectRepo(testDB), []*projectpb.Domain{
+		{
+			Id:   testDomain,
+			Name: testDomain,
+		},
+	})
 
 	// Setup HTTP server
 	mux := http.NewServeMux()
@@ -125,6 +148,9 @@ func TestMain(m *testing.M) {
 
 	internalRunPath, internalRunHandler := workflowconnect.NewInternalRunServiceHandler(runSvc)
 	mux.Handle(internalRunPath, internalRunHandler)
+
+	projectPath, projectHandler := projectconnect.NewProjectServiceHandler(projectSvc)
+	mux.Handle(projectPath, projectHandler)
 
 	// Add health check
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -208,9 +234,10 @@ func cleanupTestDB(t *testing.T) {
 		return
 	}
 
-	// Truncate known tables
+	// Truncate known runtime tables. The seeded test project is a shared fixture
+	// required by TaskService project validation.
 	tables := []string{
-		"action_events", "actions", "runs", "tasks", "projects",
+		"action_events", "actions", "runs", "tasks",
 	}
 	for _, table := range tables {
 		if _, err := testDB.Exec(fmt.Sprintf("DELETE FROM %s", table)); err != nil {

@@ -273,6 +273,8 @@ helm dependency update charts/flyte-devbox
 helm upgrade --install "$RELEASE" charts/flyte-devbox \
   --namespace "$NAMESPACE" \
   --set docker-registry.enabled=false \
+  --set flyte-binary.configuration.co-pilot.image.repository="$IMAGE_REPOSITORY" \
+  --set flyte-binary.configuration.co-pilot.image.tag="$IMAGE_TAG" \
   --set flyte-binary.deployment.image.repository="$IMAGE_REPOSITORY" \
   --set flyte-binary.deployment.image.tag="$IMAGE_TAG" \
   --set flyte-binary.deployment.image.pullPolicy=Never \
