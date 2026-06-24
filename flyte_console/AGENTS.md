@@ -123,8 +123,8 @@ return errorEnvelope(statusError("id is required", 400));
 ```powershell
 cd D:\flyte-work\flyte_console
 
-pnpm exec vitest run "src/app/api/aione/[id]/status/route.test.ts"
-pnpm exec vitest run src/app/api/aione/run/route.test.ts "src/app/api/aione/[id]/status/route.test.ts" "src/app/api/aione/[id]/stop/route.test.ts"
+pnpm exec vitest run "src/app/api/aione/[type]/[id]/status/route.test.ts"
+pnpm exec vitest run "src/app/api/aione/[type]/run/route.test.ts" "src/app/api/aione/[type]/[id]/status/route.test.ts" "src/app/api/aione/[type]/[id]/stop/route.test.ts"
 pnpm exec tsc --project tsconfig.typecheck.json --noEmit
 pnpm run build:prod
 ```

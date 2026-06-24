@@ -223,7 +223,6 @@ def parse_positive_number(value, field):
     return int(number) if number.is_integer() else number
 payload = {
     "org": source_org,
-    "type": "INSTANCE",
     "project": project,
     "domain": domain,
     "name": name,
@@ -250,7 +249,8 @@ parse_aione_instance_run_id() {
   python_json -c '
 import json, sys
 data = json.load(sys.stdin)
-run = data["run"]
+payload = data.get("data", data)
+run = payload["run"]
 print("/".join([run["org"], run["project"], run["domain"], run["name"]]))
 ' <<<"$1"
 }

@@ -3,6 +3,7 @@ import json
 import math
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from env_config import require_config, resolve_env_path
@@ -12,7 +13,8 @@ REQUIRED_KEYS = [
     "ENDPOINT",
     "AIONE_API_KEY",
     "INSTANCE_ID",
-    "API_PATH",
+    "RUN_TYPE",
+    "API_PATH_TEMPLATE",
     "AUTHORIZED_KEY",
     "AUTHORIZED_KEY_FILE",
     "IMAGE_TYPE",
@@ -63,9 +65,22 @@ def parse_positive_number(value: str, field: str) -> int | float:
     return int(number) if number.is_integer() else number
 
 
+def get_run_type(config: dict[str, str]) -> str:
+    run_type = config["RUN_TYPE"].strip().lower()
+    if run_type not in {"instance", "task"}:
+        raise ValueError("RUN_TYPE must be instance or task")
+    return run_type
+
+
+def build_run_path(config: dict[str, str]) -> str:
+    return config["API_PATH_TEMPLATE"].format(
+        type=urllib.parse.quote(get_run_type(config), safe=""),
+    )
+
+
 def build_payload() -> dict:
     config = load_config()
-    run_type = config.get("RUN_TYPE", "INSTANCE").strip().upper() or "INSTANCE"
+    run_type = get_run_type(config)
     resource_definition = {
         "cpu": config["CPU"],
         "memory": config["MEMORY"],
@@ -77,7 +92,6 @@ def build_payload() -> dict:
 
     payload = {
         "org": config["SOURCE_ORG"],
-        "type": run_type,
         "project": config["PROJECT"],
         "domain": config["DOMAIN"],
         "name": config["INSTANCE_NAME"],
@@ -115,10 +129,10 @@ def build_payload() -> dict:
         ],
         "resourceDefinition": resource_definition,
     }
-    if run_type == "TASK":
+    if run_type == "task":
         command = config.get("TASK_COMMAND", "").strip()
         if not command:
-            raise ValueError("TASK_COMMAND is required when RUN_TYPE=TASK")
+            raise ValueError("TASK_COMMAND is required when RUN_TYPE=task")
         payload["command"] = command
     authorized_key = read_authorized_key(config)
     if authorized_key:
@@ -129,7 +143,7 @@ def build_payload() -> dict:
 def post_instance(payload: dict) -> dict:
     config = load_config()
 
-    url = config["ENDPOINT"].rstrip("/") + config["API_PATH"]
+    url = config["ENDPOINT"].rstrip("/") + build_run_path(config)
     print("URL:", url)
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(

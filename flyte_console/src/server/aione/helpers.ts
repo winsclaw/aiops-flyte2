@@ -122,6 +122,26 @@ export type AioneInstanceRecord = {
   updatedAt: string;
 };
 
+export type AioneTaskRecordStatus =
+  | "STARTING"
+  | "RUNNING"
+  | "STOPPING"
+  | "STOPPED"
+  | "FAILED";
+
+export type AioneTaskRecord = {
+  sourceTaskId: string;
+  sourceOrg: string;
+  org: string;
+  project: string;
+  domain: string;
+  trainingTaskId: string;
+  latestRunName: string;
+  status: AioneTaskRecordStatus;
+  lastError: string;
+  updatedAt: string;
+};
+
 export type BuildAioneCreateInstanceResponseInput = {
   internalOrg: string;
   project: string;
@@ -427,6 +447,14 @@ export function buildAioneInstanceConfigMapName(sourceInstanceId: string) {
     throw new Error("id must produce a valid ConfigMap name");
   }
   return buildBoundedName(`aione-instance-${sourceBaseName}`, 253);
+}
+
+export function buildAioneTaskConfigMapName(sourceTaskId: string) {
+  const sourceBaseName = normalizeRunName(sourceTaskId);
+  if (!sourceBaseName) {
+    throw new Error("id must produce a valid ConfigMap name");
+  }
+  return buildBoundedName(`aione-task-${sourceBaseName}`, 253);
 }
 
 export function buildAioneInstanceRecord({

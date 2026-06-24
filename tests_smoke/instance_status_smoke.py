@@ -8,11 +8,24 @@ import urllib.request
 from env_config import require_config
 
 
-REQUIRED_KEYS = ["ENDPOINT", "AIONE_API_KEY", "INSTANCE_ID", "STATUS_API_PATH_TEMPLATE"]
+REQUIRED_KEYS = [
+    "ENDPOINT",
+    "AIONE_API_KEY",
+    "INSTANCE_ID",
+    "RUN_TYPE",
+    "STATUS_API_PATH_TEMPLATE",
+]
 
 
 def load_config() -> dict[str, str]:
     return require_config(REQUIRED_KEYS)
+
+
+def get_run_type(config: dict[str, str]) -> str:
+    run_type = config["RUN_TYPE"].strip().lower()
+    if run_type not in {"instance", "task"}:
+        raise ValueError("RUN_TYPE must be instance or task")
+    return run_type
 
 
 def post_status(workflow_id: str) -> dict:
@@ -20,7 +33,10 @@ def post_status(workflow_id: str) -> dict:
     if not workflow_id:
         raise RuntimeError("INSTANCE_ID is required")
 
-    path = config["STATUS_API_PATH_TEMPLATE"].format(id=urllib.parse.quote(workflow_id, safe=""))
+    path = config["STATUS_API_PATH_TEMPLATE"].format(
+        type=urllib.parse.quote(get_run_type(config), safe=""),
+        id=urllib.parse.quote(workflow_id, safe=""),
+    )
     url = config["ENDPOINT"].rstrip("/") + path
     print("URL:", url)
     request = urllib.request.Request(

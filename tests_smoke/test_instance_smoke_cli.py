@@ -37,9 +37,10 @@ class InstanceSmokeCliTests(unittest.TestCase):
                     "ENDPOINT=http://example.test",
                     "AIONE_API_KEY=test-key",
                     "INSTANCE_ID=env-instance",
-                    "API_PATH=/v2/api/aione/run",
-                    "STOP_API_PATH_TEMPLATE=/v2/api/aione/{id}/stop",
-                    "STATUS_API_PATH_TEMPLATE=/v2/api/aione/{id}/status",
+                    "RUN_TYPE=instance",
+                    "API_PATH_TEMPLATE=/v2/api/aione/{type}/run",
+                    "STOP_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/stop",
+                    "STATUS_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/status",
                     "AUTHORIZED_KEY=",
                     "AUTHORIZED_KEY_FILE=",
                     "IMAGE_TYPE=BASE",
@@ -78,7 +79,29 @@ class InstanceSmokeCliTests(unittest.TestCase):
 
         self.assertEqual({"status": 200, "data": {"id": "x"}}, result)
         self.assertEqual(
-            "URL: http://example.test/v2/api/aione/run",
+            "URL: http://example.test/v2/api/aione/instance/run",
+            output.getvalue().splitlines()[0],
+        )
+
+    def test_start_url_uses_task_type_path(self):
+        content = self.env_path.read_text(encoding="utf-8")
+        self.env_path.write_text(
+            content + "\nRUN_TYPE=task\n",
+            encoding="utf-8",
+        )
+
+        output = io.StringIO()
+        with mock.patch.object(
+            instance_start_smoke.urllib.request,
+            "urlopen",
+            return_value=FakeResponse({"status": 200, "data": {"id": "x"}}),
+        ):
+            with contextlib.redirect_stdout(output):
+                result = instance_start_smoke.post_instance({"id": "x"})
+
+        self.assertEqual({"status": 200, "data": {"id": "x"}}, result)
+        self.assertEqual(
+            "URL: http://example.test/v2/api/aione/task/run",
             output.getvalue().splitlines()[0],
         )
 
@@ -86,7 +109,7 @@ class InstanceSmokeCliTests(unittest.TestCase):
         payload = instance_start_smoke.build_payload()
 
         self.assertEqual("env-instance", payload["id"])
-        self.assertEqual("INSTANCE", payload["type"])
+        self.assertNotIn("type", payload)
         self.assertEqual("env-name", payload["name"])
         self.assertEqual(2, payload["timeout"])
         self.assertEqual("docker.fzyun.io/custom/image:latest", payload["image"])
@@ -96,24 +119,25 @@ class InstanceSmokeCliTests(unittest.TestCase):
     def test_start_payload_supports_task_type_and_command(self):
         content = self.env_path.read_text(encoding="utf-8")
         self.env_path.write_text(
-            content + "\nRUN_TYPE=TASK\nTASK_COMMAND=python train.py\n",
+            content.replace("RUN_TYPE=instance", "RUN_TYPE=task")
+            + "\nTASK_COMMAND=python train.py\n",
             encoding="utf-8",
         )
 
         payload = instance_start_smoke.build_payload()
 
-        self.assertEqual("TASK", payload["type"])
+        self.assertNotIn("type", payload)
         self.assertEqual("python train.py", payload["command"])
         self.assertEqual({"cpu": "4", "memory": "8Gi"}, payload["resourceDefinition"])
 
     def test_start_payload_requires_task_command(self):
         content = self.env_path.read_text(encoding="utf-8")
         self.env_path.write_text(
-            content + "\nRUN_TYPE=TASK\n",
+            content.replace("RUN_TYPE=instance", "RUN_TYPE=task"),
             encoding="utf-8",
         )
 
-        with self.assertRaisesRegex(ValueError, "TASK_COMMAND is required"):
+        with self.assertRaisesRegex(ValueError, "TASK_COMMAND is required when RUN_TYPE=task"):
             instance_start_smoke.build_payload()
 
     def test_start_payload_accepts_fractional_timeout_hours(self):
@@ -139,7 +163,29 @@ class InstanceSmokeCliTests(unittest.TestCase):
 
         self.assertEqual({"status": 200, "data": {}}, result)
         self.assertEqual(
-            "URL: http://example.test/v2/api/aione/abc%2Fdef/status",
+            "URL: http://example.test/v2/api/aione/instance/abc%2Fdef/status",
+            output.getvalue().splitlines()[0],
+        )
+
+    def test_status_url_uses_task_type_path(self):
+        content = self.env_path.read_text(encoding="utf-8")
+        self.env_path.write_text(
+            content.replace("RUN_TYPE=instance", "RUN_TYPE=task"),
+            encoding="utf-8",
+        )
+
+        output = io.StringIO()
+        with mock.patch.object(
+            instance_status_smoke.urllib.request,
+            "urlopen",
+            return_value=FakeResponse({"status": 200, "data": {}}),
+        ):
+            with contextlib.redirect_stdout(output):
+                result = instance_status_smoke.post_status("abc/def")
+
+        self.assertEqual({"status": 200, "data": {}}, result)
+        self.assertEqual(
+            "URL: http://example.test/v2/api/aione/task/abc%2Fdef/status",
             output.getvalue().splitlines()[0],
         )
 
@@ -155,7 +201,29 @@ class InstanceSmokeCliTests(unittest.TestCase):
 
         self.assertEqual({"status": 200, "data": {}}, result)
         self.assertEqual(
-            "URL: http://example.test/v2/api/aione/abc%2Fdef/stop",
+            "URL: http://example.test/v2/api/aione/instance/abc%2Fdef/stop",
+            output.getvalue().splitlines()[0],
+        )
+
+    def test_stop_url_uses_task_type_path(self):
+        content = self.env_path.read_text(encoding="utf-8")
+        self.env_path.write_text(
+            content.replace("RUN_TYPE=instance", "RUN_TYPE=task"),
+            encoding="utf-8",
+        )
+
+        output = io.StringIO()
+        with mock.patch.object(
+            instance_stop_smoke.urllib.request,
+            "urlopen",
+            return_value=FakeResponse({"status": 200, "data": {}}),
+        ):
+            with contextlib.redirect_stdout(output):
+                result = instance_stop_smoke.post_stop("abc/def")
+
+        self.assertEqual({"status": 200, "data": {}}, result)
+        self.assertEqual(
+            "URL: http://example.test/v2/api/aione/task/abc%2Fdef/stop",
             output.getvalue().splitlines()[0],
         )
 
@@ -188,7 +256,7 @@ class InstanceSmokeCliTests(unittest.TestCase):
 
         self.assertEqual(1, exit_code)
         self.assertIn("ERROR:", stderr.getvalue())
-        self.assertIn("API_PATH", stderr.getvalue())
+        self.assertIn("API_PATH_TEMPLATE", stderr.getvalue())
         self.assertIn("IMAGE_TYPE", stderr.getvalue())
 
 

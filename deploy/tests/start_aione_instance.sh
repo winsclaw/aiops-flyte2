@@ -7,7 +7,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/tests/lib/flyte_api.sh"
 
 ENDPOINT="${ENDPOINT:-http://172.19.65.230:30081}"
-API_PATH="${API_PATH:-/v2/api/aione/run}"
+API_PATH="${API_PATH:-/v2/api/aione/instance/run}"
 AIONE_API_KEY="${AIONE_API_KEY:-${EXTERNAL_API_KEY:-}}"
 SOURCE_ORG="${SOURCE_ORG:-external-system}"
 PROJECT="${PROJECT:-aione}"
