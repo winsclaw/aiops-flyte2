@@ -223,6 +223,7 @@ describe("aione external typed clear route", () => {
     });
     expect(urls).toContain("/apis/batch/v1/namespaces/flyte/jobs");
     expect(urls).toContain("flyte.org%2Frun-name%3Dtask-contract-1-run");
+    expect(urls).not.toContain("flyte.org%2Forg");
     expect(urls).toContain("/api/v1/namespaces/flyte/services");
     expect(urls).toContain("/api/v1/namespaces/flyte/secrets");
     expect(urls).toContain(

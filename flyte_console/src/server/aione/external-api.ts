@@ -579,7 +579,6 @@ async function clearTaskRuntimeResources(sourceTaskId: string) {
     runName: record.latestRunName,
   });
   const labelSelector = buildTaskLabelSelector({
-    org: record.org,
     project: record.project,
     domain: record.domain,
     runName: record.latestRunName,
@@ -903,12 +902,10 @@ function getFlyteApiOrigin() {
 }
 
 function buildTaskLabelSelector({
-  org,
   project,
   domain,
   runName,
 }: {
-  org: string;
   project: string;
   domain: string;
   runName: string;
@@ -917,7 +914,6 @@ function buildTaskLabelSelector({
     ["flyte.org/run-name", runName],
     ["flyte.org/project", project],
     ["flyte.org/domain", domain],
-    ["flyte.org/org", org],
   ]
     .map(([key, value]) => `${key}=${value}`)
     .join(",");
