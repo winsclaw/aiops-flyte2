@@ -10,6 +10,7 @@ import instance_start_smoke
 import instance_status_smoke
 import instance_stop_smoke
 import instance_clear_smoke
+import instance_log_smoke
 import env_config
 
 
@@ -42,6 +43,7 @@ class InstanceSmokeCliTests(unittest.TestCase):
                     "STOP_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/stop",
                     "STATUS_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/status",
                     "CLEAR_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/clear",
+                    "LOG_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/log",
                     "AUTHORIZED_KEY=",
                     "AUTHORIZED_KEY_FILE=",
                     "IMAGE_TYPE=BASE",
@@ -151,6 +153,22 @@ class InstanceSmokeCliTests(unittest.TestCase):
         self.assertEqual({"status": 200, "data": {}}, result)
         self.assertEqual(
             "URL: http://example.test/v2/api/aione/instance/abc%2Fdef/clear",
+            output.getvalue().splitlines()[0],
+        )
+
+    def test_log_prints_url_with_pagination(self):
+        output = io.StringIO()
+        with mock.patch.object(
+            instance_log_smoke.urllib.request,
+            "urlopen",
+            return_value=FakeResponse({"status": 200, "data": {"total": 0, "logs": []}}),
+        ):
+            with contextlib.redirect_stdout(output):
+                result = instance_log_smoke.get_logs("abc/def", page="2", size="3")
+
+        self.assertEqual({"status": 200, "data": {"total": 0, "logs": []}}, result)
+        self.assertEqual(
+            "URL: http://example.test/v2/api/aione/instance/abc%2Fdef/log?page=2&size=3",
             output.getvalue().splitlines()[0],
         )
 

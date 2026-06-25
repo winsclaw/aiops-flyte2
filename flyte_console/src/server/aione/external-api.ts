@@ -12,6 +12,10 @@ import {
   type DevelopmentInstanceFormValues,
 } from "@/components/pages/DevelopmentInstances/utils";
 import { ActionPhase } from "@/gen/flyteidl2/common/phase_pb";
+import type {
+  LogContext,
+  PodLogContext,
+} from "@/gen/flyteidl2/core/execution_pb";
 import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
 import {
   ImageType,
@@ -173,6 +177,37 @@ export async function getAioneExternalStatus(
     error: getActionError(action?.result),
     durationSeconds: getActionDurationSeconds(status),
   };
+}
+
+export async function getAioneExternalLogs(
+  type: AioneExternalType,
+  sourceId: string,
+  pagination: { page: number; size: number },
+) {
+  const runId =
+    type === "task"
+      ? await resolveTaskRunIdentifier(sourceId)
+      : await resolveInstanceRunIdentifier(sourceId);
+  const response = await createFlyteRunClient().getRunDetails({ runId });
+  const logContext = getLatestAttemptLogContext(
+    response.details?.action?.attempts ?? [],
+  );
+  if (!logContext) {
+    return emptyAioneLogPage();
+  }
+
+  const pod = getPrimaryPodLogContext(logContext);
+  if (!pod?.podName) {
+    return emptyAioneLogPage();
+  }
+
+  const containerName = getPrimaryContainerName(pod);
+  if (!containerName) {
+    return emptyAioneLogPage();
+  }
+
+  const lines = await readKubernetesPodLog({ pod, containerName });
+  return paginateLogLines(lines, pagination);
 }
 
 export async function getAioneExternalPvcSize(sourcePvcId: string) {
@@ -823,6 +858,104 @@ async function resolveTaskRunIdentifier(
     domain: record.domain,
     name: record.latestRunName,
   };
+}
+
+function getLatestAttemptLogContext(
+  attempts: Array<{ attempt: number; logContext?: LogContext }>,
+) {
+  let latest: { attempt: number; logContext: LogContext } | undefined;
+  for (const attempt of attempts) {
+    if (!attempt.logContext) {
+      continue;
+    }
+    if (!latest || attempt.attempt > latest.attempt) {
+      latest = { attempt: attempt.attempt, logContext: attempt.logContext };
+    }
+  }
+  return latest?.logContext;
+}
+
+function getPrimaryPodLogContext(logContext: LogContext) {
+  if (logContext.pods.length === 0) {
+    return undefined;
+  }
+  const primaryPodName = logContext.primaryPodName.trim();
+  if (!primaryPodName) {
+    return logContext.pods[0];
+  }
+  return (
+    logContext.pods.find((pod) => pod.podName === primaryPodName) ??
+    logContext.pods[0]
+  );
+}
+
+function getPrimaryContainerName(pod: PodLogContext) {
+  const primaryContainerName = pod.primaryContainerName.trim();
+  if (primaryContainerName) {
+    return primaryContainerName;
+  }
+  return (
+    pod.containers.find((container) => container.containerName.trim())
+      ?.containerName ??
+    pod.initContainers.find((container) => container.containerName.trim())
+      ?.containerName ??
+    ""
+  ).trim();
+}
+
+async function readKubernetesPodLog({
+  pod,
+  containerName,
+}: {
+  pod: PodLogContext;
+  containerName: string;
+}) {
+  const targetNamespace = pod.namespace.trim() || AIONE_RUNTIME_NAMESPACE;
+  const { apiOrigin, namespace, token, ca } =
+    await getKubernetesClientConfig(targetNamespace);
+  const searchParams = new URLSearchParams({
+    container: containerName,
+    timestamps: "false",
+  });
+  const response = await requestKubernetes({
+    url: `${apiOrigin}/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(pod.podName)}/log?${searchParams.toString()}`,
+    token,
+    ca,
+    headers: { Accept: "text/plain" },
+  });
+  if (response.status === 404) {
+    return [];
+  }
+  if (!response.ok) {
+    throw statusError(response.text || "failed to read pod logs", 502);
+  }
+  return splitLogLines(response.text);
+}
+
+function splitLogLines(text: string) {
+  if (!text) {
+    return [];
+  }
+  const lines = text.split(/\r?\n/);
+  if (lines.at(-1) === "") {
+    lines.pop();
+  }
+  return lines;
+}
+
+function paginateLogLines(
+  lines: string[],
+  pagination: { page: number; size: number },
+) {
+  const start = (pagination.page - 1) * pagination.size;
+  return {
+    total: lines.length,
+    logs: lines.slice(start, start + pagination.size),
+  };
+}
+
+function emptyAioneLogPage() {
+  return { total: 0, logs: [] };
 }
 
 async function hasActiveLatestRun(record: AioneTaskRecord) {

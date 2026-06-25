@@ -66,6 +66,11 @@ export const RunDetailsLogsTab: React.FC<unknown> = () => {
           error={source.error}
           waiting={isWaiting}
           logType={logsType}
+          notFoundErrorMessage={
+            logsType === RunLogType.RUN
+              ? 'pod 已清理，历史日志不可用'
+              : undefined
+          }
           shouldSkipIcon={logsType === RunLogType.K8S}
         />
       </div>

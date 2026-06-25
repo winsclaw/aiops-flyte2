@@ -8,6 +8,7 @@ from unittest import mock
 
 import env_config
 import task_clear_smoke
+import task_log_smoke
 import task_start_smoke
 import task_status_smoke
 import task_stop_smoke
@@ -44,6 +45,7 @@ class TaskSmokeCliTests(unittest.TestCase):
                     "STOP_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/stop",
                     "STATUS_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/status",
                     "CLEAR_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/clear",
+                    "LOG_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/log",
                     "IMAGE_TYPE=OWN",
                     "CPU=500m",
                     "MEMORY=128Mi",
@@ -146,6 +148,22 @@ class TaskSmokeCliTests(unittest.TestCase):
         self.assertEqual({"status": 200, "data": {}}, result)
         self.assertEqual(
             "URL: http://example.test/v2/api/aione/task/abc%2Fdef/clear",
+            output.getvalue().splitlines()[0],
+        )
+
+    def test_task_log_prints_task_log_url_with_pagination(self):
+        output = io.StringIO()
+        with mock.patch.object(
+            task_log_smoke.urllib.request,
+            "urlopen",
+            return_value=FakeResponse({"status": 200, "data": {"total": 0, "logs": []}}),
+        ):
+            with contextlib.redirect_stdout(output):
+                result = task_log_smoke.get_logs("abc/def", page="2", size="3")
+
+        self.assertEqual({"status": 200, "data": {"total": 0, "logs": []}}, result)
+        self.assertEqual(
+            "URL: http://example.test/v2/api/aione/task/abc%2Fdef/log?page=2&size=3",
             output.getvalue().splitlines()[0],
         )
 

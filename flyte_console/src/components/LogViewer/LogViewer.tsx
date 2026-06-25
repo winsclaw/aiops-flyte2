@@ -11,6 +11,7 @@ import {
 import { getLogDateString } from '@/lib/dateUtils'
 import { stringToColor } from '@/lib/stringToColor'
 
+import { Code, ConnectError } from '@connectrpc/connect'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import {
   forwardRef,
@@ -98,6 +99,7 @@ interface LogViewerProps {
   done?: boolean
   error?: Error | null
   logType?: RunLogType | AppLogType
+  notFoundErrorMessage?: string
   shouldSkipIcon?: boolean
 }
 
@@ -373,6 +375,7 @@ export const LogViewer = ({
   waiting,
   error,
   logType,
+  notFoundErrorMessage,
   shouldSkipIcon = false,
 }: LogViewerProps) => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -489,6 +492,13 @@ export const LogViewer = ({
     [searchQuery, selectedSource],
   )
 
+  const errorMessage =
+    notFoundErrorMessage &&
+    error instanceof ConnectError &&
+    error.code === Code.NotFound
+      ? notFoundErrorMessage
+      : "We're having trouble loading the logs"
+
   // Delay showing empty screen by 500ms for streaming logs
   useEffect(() => {
     let timeout: NodeJS.Timeout | undefined
@@ -527,7 +537,7 @@ export const LogViewer = ({
             Error
           </h2>
           <p className="text-base text-(--system-gray-5)">
-            We&apos;re having trouble loading the logs
+            {errorMessage}
           </p>
         </div>
       </div>
