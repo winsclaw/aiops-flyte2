@@ -24,6 +24,7 @@ import {
   RunIdentifierSchema,
   UserIdentifierSchema,
 } from "@/gen/flyteidl2/common/identifier_pb";
+import { TaskTemplateSchema } from "@/gen/flyteidl2/core/tasks_pb";
 import {
   EnrichedIdentitySchema,
   UserSchema,
@@ -240,6 +241,41 @@ describe("development instance helpers", () => {
     expect(instance?.name).toBe("devbox-a");
     expect(instance?.owner).toBe("ljgong");
     expect(instance?.status).toBe(ActionPhase.RUNNING);
+  });
+
+  it("shows requested GPU count even when the model is omitted", () => {
+    const run = create(RunSchema, {
+      action: create(ActionSchema, {
+        id: {
+          run: create(RunIdentifierSchema, {
+            org: "testorg",
+            project: "flytesnacks",
+            domain: "development",
+            name: "devbox-gpu",
+          }),
+        },
+      }),
+    });
+    const actionDetails = create(ActionDetailsSchema, {
+      spec: {
+        case: "task",
+        value: {
+          taskTemplate: create(TaskTemplateSchema, {
+            custom: {
+              cpu: "1",
+              memory: "2Gi",
+              gpuCount: 1,
+              gpuModel: "",
+              workspaceSize: "20Gi",
+            },
+          }),
+        },
+      },
+    });
+
+    const instance = formatDevelopmentInstance(run, actionDetails);
+
+    expect(instance?.resourceSummary).toBe("1vCPU, 2Gi, 1*GPU, 20Gi");
   });
 
   it("hides runs marked as deleted by the development instance console", () => {

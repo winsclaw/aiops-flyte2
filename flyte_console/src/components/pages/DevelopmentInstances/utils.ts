@@ -459,7 +459,7 @@ export function formatDevelopmentInstance(
   const gpuModel = typeof custom.gpuModel === "string" ? custom.gpuModel : "";
   const workspaceSize =
     typeof custom.workspaceSize === "string" ? custom.workspaceSize : "";
-  const gpuSummary = gpuCount > 0 && gpuModel ? `${gpuCount}*${gpuModel}` : "";
+  const gpuSummary = gpuCount > 0 ? `${gpuCount}*${gpuModel || "GPU"}` : "";
   const resourceSummary = [
     cpu && `${cpu}vCPU`,
     memory,
