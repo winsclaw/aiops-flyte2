@@ -158,8 +158,8 @@ AIONE 外部 GPU 使用量查询使用 `GET` 方法：
 GET /v2/api/aione/gpus?keys=nvidia.com/gpu,nvidia.com/3090
 ```
 
-`keys` 是逗号拼接的 Kubernetes GPU resource key。接口只返回 `keys` 中传入的 GPU
-类型，重复 key 会去重，未知 key 返回 `0`。
+`keys` 是逗号拼接的 Kubernetes GPU resource key 或 GPU 型号标签 key。接口只返回
+`keys` 中传入的 GPU 类型，重复 key 会去重，未知 key 返回 `0`。
 
 成功响应：
 
@@ -179,5 +179,10 @@ GET /v2/api/aione/gpus?keys=nvidia.com/gpu,nvidia.com/3090
 | --- | --- |
 | `total` | 集群 Node `status.allocatable` 中该 GPU resource key 的总量。 |
 | `allocated` | 集群已调度且非终态 Pod 中该 GPU resource key 的有效 request 总量。 |
+
+如果 key 不是节点 allocatable resource，但节点存在同名标签且值为 `true`，例如
+`nvidia.com/t4=true` 或 `nvidia.com/3090=true`，接口会把它当作 GPU 型号标签统计：
+`total` 使用这些节点上的 `nvidia.com/gpu` allocatable，`allocated` 使用调度到这些节点的
+Pod `nvidia.com/gpu` request。
 
 `allocated` 表示 Kubernetes 已分配/请求的 GPU 数量，不表示 DCGM 或 GPU metrics 中的实时利用率。

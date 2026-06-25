@@ -37,7 +37,7 @@ class GpuSmokeCliTests(unittest.TestCase):
                 [
                     "ENDPOINT=http://example.test",
                     "AIONE_API_KEY=test-key",
-                    "GPU_KEYS=nvidia.com/gpu,nvidia.com/3090",
+                    "GPU_KEYS=nvidia.com/t4",
                     "GPU_USAGE_API_PATH=/v2/api/aione/gpus",
                 ]
             ),
@@ -52,8 +52,7 @@ class GpuSmokeCliTests(unittest.TestCase):
         payload = {
             "status": 200,
             "data": {
-                "nvidia.com/gpu": {"total": 1, "allocated": 1},
-                "nvidia.com/3090": {"total": 4, "allocated": 2},
+                "nvidia.com/t4": {"total": 1, "allocated": 1},
             },
         }
         with mock.patch.object(
@@ -63,12 +62,12 @@ class GpuSmokeCliTests(unittest.TestCase):
         ):
             with contextlib.redirect_stdout(output):
                 result = gpu_usage_smoke.get_gpu_usage(
-                    "nvidia.com/gpu,nvidia.com/3090",
+                    "nvidia.com/t4",
                 )
 
         self.assertEqual(payload, result)
         self.assertEqual(
-            "URL: http://example.test/v2/api/aione/gpus?keys=nvidia.com%2Fgpu%2Cnvidia.com%2F3090",
+            "URL: http://example.test/v2/api/aione/gpus?keys=nvidia.com%2Ft4",
             output.getvalue().splitlines()[0],
         )
 

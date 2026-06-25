@@ -177,6 +177,103 @@ describe("aione external GPU usage route", () => {
     });
   });
 
+  it("counts any GPU model labels backed by the generic NVIDIA GPU resource", async () => {
+    mockKubernetesResources({
+      nodes: [
+        {
+          metadata: {
+            name: "node-t4",
+            labels: {
+              "nvidia.com/t4": "true",
+              "nvidia.com/gpu.product": "Tesla-T4",
+            },
+          },
+          status: {
+            allocatable: {
+              "nvidia.com/gpu": "1",
+            },
+          },
+        },
+        {
+          metadata: {
+            name: "node-3090",
+            labels: {
+              "nvidia.com/3090": "true",
+            },
+          },
+          status: {
+            allocatable: {
+              "nvidia.com/gpu": "2",
+            },
+          },
+        },
+        {
+          metadata: {
+            name: "node-other",
+            labels: {
+              "nvidia.com/gpu": "true",
+            },
+          },
+          status: {
+            allocatable: {
+              "nvidia.com/gpu": "3",
+            },
+          },
+        },
+      ],
+      pods: [
+        {
+          spec: {
+            nodeName: "node-t4",
+            containers: [
+              { resources: { requests: { "nvidia.com/gpu": "1" } } },
+            ],
+          },
+          status: { phase: "Running" },
+        },
+        {
+          spec: {
+            nodeName: "node-3090",
+            containers: [
+              { resources: { requests: { "nvidia.com/gpu": "2" } } },
+            ],
+          },
+          status: { phase: "Running" },
+        },
+        {
+          spec: {
+            nodeName: "node-other",
+            containers: [
+              { resources: { requests: { "nvidia.com/gpu": "2" } } },
+            ],
+          },
+          status: { phase: "Running" },
+        },
+      ],
+    });
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      new NextRequest(
+        "http://localhost/v2/api/aione/gpus?keys=nvidia.com/t4,nvidia.com/3090",
+        {
+          method: "GET",
+          headers: { authorization: "Bearer external-key" },
+        },
+      ),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      status: 200,
+      data: {
+        "nvidia.com/t4": { total: 1, allocated: 1 },
+        "nvidia.com/3090": { total: 2, allocated: 2 },
+      },
+    });
+  });
+
   it("counts only scheduled non-terminal pods toward allocated GPUs", async () => {
     mockKubernetesResources({
       pods: [

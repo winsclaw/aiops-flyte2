@@ -9,6 +9,8 @@ import {
   requestKubernetes,
 } from "@/server/kubernetes/client";
 
+const GENERIC_NVIDIA_GPU_RESOURCE = "nvidia.com/gpu";
+
 export type AioneGpuUsage = Record<
   string,
   {
@@ -27,15 +29,31 @@ export async function getAioneGpuUsage(keysQuery: string | null) {
     listClusterPods({ apiOrigin, token, ca }),
   ]);
 
-  const totals = new Map(keys.map((key) => [key, 0]));
+  const directTotals = new Map(keys.map((key) => [key, 0]));
+  const labelTotals = new Map(keys.map((key) => [key, 0]));
   const allocated = new Map(keys.map((key) => [key, 0]));
+  const labelNodeNames = new Map(keys.map((key) => [key, new Set<string>()]));
 
   for (const node of nodes) {
+    const nodeName = node.metadata?.name ?? "";
     for (const key of keys) {
-      totals.set(
+      directTotals.set(
         key,
-        (totals.get(key) ?? 0) + parseResourceCount(node.status?.allocatable?.[key]),
+        (directTotals.get(key) ?? 0) +
+          parseResourceCount(node.status?.allocatable?.[key]),
       );
+      if (node.metadata?.labels?.[key] === "true") {
+        if (nodeName) {
+          labelNodeNames.get(key)?.add(nodeName);
+        }
+        labelTotals.set(
+          key,
+          (labelTotals.get(key) ?? 0) +
+            parseResourceCount(
+              node.status?.allocatable?.[GENERIC_NVIDIA_GPU_RESOURCE],
+            ),
+        );
+      }
     }
   }
 
@@ -46,7 +64,10 @@ export async function getAioneGpuUsage(keysQuery: string | null) {
     for (const key of keys) {
       allocated.set(
         key,
-        (allocated.get(key) ?? 0) + getPodEffectiveRequest(pod, key),
+        (allocated.get(key) ?? 0) + getAllocatedCountForKey(pod, key, {
+          directTotal: directTotals.get(key) ?? 0,
+          labelNodeNames: labelNodeNames.get(key) ?? new Set<string>(),
+        }),
       );
     }
   }
@@ -55,7 +76,10 @@ export async function getAioneGpuUsage(keysQuery: string | null) {
     keys.map((key) => [
       key,
       {
-        total: totals.get(key) ?? 0,
+        total:
+          (directTotals.get(key) ?? 0) > 0
+            ? (directTotals.get(key) ?? 0)
+            : (labelTotals.get(key) ?? 0),
         allocated: allocated.get(key) ?? 0,
       },
     ]),
@@ -117,6 +141,28 @@ function isScheduledNonTerminalPod(pod: KubernetesPod) {
   return phase !== "Succeeded" && phase !== "Failed";
 }
 
+function getAllocatedCountForKey(
+  pod: KubernetesPod,
+  key: string,
+  {
+    directTotal,
+    labelNodeNames,
+  }: {
+    directTotal: number;
+    labelNodeNames: Set<string>;
+  },
+) {
+  const directCount = getPodEffectiveRequest(pod, key);
+  if (
+    key === GENERIC_NVIDIA_GPU_RESOURCE ||
+    directTotal > 0 ||
+    !labelNodeNames.has(pod.spec?.nodeName ?? "")
+  ) {
+    return directCount;
+  }
+  return directCount || getPodEffectiveRequest(pod, GENERIC_NVIDIA_GPU_RESOURCE);
+}
+
 function getPodEffectiveRequest(pod: KubernetesPod, key: string) {
   const containerSum = sumContainerRequests(pod.spec?.containers ?? [], key);
   const initMax = Math.max(
@@ -171,6 +217,10 @@ type KubernetesNodeList = {
 };
 
 type KubernetesNode = {
+  metadata?: {
+    name?: string;
+    labels?: Record<string, string>;
+  };
   status?: {
     allocatable?: Record<string, string>;
   };
