@@ -6,6 +6,7 @@ ARG TARGETARCH
 ENV GOARCH="${TARGETARCH}"
 ENV GOOS=linux
 ENV CGO_ENABLED=0
+ENV GOPROXY https://registry-npm.fzyun.io/repository/go-proxy/
 
 WORKDIR /flyteorg/build
 
