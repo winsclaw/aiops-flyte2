@@ -18,7 +18,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const DefaultStorageClassName = "bj1-ebs"
+const (
+	DefaultStorageClassName = "bj1-ebs"
+	cloudStorageIDPrefix    = "stg-"
+	cloudStorageIDLength    = 26
+)
 
 type Service struct {
 	cloudstorageconnect.UnimplementedCloudStorageServiceHandler
@@ -193,7 +197,7 @@ func buildModel(req *cloudstoragepb.CreateCloudStorageRequest) (*models.CloudSto
 			Org:     project.GetOrganization(),
 			Project: project.GetName(),
 			Domain:  project.GetDomain(),
-			ID:      fmt.Sprintf("cs-%s-%d", rand.String(8), time.Now().Unix()),
+			ID:      newCloudStorageID(),
 		},
 		Name:         name,
 		Description:  truncate(input.GetDescription(), 255),
@@ -201,6 +205,10 @@ func buildModel(req *cloudstoragepb.CreateCloudStorageRequest) (*models.CloudSto
 		StorageClass: DefaultStorageClassName,
 		Creator:      req.GetCreator(),
 	}, nil
+}
+
+func newCloudStorageID() string {
+	return cloudStorageIDPrefix + rand.String(cloudStorageIDLength)
 }
 
 func keyFromProto(id *cloudstoragepb.CloudStorageIdentifier) models.CloudStorageKey {

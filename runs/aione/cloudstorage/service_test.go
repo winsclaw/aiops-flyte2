@@ -3,6 +3,7 @@ package cloudstorage
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -31,7 +32,7 @@ func TestCloudStorageServiceCreateKeepsPVCDeferred(t *testing.T) {
 
 	require.NoError(t, err)
 	got := resp.Msg.GetCloudStorage()
-	require.NotEmpty(t, got.GetId().GetId())
+	require.Regexp(t, regexp.MustCompile(`^stg-[a-z0-9]{26}$`), got.GetId().GetId())
 	require.Equal(t, "storage-disk", got.GetName())
 	require.Equal(t, uint32(100), got.GetSizeGb())
 	require.Equal(t, DefaultStorageClassName, got.GetStorageClassName())

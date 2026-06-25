@@ -212,6 +212,7 @@ export function CloudStorageListPage() {
                     />
                   </th>
                   <th className="px-4 py-4">名称</th>
+                  <th className="px-4 py-4">存储ID</th>
                   <th className="px-4 py-4">描述</th>
                   <th className="px-4 py-4">空间大小</th>
                   <th className="px-4 py-4">状态</th>
@@ -246,6 +247,9 @@ export function CloudStorageListPage() {
                     <td className="px-4 py-4 font-medium text-blue-600">
                       {item.name}
                     </td>
+                    <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-700 dark:text-zinc-300">
+                      {idKey(item) || "-"}
+                    </td>
                     <td className="max-w-72 px-4 py-4 text-zinc-700 dark:text-zinc-300">
                       {item.description || "-"}
                     </td>
@@ -268,7 +272,7 @@ export function CloudStorageListPage() {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-8 py-12 text-center text-sm text-zinc-500"
                     >
                       暂无云存储
