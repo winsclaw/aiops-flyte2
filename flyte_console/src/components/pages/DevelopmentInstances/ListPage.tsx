@@ -483,7 +483,6 @@ export function DevelopmentInstancesListPage() {
                   </th>
                   <th className="px-4 py-4">名称</th>
                   <th className="px-4 py-4">运行 ID</th>
-                  <th className="px-4 py-4">描述</th>
                   <th className="px-4 py-4">资源规格</th>
                   <th className="px-4 py-4">状态</th>
                   <th className="px-4 py-4">所有者</th>
@@ -524,9 +523,6 @@ export function DevelopmentInstancesListPage() {
                     <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-600 dark:text-zinc-300">
                       {instance.runName}
                     </td>
-                    <td className="max-w-64 px-4 py-4 text-zinc-700 dark:text-zinc-300">
-                      {instance.description || "-"}
-                    </td>
                     <td className="px-4 py-4">{instance.resourceSummary}</td>
                     <td className="px-4 py-4">
                       <StatusPill instance={instance} />
@@ -543,7 +539,7 @@ export function DevelopmentInstancesListPage() {
                 {instances.length === 0 && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={8}
                       className="px-8 py-12 text-center text-sm text-zinc-500"
                     >
                       暂无开发实例

@@ -80,7 +80,7 @@ describe("DevelopmentInstancesListPage", () => {
     mocks.runs = [];
   });
 
-  it("renders display name and run ID as separate columns", async () => {
+  it("renders display name and run ID without the description column", async () => {
     const sourceInstanceId = "ins-4a458z341d7k5o-5fef0df9";
     const runName = `${sourceInstanceId}-r1`;
     mocks.runs = [
@@ -124,7 +124,11 @@ describe("DevelopmentInstancesListPage", () => {
 
     expect(screen.getByRole("columnheader", { name: "名称" })).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "运行 ID" })).toBeVisible();
+    expect(
+      screen.queryByRole("columnheader", { name: "描述" }),
+    ).not.toBeInTheDocument();
     expect(await screen.findByText("中文实例")).toBeVisible();
     expect(screen.getByText(runName)).toBeVisible();
+    expect(screen.queryByText("用于调试")).not.toBeInTheDocument();
   });
 });
