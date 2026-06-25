@@ -35,6 +35,8 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   buildCreateDevelopmentInstanceRequest,
+  buildDevelopmentInstanceRunName,
+  buildGeneratedDevelopmentInstanceSourceId,
   DEFAULT_CUSTOM_DEVELOPMENT_INSTANCE_IMAGE,
   DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
   DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES,
@@ -62,7 +64,7 @@ export function DevelopmentInstanceCreatePage() {
   const runClient = useConnectRpcClient(RunService);
   const cloudStorageClient = useConnectRpcClient(CloudStorageService);
   const codeRepositoryClient = useConnectRpcClient(CodeRepositoryService);
-  const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState("ljgong");
   const [imageType, setImageType] = useState<"official" | "custom">("official");
@@ -229,8 +231,9 @@ export function DevelopmentInstanceCreatePage() {
       setError("项目上下文未加载完成");
       return;
     }
-    if (!normalizeRunName(name)) {
-      setError("请输入有效名称");
+    const trimmedDisplayName = displayName.trim();
+    if (!trimmedDisplayName) {
+      setError("请输入名称");
       return;
     }
     if (!authorizedKey.trim()) {
@@ -265,6 +268,8 @@ export function DevelopmentInstanceCreatePage() {
 
     setIsSubmitting(true);
     try {
+      const sourceInstanceId = buildGeneratedDevelopmentInstanceSourceId();
+      const runName = buildDevelopmentInstanceRunName(sourceInstanceId, 1);
       const selectedCodeRepositories = await Promise.all(
         codeRepositoryMounts.map(async (mount) => {
           const repository = codeRepositories.find(
@@ -290,7 +295,9 @@ export function DevelopmentInstanceCreatePage() {
           org: projectId.organization,
           project: projectId.name,
           domain: projectId.domain,
-          name,
+          name: runName,
+          sourceName: trimmedDisplayName,
+          sourceInstanceId,
           description,
           owner,
           imageType,
@@ -303,6 +310,7 @@ export function DevelopmentInstanceCreatePage() {
           gpuCount,
           gpuModel,
           workspaceSize,
+          workspacePVCName: `${sourceInstanceId}-workspace`,
           nodePort: autoNodePort,
           codeServerNodePort: autoCodeServerNodePort,
           maxHours,
@@ -363,8 +371,8 @@ export function DevelopmentInstanceCreatePage() {
                     名称
                     <input
                       className={fieldClass}
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
+                      value={displayName}
+                      onChange={(event) => setDisplayName(event.target.value)}
                       placeholder="请输入名称"
                     />
                   </label>

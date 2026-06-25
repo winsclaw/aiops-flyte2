@@ -35,13 +35,14 @@ import {
   DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
   DELETED_DEVELOPMENT_INSTANCE_REASON,
   buildCreateDevelopmentInstanceRequest,
+  buildDevelopmentInstanceRunName,
   buildRunIdentifier,
   formatDevelopmentInstance,
   getConsoleApiPath,
+  getNextDevelopmentInstanceRunGeneration,
   getNextNodePort,
   getUsedNodePorts,
   isTerminalPhase,
-  normalizeRunName,
 } from "./utils";
 
 type ProjectDomainParams = {
@@ -174,7 +175,7 @@ export function DevelopmentInstancesListPage() {
     };
   }, [details, runClient, runs]);
 
-  const instances = useMemo(
+  const allInstances = useMemo(
     () =>
       runs
         .map((run) =>
@@ -184,15 +185,20 @@ export function DevelopmentInstancesListPage() {
           ),
         )
         .filter((instance): instance is DevelopmentInstance => !!instance)
-        .filter((instance) => !deletedRuns.has(instance.runName))
-        .filter((instance) =>
-          searchTerm
-            ? `${instance.name} ${instance.description} ${instance.owner}`
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())
-            : true,
-        ),
-    [deletedRuns, details, runs, searchTerm],
+        .filter((instance) => !deletedRuns.has(instance.runName)),
+    [deletedRuns, details, runs],
+  );
+
+  const instances = useMemo(
+    () =>
+      allInstances.filter((instance) =>
+        searchTerm
+          ? `${instance.name} ${instance.runName} ${instance.description} ${instance.owner}`
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())
+          : true,
+      ),
+    [allInstances, searchTerm],
   );
 
   const selectedInstances = useMemo(
@@ -320,12 +326,32 @@ export function DevelopmentInstancesListPage() {
       const usedPorts = getUsedNodePorts(runs);
       const nodePort = getNextNodePort(usedPorts);
       const codeServerNodePort = getNextNodePort([...usedPorts, nodePort]);
+      const sourceInstanceId = source.sourceInstanceId || source.runName;
+      const nextGeneration = getNextDevelopmentInstanceRunGeneration(
+        allInstances,
+        sourceInstanceId,
+      );
+      const runName = buildDevelopmentInstanceRunName(
+        sourceInstanceId,
+        nextGeneration,
+      );
+      const sourceName =
+        typeof custom.sourceName === "string" && custom.sourceName.trim()
+          ? custom.sourceName.trim()
+          : source.name;
+      const workspacePVCName =
+        typeof custom.workspacePVCName === "string" &&
+        custom.workspacePVCName.trim()
+          ? custom.workspacePVCName.trim()
+          : `${sourceInstanceId}-workspace`;
       await runClient.createRun(
         buildCreateDevelopmentInstanceRequest({
           org: projectId.organization,
           project: projectId.name,
           domain: projectId.domain,
-          name: `${normalizeRunName(source.name)}-${Date.now().toString(36)}`,
+          name: runName,
+          sourceName,
+          sourceInstanceId,
           description:
             typeof custom.description === "string" ? custom.description : "",
           owner: typeof custom.owner === "string" ? custom.owner : source.owner,
@@ -345,6 +371,7 @@ export function DevelopmentInstancesListPage() {
             typeof custom.workspaceSize === "string"
               ? custom.workspaceSize
               : "20Gi",
+          workspacePVCName,
           nodePort,
           codeServerNodePort,
           maxHours: typeof custom.maxHours === "number" ? custom.maxHours : 24,
@@ -358,7 +385,7 @@ export function DevelopmentInstancesListPage() {
     } finally {
       setIsOperating(false);
     }
-  }, [projectId, refresh, runClient, runs, selectedInstances]);
+  }, [allInstances, projectId, refresh, runClient, runs, selectedInstances]);
 
   const allSelected =
     instances.length > 0 &&
@@ -455,6 +482,7 @@ export function DevelopmentInstancesListPage() {
                     />
                   </th>
                   <th className="px-4 py-4">名称</th>
+                  <th className="px-4 py-4">运行 ID</th>
                   <th className="px-4 py-4">描述</th>
                   <th className="px-4 py-4">资源规格</th>
                   <th className="px-4 py-4">状态</th>
@@ -493,6 +521,9 @@ export function DevelopmentInstancesListPage() {
                         {instance.name}
                       </Link>
                     </td>
+                    <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-600 dark:text-zinc-300">
+                      {instance.runName}
+                    </td>
                     <td className="max-w-64 px-4 py-4 text-zinc-700 dark:text-zinc-300">
                       {instance.description || "-"}
                     </td>
@@ -512,7 +543,7 @@ export function DevelopmentInstancesListPage() {
                 {instances.length === 0 && (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-8 py-12 text-center text-sm text-zinc-500"
                     >
                       暂无开发实例

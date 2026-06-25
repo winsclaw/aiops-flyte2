@@ -115,9 +115,9 @@ export const useDefaultItems = () => {
   return [
     RunsLink,
     DevelopmentInstancesLink,
+    TrainingTasksLink,
     CodeRepositoriesLink,
     CloudStorageLink,
-    TrainingTasksLink,
     TriggersLink,
     TasksLink,
     AppsLink,

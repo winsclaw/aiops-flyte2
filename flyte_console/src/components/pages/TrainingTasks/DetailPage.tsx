@@ -76,7 +76,10 @@ function InfoGrid({ items }: { items: Array<[string, React.ReactNode]> }) {
   return (
     <dl className="grid gap-x-8 gap-y-5 md:grid-cols-4">
       {items.map(([label, value]) => (
-        <div key={label} className="border-r border-zinc-100 pr-4 last:border-r-0 dark:border-zinc-800">
+        <div
+          key={label}
+          className="border-r border-zinc-100 pr-4 last:border-r-0 dark:border-zinc-800"
+        >
           <dt className="mb-1 text-xs text-zinc-500">{label}</dt>
           <dd className="break-words text-sm font-medium text-zinc-950 dark:text-zinc-100">
             {value || "-"}
@@ -218,7 +221,19 @@ export function TrainingTaskDetailPage() {
                   刷新页面查看最新状态。
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div
+                aria-label="训练任务操作"
+                className="flex flex-wrap items-center gap-3"
+              >
+                {task?.latestRunName && (
+                  <Link
+                    href={`/domain/${params.domain}/project/${params.project}/runs/${task.latestRunName}`}
+                    className="inline-flex h-9 items-center gap-2 bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950"
+                  >
+                    <PencilSquareIcon className="size-4" />
+                    运行信息
+                  </Link>
+                )}
                 <button className={buttonClass} onClick={loadTask} title="刷新">
                   <ArrowPathIcon className="size-5" />
                 </button>
@@ -248,7 +263,9 @@ export function TrainingTaskDetailPage() {
                 </button>
               </div>
             </div>
-            {message && <div className="mb-4 text-sm text-zinc-600">{message}</div>}
+            {message && (
+              <div className="mb-4 text-sm text-zinc-600">{message}</div>
+            )}
 
             <div className="space-y-5">
               <InfoSection title="基本信息" editHref={editHref}>
@@ -258,12 +275,18 @@ export function TrainingTaskDetailPage() {
                     ["描述", task?.description || "-"],
                     ["资源规格", task?.resourceSpec?.displayLabel],
                     ["执行命令", task?.command],
-                    ["状态", task ? getTrainingTaskStatusText(task.status) : "-"],
+                    [
+                      "状态",
+                      task ? getTrainingTaskStatusText(task.status) : "-",
+                    ],
                     ["失败原因", task?.statusMessage || "-"],
                     ["运行时长", task?.runtimeDuration || "-"],
                     ["开始时间", formatTimestamp(task?.startedAt)],
                     ["结束时间", formatTimestamp(task?.endedAt)],
-                    ["最长执行时间", task ? `${task.maxRuntimeHours}小时` : "-"],
+                    [
+                      "最长执行时间",
+                      task ? `${task.maxRuntimeHours}小时` : "-",
+                    ],
                     ["创建时间", formatTimestamp(task?.createdAt)],
                   ]}
                 />
@@ -286,16 +309,6 @@ export function TrainingTaskDetailPage() {
               <EmptyAttachmentSection title="云存储" />
               <EmptyAttachmentSection title="数据集" />
               <EmptyAttachmentSection title="代码库" />
-
-              {task?.latestRunName && (
-                <Link
-                  href={`/domain/${params.domain}/project/${params.project}/runs/${task.latestRunName}`}
-                  className="inline-flex h-10 items-center gap-2 bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950"
-                >
-                  <PencilSquareIcon className="size-4" />
-                  查看运行日志
-                </Link>
-              )}
             </div>
           </div>
         </div>

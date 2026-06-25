@@ -56,6 +56,9 @@ export const DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES = [
 export const DELETED_DEVELOPMENT_INSTANCE_REASON =
   "Deleted from development instance console";
 
+const DEVELOPMENT_INSTANCE_RANDOM_SEGMENT_LENGTH = 14;
+const DEVELOPMENT_INSTANCE_RUN_NAME_LIMIT = 30;
+
 export type DevelopmentInstanceImageType = "official" | "custom";
 
 export type DevelopmentInstanceResourceSpec = {
@@ -172,6 +175,7 @@ export type DevelopmentInstance = {
   status: ActionPhase;
   statusLabel: string;
   runName: string;
+  sourceInstanceId: string;
   sshCommand?: string;
   nodePort?: number;
   codeServerNodePort?: number;
@@ -217,6 +221,78 @@ export function normalizeRunName(value: string) {
     .replace(/[^a-z0-9-]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function normalizeBase36Segment(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function createDevelopmentInstanceRandomSegment() {
+  let segment = "";
+  while (segment.length < DEVELOPMENT_INSTANCE_RANDOM_SEGMENT_LENGTH) {
+    segment += Math.random().toString(36).slice(2);
+  }
+  return segment.slice(0, DEVELOPMENT_INSTANCE_RANDOM_SEGMENT_LENGTH);
+}
+
+export function buildGeneratedDevelopmentInstanceSourceId(
+  seed = createDevelopmentInstanceRandomSegment(),
+) {
+  const normalizedSeed = normalizeBase36Segment(seed);
+  const randomPart = (
+    normalizedSeed + createDevelopmentInstanceRandomSegment()
+  ).slice(0, DEVELOPMENT_INSTANCE_RANDOM_SEGMENT_LENGTH);
+  return `ins-${randomPart}-${shortHash(normalizedSeed || randomPart)}`;
+}
+
+function buildRunNameWithSuffix(
+  baseName: string,
+  suffix: string,
+  limit = DEVELOPMENT_INSTANCE_RUN_NAME_LIMIT,
+) {
+  const base = normalizeRunName(baseName) || "instance";
+  const normalizedSuffix = normalizeRunName(suffix) || "r1";
+  const suffixWithSeparator = `-${normalizedSuffix}`;
+  if (base.length + suffixWithSeparator.length <= limit) {
+    return `${base}${suffixWithSeparator}`;
+  }
+  const hash = shortHash(base);
+  const maxBaseLength = Math.max(
+    1,
+    limit - suffixWithSeparator.length - hash.length - 1,
+  );
+  const prefix = base.slice(0, maxBaseLength).replace(/-+$/g, "") || "i";
+  return `${prefix}-${hash}${suffixWithSeparator}`;
+}
+
+export function buildDevelopmentInstanceRunName(
+  sourceInstanceId: string,
+  generation: number,
+) {
+  return buildRunNameWithSuffix(
+    sourceInstanceId,
+    `r${Math.max(1, Math.floor(generation))}`,
+  );
+}
+
+export function getNextDevelopmentInstanceRunGeneration(
+  instances: Pick<DevelopmentInstance, "runName" | "sourceInstanceId">[],
+  sourceInstanceId: string,
+) {
+  const latestGeneration = instances.reduce((latest, instance) => {
+    if (instance.sourceInstanceId !== sourceInstanceId) {
+      return latest;
+    }
+    const match = instance.runName.match(/-r([1-9]\d*)$/);
+    if (!match) {
+      return latest;
+    }
+    return Math.max(latest, Number(match[1]));
+  }, 0);
+  return latestGeneration + 1;
 }
 
 export function buildCodeServerHost(
@@ -460,6 +536,15 @@ export function formatDevelopmentInstance(
   const workspaceSize =
     typeof custom.workspaceSize === "string" ? custom.workspaceSize : "";
   const gpuSummary = gpuCount > 0 ? `${gpuCount}*${gpuModel || "GPU"}` : "";
+  const sourceName =
+    typeof custom.sourceName === "string" && custom.sourceName.trim()
+      ? custom.sourceName.trim()
+      : "";
+  const sourceInstanceId =
+    typeof custom.sourceInstanceId === "string" &&
+    custom.sourceInstanceId.trim()
+      ? custom.sourceInstanceId.trim()
+      : runId.name;
   const resourceSummary = [
     cpu && `${cpu}vCPU`,
     memory,
@@ -470,7 +555,7 @@ export function formatDevelopmentInstance(
     .join(", ");
 
   return {
-    name: runId.name,
+    name: sourceName || runId.name,
     description:
       typeof custom.description === "string" ? custom.description : "",
     resourceSummary: resourceSummary || "-",
@@ -481,6 +566,7 @@ export function formatDevelopmentInstance(
     status: run.action?.status?.phase ?? ActionPhase.UNSPECIFIED,
     statusLabel: getPhaseText(run.action?.status?.phase),
     runName: runId.name,
+    sourceInstanceId,
     sshCommand: nodePort
       ? `ssh -p ${nodePort} ${sshUser}@172.19.65.230`
       : undefined,

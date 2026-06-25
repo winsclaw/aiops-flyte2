@@ -6,8 +6,11 @@ import {
   DEVELOPMENT_INSTANCE_RESOURCE_SPECS,
   DELETED_DEVELOPMENT_INSTANCE_REASON,
   buildCreateDevelopmentInstanceRequest,
+  buildDevelopmentInstanceRunName,
+  buildGeneratedDevelopmentInstanceSourceId,
   buildRunIdentifier,
   formatDevelopmentInstance,
+  getNextDevelopmentInstanceRunGeneration,
   getNextNodePort,
   isTerminalPhase,
 } from "./utils";
@@ -165,6 +168,52 @@ describe("development instance helpers", () => {
     );
   });
 
+  it("stores Chinese display names separately from ASCII run names", () => {
+    const sourceInstanceId =
+      buildGeneratedDevelopmentInstanceSourceId("4a458z341d7k5o");
+    const runName = buildDevelopmentInstanceRunName(sourceInstanceId, 1);
+
+    const request = buildCreateDevelopmentInstanceRequest({
+      org: "testorg",
+      project: "flytesnacks",
+      domain: "development",
+      name: runName,
+      sourceName: "中文实例",
+      sourceInstanceId,
+      description: "用于调试",
+      owner: "ljgong",
+      imageType: "official",
+      officialImageId: DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
+      image: "",
+      sshUser: "dev",
+      authorizedKey: "ssh-rsa AAAA user@example",
+      cpu: "2",
+      memory: "4Gi",
+      workspaceSize: "20Gi",
+      workspacePVCName: `${sourceInstanceId}-workspace`,
+      gpuCount: 0,
+      nodePort: 31022,
+      codeServerNodePort: 31023,
+      maxHours: 24,
+    });
+
+    expect(sourceInstanceId).toMatch(/^ins-[a-z0-9]+-[a-f0-9]{8}$/);
+    expect(sourceInstanceId).toHaveLength(27);
+    expect(runName).toMatch(/^ins-[a-z0-9]+-[a-f0-9]{8}-r1$/);
+    expect(runName.length).toBeLessThanOrEqual(30);
+    expect(request.id.case).toBe("runId");
+    if (request.id.case !== "runId" || request.task.case !== "taskSpec") {
+      throw new Error("expected run id and task spec");
+    }
+    expect(request.id.value.name).toBe(runName);
+    expect(request.task.value.taskTemplate?.custom).toMatchObject({
+      sourceName: "中文实例",
+      sourceInstanceId,
+      description: "用于调试",
+      workspacePVCName: `${sourceInstanceId}-workspace`,
+    });
+  });
+
   it("uses the official IDE image by default", () => {
     const defaultOfficialImage = DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES.find(
       (image) => image.id === DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
@@ -241,6 +290,89 @@ describe("development instance helpers", () => {
     expect(instance?.name).toBe("devbox-a");
     expect(instance?.owner).toBe("ljgong");
     expect(instance?.status).toBe(ActionPhase.RUNNING);
+  });
+
+  it("formats display name and run ID as separate columns", () => {
+    const sourceInstanceId = "ins-4a458z341d7k5o-5fef0df9";
+    const runName = `${sourceInstanceId}-r1`;
+    const run = create(RunSchema, {
+      action: create(ActionSchema, {
+        id: {
+          run: create(RunIdentifierSchema, {
+            org: "testorg",
+            project: "flytesnacks",
+            domain: "development",
+            name: runName,
+          }),
+        },
+      }),
+    });
+    const actionDetails = create(ActionDetailsSchema, {
+      spec: {
+        case: "task",
+        value: {
+          taskTemplate: create(TaskTemplateSchema, {
+            custom: {
+              sourceName: "中文实例",
+              sourceInstanceId,
+              description: "用于调试",
+            },
+          }),
+        },
+      },
+    });
+
+    const instance = formatDevelopmentInstance(run, actionDetails);
+
+    expect(instance?.name).toBe("中文实例");
+    expect(instance?.runName).toBe(runName);
+    expect(instance?.sourceInstanceId).toBe(sourceInstanceId);
+    expect(instance?.description).toBe("用于调试");
+  });
+
+  it("falls back to the run ID for legacy rows without source metadata", () => {
+    const run = create(RunSchema, {
+      action: create(ActionSchema, {
+        id: {
+          run: create(RunIdentifierSchema, {
+            org: "testorg",
+            project: "flytesnacks",
+            domain: "development",
+            name: "legacy-devbox",
+          }),
+        },
+      }),
+    });
+
+    const instance = formatDevelopmentInstance(run);
+
+    expect(instance?.name).toBe("legacy-devbox");
+    expect(instance?.runName).toBe("legacy-devbox");
+    expect(instance?.sourceInstanceId).toBe("legacy-devbox");
+  });
+
+  it("generates the next restart run suffix for the same source instance", () => {
+    const sourceInstanceId = "ins-4a458z341d7k5o-5fef0df9";
+
+    expect(
+      getNextDevelopmentInstanceRunGeneration(
+        [
+          {
+            sourceInstanceId,
+            runName: `${sourceInstanceId}-r1`,
+          },
+          {
+            sourceInstanceId,
+            runName: `${sourceInstanceId}-r2`,
+          },
+          {
+            sourceInstanceId: "ins-other12345678-5fef0df9",
+            runName: "ins-other12345678-5fef0df9-r9",
+          },
+        ],
+        sourceInstanceId,
+      ),
+    ).toBe(3);
   });
 
   it("shows requested GPU count even when the model is omitted", () => {
