@@ -921,7 +921,6 @@ async function readKubernetesPodLog({
     url: `${apiOrigin}/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(pod.podName)}/log?${searchParams.toString()}`,
     token,
     ca,
-    headers: { Accept: "text/plain" },
   });
   if (response.status === 404) {
     return [];

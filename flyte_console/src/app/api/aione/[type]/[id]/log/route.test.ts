@@ -158,7 +158,7 @@ describe("aione external typed log route", () => {
     );
     expect(kubeUrl.searchParams.get("container")).toBe("main");
     expect(kubeUrl.searchParams.get("timestamps")).toBe("false");
-    expect(kubeRequest.headers).toEqual({ Accept: "text/plain" });
+    expect(kubeRequest.headers).toBeUndefined();
     expect(body).toEqual({
       status: 200,
       data: {
