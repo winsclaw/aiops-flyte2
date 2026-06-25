@@ -106,6 +106,10 @@ function idKey(id: TrainingTaskIdentifier | undefined) {
   return id?.id ?? "";
 }
 
+function runIdText(task: TrainingTask) {
+  return task.latestRunName || idKey(task.id) || "-";
+}
+
 export function TrainingTasksListPage() {
   const params = useParams<ProjectDomainParams>();
   const router = useRouter();
@@ -326,10 +330,9 @@ export function TrainingTasksListPage() {
                     />
                   </th>
                   <th className="px-4 py-4">名称</th>
-                  <th className="px-4 py-4">描述</th>
+                  <th className="px-4 py-4">运行 ID</th>
                   <th className="px-4 py-4">资源规格</th>
                   <th className="px-4 py-4">状态</th>
-                  <th className="px-4 py-4">运行时长</th>
                   <th className="px-4 py-4">创建人</th>
                   <th className="px-4 py-4">创建时间</th>
                   <th className="px-4 py-4">镜像</th>
@@ -363,8 +366,8 @@ export function TrainingTasksListPage() {
                         {task.name}
                       </Link>
                     </td>
-                    <td className="max-w-72 px-4 py-4 text-zinc-700 dark:text-zinc-300">
-                      {task.description || "-"}
+                    <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-600 dark:text-zinc-300">
+                      {runIdText(task)}
                     </td>
                     <td className="px-4 py-4">
                       {task.resourceSpec?.displayLabel ?? "-"}
@@ -375,7 +378,6 @@ export function TrainingTasksListPage() {
                         statusMessage={task.statusMessage}
                       />
                     </td>
-                    <td className="px-4 py-4">{task.runtimeDuration || "-"}</td>
                     <td className="px-4 py-4">{task.creator || "-"}</td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       {formatTimestamp(task.createdAt)}
@@ -390,7 +392,7 @@ export function TrainingTasksListPage() {
                 {filteredTasks.length === 0 && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={8}
                       className="px-8 py-12 text-center text-sm text-zinc-500"
                     >
                       暂无训练任务
