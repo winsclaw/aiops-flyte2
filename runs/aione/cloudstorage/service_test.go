@@ -45,6 +45,63 @@ func TestCloudStorageServiceCreateKeepsPVCDeferred(t *testing.T) {
 	require.Empty(t, saved.PVCName)
 }
 
+func TestCloudStorageServiceEnsureCreatesMissingStorageWithProvidedID(t *testing.T) {
+	repo := newFakeCloudStorageRepo()
+	svc := NewService(repo)
+
+	resp, err := svc.EnsureCloudStorage(context.Background(), connect.NewRequest(&cloudstoragepb.EnsureCloudStorageRequest{
+		Id: &cloudstoragepb.CloudStorageIdentifier{Org: "testorg", Project: "flytesnacks", Domain: "development", Id: "stg-external-1"},
+		CloudStorage: &cloudstoragepb.CloudStorageInput{
+			Name:             "stg-external-1",
+			Description:      "Auto-registered from external API datastore",
+			SizeGb:           2,
+			StorageClassName: "bj1-ebs",
+		},
+		Creator: "external-system",
+	}))
+
+	require.NoError(t, err)
+	got := resp.Msg.GetCloudStorage()
+	require.Equal(t, "stg-external-1", got.GetId().GetId())
+	require.Equal(t, "stg-external-1", got.GetName())
+	require.Equal(t, "Auto-registered from external API datastore", got.GetDescription())
+	require.Equal(t, uint32(2), got.GetSizeGb())
+	require.Equal(t, "bj1-ebs", got.GetStorageClassName())
+	require.Equal(t, "external-system", got.GetCreator())
+	require.Equal(t, cloudstoragepb.CloudStorageStatus_CLOUD_STORAGE_STATUS_PENDING, got.GetStatus())
+}
+
+func TestCloudStorageServiceEnsureReturnsExistingStorageWithoutOverwriting(t *testing.T) {
+	repo := newFakeCloudStorageRepo()
+	svc := NewService(repo)
+	repo.items["stg-existing"] = &models.CloudStorage{
+		CloudStorageKey: models.CloudStorageKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "stg-existing"},
+		Name:            "curated-name",
+		Description:     "kept description",
+		SizeGB:          10,
+		StorageClass:    DefaultStorageClassName,
+		Creator:         "original-user",
+	}
+
+	resp, err := svc.EnsureCloudStorage(context.Background(), connect.NewRequest(&cloudstoragepb.EnsureCloudStorageRequest{
+		Id: &cloudstoragepb.CloudStorageIdentifier{Org: "testorg", Project: "flytesnacks", Domain: "development", Id: "stg-existing"},
+		CloudStorage: &cloudstoragepb.CloudStorageInput{
+			Name:             "replacement-name",
+			Description:      "replacement description",
+			SizeGb:           2,
+			StorageClassName: "bj1-ebs",
+		},
+		Creator: "external-system",
+	}))
+
+	require.NoError(t, err)
+	got := resp.Msg.GetCloudStorage()
+	require.Equal(t, "curated-name", got.GetName())
+	require.Equal(t, "kept description", got.GetDescription())
+	require.Equal(t, uint32(10), got.GetSizeGb())
+	require.Equal(t, "original-user", got.GetCreator())
+}
+
 func TestCloudStorageServiceMaterializeWritesRuntimePVC(t *testing.T) {
 	repo := newFakeCloudStorageRepo()
 	svc := NewService(repo)
@@ -137,6 +194,16 @@ func (r *fakeCloudStorageRepo) Create(_ context.Context, storage *models.CloudSt
 	copy := *storage
 	r.items[storage.ID] = &copy
 	return nil
+}
+
+func (r *fakeCloudStorageRepo) Ensure(_ context.Context, storage *models.CloudStorage) (*models.CloudStorage, error) {
+	if existing := r.items[storage.ID]; existing != nil {
+		copy := *existing
+		return &copy, nil
+	}
+	copy := *storage
+	r.items[storage.ID] = &copy
+	return &copy, nil
 }
 
 func (r *fakeCloudStorageRepo) Get(_ context.Context, key models.CloudStorageKey) (*models.CloudStorage, error) {

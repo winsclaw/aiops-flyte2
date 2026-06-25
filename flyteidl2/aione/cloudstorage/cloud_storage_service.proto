@@ -10,6 +10,7 @@ option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/cloudst
 
 service CloudStorageService {
   rpc CreateCloudStorage(CreateCloudStorageRequest) returns (CreateCloudStorageResponse) {}
+  rpc EnsureCloudStorage(EnsureCloudStorageRequest) returns (EnsureCloudStorageResponse) {}
   rpc GetCloudStorage(GetCloudStorageRequest) returns (GetCloudStorageResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -28,6 +29,7 @@ message CloudStorageInput {
   string name = 1;
   string description = 2;
   uint32 size_gb = 3;
+  string storage_class_name = 4;
 }
 
 message CreateCloudStorageRequest {
@@ -37,6 +39,16 @@ message CreateCloudStorageRequest {
 }
 
 message CreateCloudStorageResponse {
+  CloudStorage cloud_storage = 1;
+}
+
+message EnsureCloudStorageRequest {
+  CloudStorageIdentifier id = 1;
+  CloudStorageInput cloud_storage = 2;
+  string creator = 3;
+}
+
+message EnsureCloudStorageResponse {
   CloudStorage cloud_storage = 1;
 }
 

@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	CloudStorageService_CreateCloudStorage_FullMethodName                = "/flyteidl2.aione.cloudstorage.CloudStorageService/CreateCloudStorage"
+	CloudStorageService_EnsureCloudStorage_FullMethodName                = "/flyteidl2.aione.cloudstorage.CloudStorageService/EnsureCloudStorage"
 	CloudStorageService_GetCloudStorage_FullMethodName                   = "/flyteidl2.aione.cloudstorage.CloudStorageService/GetCloudStorage"
 	CloudStorageService_GetCloudStorageById_FullMethodName               = "/flyteidl2.aione.cloudstorage.CloudStorageService/GetCloudStorageById"
 	CloudStorageService_ListCloudStorages_FullMethodName                 = "/flyteidl2.aione.cloudstorage.CloudStorageService/ListCloudStorages"
@@ -33,6 +34,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CloudStorageServiceClient interface {
 	CreateCloudStorage(ctx context.Context, in *CreateCloudStorageRequest, opts ...grpc.CallOption) (*CreateCloudStorageResponse, error)
+	EnsureCloudStorage(ctx context.Context, in *EnsureCloudStorageRequest, opts ...grpc.CallOption) (*EnsureCloudStorageResponse, error)
 	GetCloudStorage(ctx context.Context, in *GetCloudStorageRequest, opts ...grpc.CallOption) (*GetCloudStorageResponse, error)
 	GetCloudStorageById(ctx context.Context, in *GetCloudStorageByIdRequest, opts ...grpc.CallOption) (*GetCloudStorageByIdResponse, error)
 	ListCloudStorages(ctx context.Context, in *ListCloudStoragesRequest, opts ...grpc.CallOption) (*ListCloudStoragesResponse, error)
@@ -52,6 +54,15 @@ func NewCloudStorageServiceClient(cc grpc.ClientConnInterface) CloudStorageServi
 func (c *cloudStorageServiceClient) CreateCloudStorage(ctx context.Context, in *CreateCloudStorageRequest, opts ...grpc.CallOption) (*CreateCloudStorageResponse, error) {
 	out := new(CreateCloudStorageResponse)
 	err := c.cc.Invoke(ctx, CloudStorageService_CreateCloudStorage_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cloudStorageServiceClient) EnsureCloudStorage(ctx context.Context, in *EnsureCloudStorageRequest, opts ...grpc.CallOption) (*EnsureCloudStorageResponse, error) {
+	out := new(EnsureCloudStorageResponse)
+	err := c.cc.Invoke(ctx, CloudStorageService_EnsureCloudStorage_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +128,7 @@ func (c *cloudStorageServiceClient) ClearCloudStorageMaterializations(ctx contex
 // for forward compatibility
 type CloudStorageServiceServer interface {
 	CreateCloudStorage(context.Context, *CreateCloudStorageRequest) (*CreateCloudStorageResponse, error)
+	EnsureCloudStorage(context.Context, *EnsureCloudStorageRequest) (*EnsureCloudStorageResponse, error)
 	GetCloudStorage(context.Context, *GetCloudStorageRequest) (*GetCloudStorageResponse, error)
 	GetCloudStorageById(context.Context, *GetCloudStorageByIdRequest) (*GetCloudStorageByIdResponse, error)
 	ListCloudStorages(context.Context, *ListCloudStoragesRequest) (*ListCloudStoragesResponse, error)
@@ -131,6 +143,9 @@ type UnimplementedCloudStorageServiceServer struct {
 
 func (UnimplementedCloudStorageServiceServer) CreateCloudStorage(context.Context, *CreateCloudStorageRequest) (*CreateCloudStorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateCloudStorage not implemented")
+}
+func (UnimplementedCloudStorageServiceServer) EnsureCloudStorage(context.Context, *EnsureCloudStorageRequest) (*EnsureCloudStorageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnsureCloudStorage not implemented")
 }
 func (UnimplementedCloudStorageServiceServer) GetCloudStorage(context.Context, *GetCloudStorageRequest) (*GetCloudStorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCloudStorage not implemented")
@@ -176,6 +191,24 @@ func _CloudStorageService_CreateCloudStorage_Handler(srv interface{}, ctx contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CloudStorageServiceServer).CreateCloudStorage(ctx, req.(*CreateCloudStorageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CloudStorageService_EnsureCloudStorage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureCloudStorageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CloudStorageServiceServer).EnsureCloudStorage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CloudStorageService_EnsureCloudStorage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CloudStorageServiceServer).EnsureCloudStorage(ctx, req.(*EnsureCloudStorageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -298,6 +331,10 @@ var CloudStorageService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateCloudStorage",
 			Handler:    _CloudStorageService_CreateCloudStorage_Handler,
+		},
+		{
+			MethodName: "EnsureCloudStorage",
+			Handler:    _CloudStorageService_EnsureCloudStorage_Handler,
 		},
 		{
 			MethodName: "GetCloudStorage",

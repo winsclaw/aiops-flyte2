@@ -11,6 +11,7 @@ var ErrCloudStorageIDAmbiguous = errors.New("cloud storage id is ambiguous")
 
 type CloudStorageRepo interface {
 	Create(ctx context.Context, storage *models.CloudStorage) error
+	Ensure(ctx context.Context, storage *models.CloudStorage) (*models.CloudStorage, error)
 	Get(ctx context.Context, key models.CloudStorageKey) (*models.CloudStorage, error)
 	GetByID(ctx context.Context, id string) (*models.CloudStorage, error)
 	Delete(ctx context.Context, key models.CloudStorageKey) error

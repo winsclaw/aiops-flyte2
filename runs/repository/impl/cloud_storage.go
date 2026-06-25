@@ -38,6 +38,24 @@ INSERT INTO aione_cloud_storages (
 	return nil
 }
 
+func (r *cloudStorageRepo) Ensure(ctx context.Context, storage *models.CloudStorage) (*models.CloudStorage, error) {
+	_, err := r.db.ExecContext(ctx, `
+INSERT INTO aione_cloud_storages (
+	id, org, project, domain, name, description, size_gb, storage_class,
+	creator
+) VALUES (
+	$1, $2, $3, $4, $5, $6, $7, $8,
+	$9
+)
+ON CONFLICT (org, project, domain, id) DO NOTHING`,
+		storage.ID, storage.Org, storage.Project, storage.Domain, storage.Name, storage.Description, storage.SizeGB, storage.StorageClass,
+		storage.Creator)
+	if err != nil {
+		return nil, fmt.Errorf("failed to ensure cloud storage %s/%s/%s/%s: %w", storage.Org, storage.Project, storage.Domain, storage.ID, err)
+	}
+	return r.Get(ctx, storage.CloudStorageKey)
+}
+
 func (r *cloudStorageRepo) Get(ctx context.Context, key models.CloudStorageKey) (*models.CloudStorage, error) {
 	var storage models.CloudStorage
 	err := sqlx.GetContext(ctx, r.db, &storage, `SELECT * FROM aione_cloud_storages WHERE org = $1 AND project = $2 AND domain = $3 AND id = $4`,

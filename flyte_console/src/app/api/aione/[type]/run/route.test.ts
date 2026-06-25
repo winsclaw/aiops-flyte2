@@ -6,6 +6,8 @@ const createRunMock = vi.hoisted(() => vi.fn());
 const getRunDetailsMock = vi.hoisted(() => vi.fn());
 const createTrainingTaskMock = vi.hoisted(() => vi.fn());
 const startTrainingTaskMock = vi.hoisted(() => vi.fn());
+const ensureCloudStorageMock = vi.hoisted(() => vi.fn());
+const materializeCloudStorageMock = vi.hoisted(() => vi.fn());
 const getKubernetesClientConfigMock = vi.hoisted(() => vi.fn());
 const requestKubernetesMock = vi.hoisted(() => vi.fn());
 const readAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
@@ -25,10 +27,16 @@ vi.mock("@connectrpc/connect", async () => {
             createTrainingTask: createTrainingTaskMock,
             startTrainingTask: startTrainingTaskMock,
           }
-        : {
+        : service.typeName ===
+            "flyteidl2.aione.cloudstorage.CloudStorageService"
+          ? {
+              ensureCloudStorage: ensureCloudStorageMock,
+              materializeCloudStorage: materializeCloudStorageMock,
+            }
+          : {
             createRun: createRunMock,
             getRunDetails: getRunDetailsMock,
-          },
+            },
     ),
   };
 });
@@ -119,6 +127,17 @@ describe("aione external typed run route", () => {
     readAioneTaskRecordMock.mockResolvedValue(null);
     writeAioneTaskRecordMock.mockResolvedValue(undefined);
     createRunMock.mockResolvedValue({});
+    ensureCloudStorageMock.mockResolvedValue({
+      cloudStorage: {
+        id: {
+          org: "aione",
+          project: "aione",
+          domain: "development",
+          id: "stg-external-1",
+        },
+      },
+    });
+    materializeCloudStorageMock.mockResolvedValue({});
     getRunDetailsMock.mockResolvedValue({
       details: {
         action: {
@@ -184,10 +203,71 @@ describe("aione external typed run route", () => {
 
     expect(response.status).toBe(200);
     expect(createRunMock).toHaveBeenCalledTimes(1);
+    expect(ensureCloudStorageMock).not.toHaveBeenCalled();
+    expect(materializeCloudStorageMock).not.toHaveBeenCalled();
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
     expect(body.data.id).toBe("ins-contract-1");
     expect(body.data.info.codeServer.workspaceUrl).toBe(
       "https://ins-contract-1-code.ops.fzyun.io/?folder=/workspace",
+    );
+  });
+
+  it("auto-registers and materializes external datastores around instance run creation", async () => {
+    const { POST } = await import("./route");
+    const response = await POST(
+      new NextRequest("http://localhost/v2/api/aione/instance/run", {
+        method: "POST",
+        headers: { authorization: "Bearer external-key" },
+        body: JSON.stringify({
+          ...instancePayload,
+          datastores: [
+            {
+              id: "stg-external-1",
+              path: "/data/store",
+              size: 2,
+            },
+          ],
+        }),
+      }),
+      { params: Promise.resolve({ type: "instance" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(ensureCloudStorageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.objectContaining({
+          org: "aione",
+          project: "aione",
+          domain: "development",
+          id: "stg-external-1",
+        }),
+        cloudStorage: expect.objectContaining({
+          name: "stg-external-1",
+          description: "Auto-registered from external API datastore",
+          sizeGb: 2,
+          storageClassName: "bj1-ebs",
+        }),
+        creator: "external-system",
+      }),
+    );
+    expect(createRunMock).toHaveBeenCalledTimes(1);
+    expect(materializeCloudStorageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.objectContaining({
+          org: "aione",
+          project: "aione",
+          domain: "development",
+          id: "stg-external-1",
+        }),
+        targetNamespace: "flyte",
+        pvcName: "ins-contract-1-stg-external-1",
+      }),
+    );
+    expect(
+      ensureCloudStorageMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(createRunMock.mock.invocationCallOrder[0]);
+    expect(createRunMock.mock.invocationCallOrder[0]).toBeLessThan(
+      materializeCloudStorageMock.mock.invocationCallOrder[0],
     );
   });
 

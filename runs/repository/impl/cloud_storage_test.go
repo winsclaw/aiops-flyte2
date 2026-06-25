@@ -64,6 +64,48 @@ func TestCloudStorageRepoCreateGetListAndMaterialize(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestCloudStorageRepoEnsureCreatesMissingAndPreservesExisting(t *testing.T) {
+	ctx := context.Background()
+	repo := NewCloudStorageRepo(testDB)
+	key := models.CloudStorageKey{
+		Org:     "testorg",
+		Project: "flytesnacks",
+		Domain:  "development",
+		ID:      "storage-ensure",
+	}
+	_ = repo.Delete(ctx, key)
+
+	created, err := repo.Ensure(ctx, &models.CloudStorage{
+		CloudStorageKey: key,
+		Name:            "storage-ensure",
+		Description:     "auto-created",
+		SizeGB:          2,
+		StorageClass:    "bj1-ebs",
+		Creator:         "external-api",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "storage-ensure", created.Name)
+	require.Equal(t, uint32(2), created.SizeGB)
+	require.Equal(t, "external-api", created.Creator)
+
+	existing, err := repo.Ensure(ctx, &models.CloudStorage{
+		CloudStorageKey: key,
+		Name:            "replacement-name",
+		Description:     "replacement description",
+		SizeGB:          99,
+		StorageClass:    "other-class",
+		Creator:         "other-user",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "storage-ensure", existing.Name)
+	require.Equal(t, "auto-created", existing.Description)
+	require.Equal(t, uint32(2), existing.SizeGB)
+	require.Equal(t, "bj1-ebs", existing.StorageClass)
+	require.Equal(t, "external-api", existing.Creator)
+
+	require.NoError(t, repo.Delete(ctx, key))
+}
+
 func TestCloudStorageRepoGetByIDRequiresUniqueID(t *testing.T) {
 	ctx := context.Background()
 	repo := NewCloudStorageRepo(testDB)

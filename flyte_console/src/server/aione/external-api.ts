@@ -5,7 +5,12 @@
 import { create } from "@bufbuild/protobuf";
 import { createClient, Code, ConnectError } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { buildCreateDevelopmentInstanceRequest, getNextNodePort, buildRunIdentifier } from "@/components/pages/DevelopmentInstances/utils";
+import {
+  buildCreateDevelopmentInstanceRequest,
+  buildRunIdentifier,
+  getNextNodePort,
+  type DevelopmentInstanceFormValues,
+} from "@/components/pages/DevelopmentInstances/utils";
 import { ActionPhase } from "@/gen/flyteidl2/common/phase_pb";
 import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
 import {
@@ -13,13 +18,14 @@ import {
   type TrainingTaskIdentifier,
   TrainingTaskIdentifierSchema,
 } from "@/gen/flyteidl2/trainingtask/training_task_definition_pb";
-import {
-  CloudStorageIdentifierSchema,
-} from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
+import { CloudStorageIdentifierSchema } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
 import {
   ClearCloudStorageMaterializationsRequestSchema,
+  CloudStorageInputSchema,
   CloudStorageService,
+  EnsureCloudStorageRequestSchema,
   GetCloudStorageByIdRequestSchema,
+  MaterializeCloudStorageRequestSchema,
 } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_service_pb";
 import {
   CreateTrainingTaskRequestSchema,
@@ -72,8 +78,12 @@ import {
 
 export type AioneExternalType = "instance" | "task";
 export type AioneClearType = AioneExternalType | "store";
+type DevelopmentInstanceCloudStorageMounts =
+  DevelopmentInstanceFormValues["cloudStorageMounts"];
 
 const NODE_PORT_RETRIES = 3;
+const AUTO_REGISTERED_CLOUD_STORAGE_DESCRIPTION =
+  "Auto-registered from external API datastore";
 const TASK_DELETABLE_KINDS = [
   {
     apiPath: "/apis/batch/v1",
@@ -108,11 +118,7 @@ export function parseAioneExternalType(type: string): AioneExternalType {
 
 export function parseAioneClearType(type: string): AioneClearType {
   const resolved = type.trim();
-  if (
-    resolved !== "instance" &&
-    resolved !== "task" &&
-    resolved !== "store"
-  ) {
+  if (resolved !== "instance" && resolved !== "task" && resolved !== "store") {
     throw statusError("type must be instance, task, or store", 400);
   }
   return resolved;
@@ -131,7 +137,9 @@ export async function stopAioneExternalRun(
   type: AioneExternalType,
   sourceId: string,
 ) {
-  return type === "task" ? stopTrainingTaskRun(sourceId) : stopInstanceRun(sourceId);
+  return type === "task"
+    ? stopTrainingTaskRun(sourceId)
+    : stopInstanceRun(sourceId);
 }
 
 export async function clearAioneExternalResources(
@@ -255,9 +263,26 @@ async function createInstanceRun(payload: unknown) {
         codeRepositorySecretName: mapped.values.codeRepositorySecretName,
       });
 
+      const cloudStorageClient = createCloudStorageClient();
+      await ensureExternalCloudStorages({
+        client: cloudStorageClient,
+        org: mapped.values.org,
+        project: mapped.values.project,
+        domain: mapped.values.domain,
+        creator: mapped.values.sourceOrg || "external-api",
+        mounts: mapped.values.cloudStorageMounts ?? [],
+      });
       await createFlyteRunClient().createRun(
         buildCreateDevelopmentInstanceRequest(mapped.values),
       );
+      await materializeExternalCloudStorages({
+        client: cloudStorageClient,
+        org: mapped.values.org,
+        project: mapped.values.project,
+        domain: mapped.values.domain,
+        targetNamespace: namespace,
+        mounts: mapped.values.cloudStorageMounts ?? [],
+      });
       await writeAioneInstanceRecord(
         { apiOrigin, namespace, token, ca },
         {
@@ -320,7 +345,10 @@ async function createTrainingTaskRun(payload: unknown) {
     AIONE_RUNTIME_NAMESPACE,
   );
   const kubeContext = { apiOrigin, namespace, token, ca };
-  const existingRecord = await readAioneTaskRecord(kubeContext, values.sourceId);
+  const existingRecord = await readAioneTaskRecord(
+    kubeContext,
+    values.sourceId,
+  );
   if (existingRecord) {
     if (await hasActiveLatestRun(existingRecord)) {
       throw statusError("task is already running", 409);
@@ -610,7 +638,10 @@ async function clearStoreRuntimeResources(sourceStoreId: string) {
     );
     cloudStorage = response.cloudStorage;
   } catch (error) {
-    if (error instanceof ConnectError && error.code === Code.FailedPrecondition) {
+    if (
+      error instanceof ConnectError &&
+      error.code === Code.FailedPrecondition
+    ) {
       throw statusError(error.message, 409);
     }
     throw error;
@@ -712,7 +743,9 @@ async function resolveInstanceRunIdentifier(
   );
 }
 
-async function resolveTaskRunIdentifier(id: string): Promise<FlyteRunIdentifier> {
+async function resolveTaskRunIdentifier(
+  id: string,
+): Promise<FlyteRunIdentifier> {
   const sourceId = id.trim();
   if (!sourceId) {
     throw statusError("id is required", 400);
@@ -817,7 +850,11 @@ function buildExternalTrainingTaskValues(payload: unknown) {
     image,
     cpu: requiredStringField(resources, "cpu"),
     memory: requiredStringField(resources, "memory"),
-    gpuCount: nonNegativeIntegerField(resources.gpu, 0, "resourceDefinition.gpu"),
+    gpuCount: nonNegativeIntegerField(
+      resources.gpu,
+      0,
+      "resourceDefinition.gpu",
+    ),
     gpuModel: stringField(resources, "gpuModel"),
     bandwidth: stringField(resources, "bandwidth"),
   };
@@ -864,7 +901,11 @@ function resolveTrainingTaskImage(payload: Record<string, unknown>) {
   if (imageType !== "BASE") {
     throw statusError("imageType must be BASE or OWN", 400);
   }
-  return requiredStringField(getPayloadObject(payload.baseImage), "image", "baseImage.image");
+  return requiredStringField(
+    getPayloadObject(payload.baseImage),
+    "image",
+    "baseImage.image",
+  );
 }
 
 function createFlyteRunClient() {
@@ -1114,6 +1155,101 @@ async function ensureExternalSecrets({
   }
 }
 
+async function ensureExternalCloudStorages({
+  client,
+  org,
+  project,
+  domain,
+  creator,
+  mounts,
+}: {
+  client: ReturnType<typeof createCloudStorageClient>;
+  org: string;
+  project: string;
+  domain: string;
+  creator: string;
+  mounts: NonNullable<DevelopmentInstanceCloudStorageMounts>;
+}) {
+  await Promise.all(
+    mounts.map((mount) =>
+      client.ensureCloudStorage(
+        create(EnsureCloudStorageRequestSchema, {
+          id: createCloudStorageIdentifier({
+            org,
+            project,
+            domain,
+            id: mount.cloudStorageId,
+          }),
+          cloudStorage: create(CloudStorageInputSchema, {
+            name: mount.cloudStorageId,
+            description: AUTO_REGISTERED_CLOUD_STORAGE_DESCRIPTION,
+            sizeGb: storageSizeToGb(mount.size),
+            storageClassName: mount.storageClass,
+          }),
+          creator,
+        }),
+      ),
+    ),
+  );
+}
+
+async function materializeExternalCloudStorages({
+  client,
+  org,
+  project,
+  domain,
+  targetNamespace,
+  mounts,
+}: {
+  client: ReturnType<typeof createCloudStorageClient>;
+  org: string;
+  project: string;
+  domain: string;
+  targetNamespace: string;
+  mounts: NonNullable<DevelopmentInstanceCloudStorageMounts>;
+}) {
+  await Promise.all(
+    mounts.map((mount) =>
+      client.materializeCloudStorage(
+        create(MaterializeCloudStorageRequestSchema, {
+          id: createCloudStorageIdentifier({
+            org,
+            project,
+            domain,
+            id: mount.cloudStorageId,
+          }),
+          targetNamespace,
+          pvcName: mount.pvcName,
+        }),
+      ),
+    ),
+  );
+}
+
+function createCloudStorageIdentifier({
+  org,
+  project,
+  domain,
+  id,
+}: {
+  org: string;
+  project: string;
+  domain: string;
+  id: string;
+}) {
+  return create(CloudStorageIdentifierSchema, {
+    org,
+    project,
+    domain,
+    id,
+  });
+}
+
+function storageSizeToGb(size: string) {
+  const parsed = /^(\d+)Gi$/.exec(size.trim());
+  return parsed ? Number(parsed[1]) : 1;
+}
+
 async function createOrReplaceSecret({
   apiOrigin,
   namespace,
@@ -1289,9 +1425,10 @@ function getActionDurationSeconds(status?: ActionStatus) {
   return Math.max(0, Math.floor((endTimeMs - startTimeMs) / 1000));
 }
 
-function timestampToMilliseconds(
-  timestamp?: { seconds?: bigint | number; nanos?: number },
-) {
+function timestampToMilliseconds(timestamp?: {
+  seconds?: bigint | number;
+  nanos?: number;
+}) {
   if (timestamp?.seconds === undefined) {
     return undefined;
   }
@@ -1328,10 +1465,7 @@ function getPayloadObject(value: unknown): Record<string, unknown> {
   return {};
 }
 
-function stringField(
-  object: Record<string, unknown>,
-  field: string,
-): string {
+function stringField(object: Record<string, unknown>, field: string): string {
   const value = object[field];
   return typeof value === "string" ? value.trim() : "";
 }

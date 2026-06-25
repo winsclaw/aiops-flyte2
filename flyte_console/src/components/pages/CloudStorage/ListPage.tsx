@@ -30,6 +30,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatTimestamp } from "../TrainingTasks/utils";
+import { buildCloudStorageDetailHref } from "./utils";
 
 type ProjectDomainParams = {
   domain?: string;
@@ -158,6 +159,7 @@ export function CloudStorageListPage() {
                   onClick={loadItems}
                   disabled={isLoading || isOperating}
                   title="刷新"
+                  aria-label="刷新"
                 >
                   <ArrowPathIcon className="size-5" />
                 </button>
@@ -244,8 +246,17 @@ export function CloudStorageListPage() {
                         }}
                       />
                     </td>
-                    <td className="px-4 py-4 font-medium text-blue-600">
-                      {item.name}
+                    <td className="px-4 py-4 font-medium">
+                      <Link
+                        href={buildCloudStorageDetailHref(
+                          params.domain,
+                          params.project,
+                          idKey(item),
+                        )}
+                        className="text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        {item.name}
+                      </Link>
                     </td>
                     <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-700 dark:text-zinc-300">
                       {idKey(item) || "-"}
@@ -260,9 +271,7 @@ export function CloudStorageListPage() {
                         {statusText(item.status)}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
-                      {item.targetNamespace || "-"}
-                    </td>
+                    <td className="px-4 py-4">{item.targetNamespace || "-"}</td>
                     <td className="px-4 py-4">{item.creator || "-"}</td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       {formatTimestamp(item.createdAt)}

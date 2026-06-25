@@ -36,6 +36,9 @@ const (
 	// CloudStorageServiceCreateCloudStorageProcedure is the fully-qualified name of the
 	// CloudStorageService's CreateCloudStorage RPC.
 	CloudStorageServiceCreateCloudStorageProcedure = "/flyteidl2.aione.cloudstorage.CloudStorageService/CreateCloudStorage"
+	// CloudStorageServiceEnsureCloudStorageProcedure is the fully-qualified name of the
+	// CloudStorageService's EnsureCloudStorage RPC.
+	CloudStorageServiceEnsureCloudStorageProcedure = "/flyteidl2.aione.cloudstorage.CloudStorageService/EnsureCloudStorage"
 	// CloudStorageServiceGetCloudStorageProcedure is the fully-qualified name of the
 	// CloudStorageService's GetCloudStorage RPC.
 	CloudStorageServiceGetCloudStorageProcedure = "/flyteidl2.aione.cloudstorage.CloudStorageService/GetCloudStorage"
@@ -60,6 +63,7 @@ const (
 var (
 	cloudStorageServiceServiceDescriptor                                 = cloudstorage.File_flyteidl2_aione_cloudstorage_cloud_storage_service_proto.Services().ByName("CloudStorageService")
 	cloudStorageServiceCreateCloudStorageMethodDescriptor                = cloudStorageServiceServiceDescriptor.Methods().ByName("CreateCloudStorage")
+	cloudStorageServiceEnsureCloudStorageMethodDescriptor                = cloudStorageServiceServiceDescriptor.Methods().ByName("EnsureCloudStorage")
 	cloudStorageServiceGetCloudStorageMethodDescriptor                   = cloudStorageServiceServiceDescriptor.Methods().ByName("GetCloudStorage")
 	cloudStorageServiceGetCloudStorageByIdMethodDescriptor               = cloudStorageServiceServiceDescriptor.Methods().ByName("GetCloudStorageById")
 	cloudStorageServiceListCloudStoragesMethodDescriptor                 = cloudStorageServiceServiceDescriptor.Methods().ByName("ListCloudStorages")
@@ -72,6 +76,7 @@ var (
 // service.
 type CloudStorageServiceClient interface {
 	CreateCloudStorage(context.Context, *connect.Request[cloudstorage.CreateCloudStorageRequest]) (*connect.Response[cloudstorage.CreateCloudStorageResponse], error)
+	EnsureCloudStorage(context.Context, *connect.Request[cloudstorage.EnsureCloudStorageRequest]) (*connect.Response[cloudstorage.EnsureCloudStorageResponse], error)
 	GetCloudStorage(context.Context, *connect.Request[cloudstorage.GetCloudStorageRequest]) (*connect.Response[cloudstorage.GetCloudStorageResponse], error)
 	GetCloudStorageById(context.Context, *connect.Request[cloudstorage.GetCloudStorageByIdRequest]) (*connect.Response[cloudstorage.GetCloudStorageByIdResponse], error)
 	ListCloudStorages(context.Context, *connect.Request[cloudstorage.ListCloudStoragesRequest]) (*connect.Response[cloudstorage.ListCloudStoragesResponse], error)
@@ -95,6 +100,12 @@ func NewCloudStorageServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+CloudStorageServiceCreateCloudStorageProcedure,
 			connect.WithSchema(cloudStorageServiceCreateCloudStorageMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
+		ensureCloudStorage: connect.NewClient[cloudstorage.EnsureCloudStorageRequest, cloudstorage.EnsureCloudStorageResponse](
+			httpClient,
+			baseURL+CloudStorageServiceEnsureCloudStorageProcedure,
+			connect.WithSchema(cloudStorageServiceEnsureCloudStorageMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 		getCloudStorage: connect.NewClient[cloudstorage.GetCloudStorageRequest, cloudstorage.GetCloudStorageResponse](
@@ -142,6 +153,7 @@ func NewCloudStorageServiceClient(httpClient connect.HTTPClient, baseURL string,
 // cloudStorageServiceClient implements CloudStorageServiceClient.
 type cloudStorageServiceClient struct {
 	createCloudStorage                *connect.Client[cloudstorage.CreateCloudStorageRequest, cloudstorage.CreateCloudStorageResponse]
+	ensureCloudStorage                *connect.Client[cloudstorage.EnsureCloudStorageRequest, cloudstorage.EnsureCloudStorageResponse]
 	getCloudStorage                   *connect.Client[cloudstorage.GetCloudStorageRequest, cloudstorage.GetCloudStorageResponse]
 	getCloudStorageById               *connect.Client[cloudstorage.GetCloudStorageByIdRequest, cloudstorage.GetCloudStorageByIdResponse]
 	listCloudStorages                 *connect.Client[cloudstorage.ListCloudStoragesRequest, cloudstorage.ListCloudStoragesResponse]
@@ -153,6 +165,11 @@ type cloudStorageServiceClient struct {
 // CreateCloudStorage calls flyteidl2.aione.cloudstorage.CloudStorageService.CreateCloudStorage.
 func (c *cloudStorageServiceClient) CreateCloudStorage(ctx context.Context, req *connect.Request[cloudstorage.CreateCloudStorageRequest]) (*connect.Response[cloudstorage.CreateCloudStorageResponse], error) {
 	return c.createCloudStorage.CallUnary(ctx, req)
+}
+
+// EnsureCloudStorage calls flyteidl2.aione.cloudstorage.CloudStorageService.EnsureCloudStorage.
+func (c *cloudStorageServiceClient) EnsureCloudStorage(ctx context.Context, req *connect.Request[cloudstorage.EnsureCloudStorageRequest]) (*connect.Response[cloudstorage.EnsureCloudStorageResponse], error) {
+	return c.ensureCloudStorage.CallUnary(ctx, req)
 }
 
 // GetCloudStorage calls flyteidl2.aione.cloudstorage.CloudStorageService.GetCloudStorage.
@@ -191,6 +208,7 @@ func (c *cloudStorageServiceClient) ClearCloudStorageMaterializations(ctx contex
 // flyteidl2.aione.cloudstorage.CloudStorageService service.
 type CloudStorageServiceHandler interface {
 	CreateCloudStorage(context.Context, *connect.Request[cloudstorage.CreateCloudStorageRequest]) (*connect.Response[cloudstorage.CreateCloudStorageResponse], error)
+	EnsureCloudStorage(context.Context, *connect.Request[cloudstorage.EnsureCloudStorageRequest]) (*connect.Response[cloudstorage.EnsureCloudStorageResponse], error)
 	GetCloudStorage(context.Context, *connect.Request[cloudstorage.GetCloudStorageRequest]) (*connect.Response[cloudstorage.GetCloudStorageResponse], error)
 	GetCloudStorageById(context.Context, *connect.Request[cloudstorage.GetCloudStorageByIdRequest]) (*connect.Response[cloudstorage.GetCloudStorageByIdResponse], error)
 	ListCloudStorages(context.Context, *connect.Request[cloudstorage.ListCloudStoragesRequest]) (*connect.Response[cloudstorage.ListCloudStoragesResponse], error)
@@ -209,6 +227,12 @@ func NewCloudStorageServiceHandler(svc CloudStorageServiceHandler, opts ...conne
 		CloudStorageServiceCreateCloudStorageProcedure,
 		svc.CreateCloudStorage,
 		connect.WithSchema(cloudStorageServiceCreateCloudStorageMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
+	cloudStorageServiceEnsureCloudStorageHandler := connect.NewUnaryHandler(
+		CloudStorageServiceEnsureCloudStorageProcedure,
+		svc.EnsureCloudStorage,
+		connect.WithSchema(cloudStorageServiceEnsureCloudStorageMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	cloudStorageServiceGetCloudStorageHandler := connect.NewUnaryHandler(
@@ -254,6 +278,8 @@ func NewCloudStorageServiceHandler(svc CloudStorageServiceHandler, opts ...conne
 		switch r.URL.Path {
 		case CloudStorageServiceCreateCloudStorageProcedure:
 			cloudStorageServiceCreateCloudStorageHandler.ServeHTTP(w, r)
+		case CloudStorageServiceEnsureCloudStorageProcedure:
+			cloudStorageServiceEnsureCloudStorageHandler.ServeHTTP(w, r)
 		case CloudStorageServiceGetCloudStorageProcedure:
 			cloudStorageServiceGetCloudStorageHandler.ServeHTTP(w, r)
 		case CloudStorageServiceGetCloudStorageByIdProcedure:
@@ -277,6 +303,10 @@ type UnimplementedCloudStorageServiceHandler struct{}
 
 func (UnimplementedCloudStorageServiceHandler) CreateCloudStorage(context.Context, *connect.Request[cloudstorage.CreateCloudStorageRequest]) (*connect.Response[cloudstorage.CreateCloudStorageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.aione.cloudstorage.CloudStorageService.CreateCloudStorage is not implemented"))
+}
+
+func (UnimplementedCloudStorageServiceHandler) EnsureCloudStorage(context.Context, *connect.Request[cloudstorage.EnsureCloudStorageRequest]) (*connect.Response[cloudstorage.EnsureCloudStorageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.aione.cloudstorage.CloudStorageService.EnsureCloudStorage is not implemented"))
 }
 
 func (UnimplementedCloudStorageServiceHandler) GetCloudStorage(context.Context, *connect.Request[cloudstorage.GetCloudStorageRequest]) (*connect.Response[cloudstorage.GetCloudStorageResponse], error) {

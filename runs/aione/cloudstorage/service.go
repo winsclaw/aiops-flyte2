@@ -53,6 +53,21 @@ func (s *Service) CreateCloudStorage(ctx context.Context, req *connect.Request[c
 	return connect.NewResponse(&cloudstoragepb.CreateCloudStorageResponse{CloudStorage: modelToProto(created)}), nil
 }
 
+func (s *Service) EnsureCloudStorage(ctx context.Context, req *connect.Request[cloudstoragepb.EnsureCloudStorageRequest]) (*connect.Response[cloudstoragepb.EnsureCloudStorageResponse], error) {
+	model, err := buildEnsureModel(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if s.repo == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("cloud storage repository is required"))
+	}
+	ensured, err := s.repo.Ensure(ctx, model)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&cloudstoragepb.EnsureCloudStorageResponse{CloudStorage: modelToProto(ensured)}), nil
+}
+
 func (s *Service) GetCloudStorage(ctx context.Context, req *connect.Request[cloudstoragepb.GetCloudStorageRequest]) (*connect.Response[cloudstoragepb.GetCloudStorageResponse], error) {
 	if s.repo == nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("cloud storage repository is required"))
@@ -202,9 +217,42 @@ func buildModel(req *cloudstoragepb.CreateCloudStorageRequest) (*models.CloudSto
 		Name:         name,
 		Description:  truncate(input.GetDescription(), 255),
 		SizeGB:       input.GetSizeGb(),
-		StorageClass: DefaultStorageClassName,
+		StorageClass: storageClassName(input.GetStorageClassName()),
 		Creator:      req.GetCreator(),
 	}, nil
+}
+
+func buildEnsureModel(req *cloudstoragepb.EnsureCloudStorageRequest) (*models.CloudStorage, error) {
+	key := keyFromProto(req.GetId())
+	input := req.GetCloudStorage()
+	if key.Org == "" || key.Project == "" || key.Domain == "" || key.ID == "" {
+		return nil, fmt.Errorf("cloud storage id is required")
+	}
+	if input == nil {
+		return nil, fmt.Errorf("cloud storage is required")
+	}
+	name := strings.TrimSpace(input.GetName())
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	if input.GetSizeGb() == 0 || input.GetSizeGb() > 1000 {
+		return nil, fmt.Errorf("size must be between 1 and 1000 GB")
+	}
+	return &models.CloudStorage{
+		CloudStorageKey: key,
+		Name:            name,
+		Description:     truncate(input.GetDescription(), 255),
+		SizeGB:          input.GetSizeGb(),
+		StorageClass:    storageClassName(input.GetStorageClassName()),
+		Creator:         req.GetCreator(),
+	}, nil
+}
+
+func storageClassName(value string) string {
+	if trimmed := strings.TrimSpace(value); trimmed != "" {
+		return trimmed
+	}
+	return DefaultStorageClassName
 }
 
 func newCloudStorageID() string {
