@@ -13,11 +13,13 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/flyteorg/flyte/v2/dataproxy/config"
+	"github.com/flyteorg/flyte/v2/dataproxy/logs"
 	flyteconfig "github.com/flyteorg/flyte/v2/flytestdlib/config"
 	"github.com/flyteorg/flyte/v2/flytestdlib/storage"
 	storageMocks "github.com/flyteorg/flyte/v2/flytestdlib/storage/mocks"
@@ -25,10 +27,12 @@ import (
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/dataproxy"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/dataproxy/dataproxyconnect"
+	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/logs/dataplane"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/project"
 	projectMocks "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/project/projectconnect/mocks"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/task"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow"
+	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow/workflowconnect"
 	workflowMocks "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow/workflowconnect/mocks"
 )
 
@@ -694,7 +698,7 @@ type mockLogStreamer struct {
 	mock.Mock
 }
 
-func (m *mockLogStreamer) TailLogs(ctx context.Context, logContext *core.LogContext, stream *connect.ServerStream[dataproxy.TailLogsResponse]) error {
+func (m *mockLogStreamer) TailLogs(ctx context.Context, logContext *core.LogContext, stream logs.Stream) error {
 	args := m.Called(ctx, logContext, stream)
 	return args.Error(0)
 }
@@ -706,6 +710,64 @@ func newTailLogsTestClient(t *testing.T, svc *Service) dataproxyconnect.DataProx
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return dataproxyconnect.NewDataProxyServiceClient(http.DefaultClient, server.URL)
+}
+
+func newRunLogsTestClient(t *testing.T, svc *RunLogsService) workflowconnect.RunLogsServiceClient {
+	path, handler := workflowconnect.NewRunLogsServiceHandler(svc)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	return workflowconnect.NewRunLogsServiceClient(http.DefaultClient, server.URL)
+}
+
+func TestRunLogsServiceTailLogs(t *testing.T) {
+	actionID := &common.ActionIdentifier{
+		Run: &common.RunIdentifier{
+			Org: "test-org", Project: "test-project", Domain: "test-domain", Name: "rtest12345",
+		},
+		Name: "a0",
+	}
+	logContext := &core.LogContext{
+		PrimaryPodName: "my-pod",
+		Pods: []*core.PodLogContext{
+			{PodName: "my-pod", Namespace: "ns"},
+		},
+	}
+	line := &dataplane.LogLine{Message: "aione-task-smoke\n"}
+
+	runClient := workflowMocks.NewRunServiceClient(t)
+	runClient.EXPECT().GetActionLogContext(mock.Anything, mock.MatchedBy(func(r *connect.Request[workflow.GetActionLogContextRequest]) bool {
+		return proto.Equal(r.Msg.GetActionId(), actionID) && r.Msg.GetAttempt() == 1
+	})).Return(connect.NewResponse(&workflow.GetActionLogContextResponse{LogContext: logContext}), nil)
+
+	streamer := &mockLogStreamer{}
+	streamer.On("TailLogs", mock.Anything, logContext, mock.Anything).Run(func(args mock.Arguments) {
+		stream := args.Get(2).(interface {
+			Send(*dataproxy.TailLogsResponse) error
+		})
+		_ = stream.Send(&dataproxy.TailLogsResponse{
+			Logs: []*dataproxy.TailLogsResponse_Logs{{Lines: []*dataplane.LogLine{line}}},
+		})
+	}).Return(nil)
+
+	svc := NewRunLogsService(runClient, streamer)
+	client := newRunLogsTestClient(t, svc)
+
+	stream, err := client.TailLogs(context.Background(), connect.NewRequest(&workflow.TailLogsRequest{
+		ActionId: actionID,
+		Attempt:  1,
+	}))
+
+	require.NoError(t, err)
+	require.True(t, stream.Receive())
+	resp := stream.Msg()
+	require.Len(t, resp.GetLogs(), 1)
+	require.Len(t, resp.GetLogs()[0].GetLines(), 1)
+	assert.Equal(t, "aione-task-smoke\n", resp.GetLogs()[0].GetLines()[0].GetMessage())
+	assert.False(t, stream.Receive())
+	assert.NoError(t, stream.Err())
+	streamer.AssertExpectations(t)
 }
 
 func TestTailLogs(t *testing.T) {

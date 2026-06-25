@@ -37,7 +37,7 @@ func NewK8sLogStreamer(k8sConfig *rest.Config) (*K8sLogStreamer, error) {
 }
 
 // TailLogs streams log lines for the given LogContext from a Kubernetes pod.
-func (s *K8sLogStreamer) TailLogs(ctx context.Context, logContext *core.LogContext, stream *connect.ServerStream[dataproxy.TailLogsResponse]) error {
+func (s *K8sLogStreamer) TailLogs(ctx context.Context, logContext *core.LogContext, stream Stream) error {
 	pod, container, err := GetPrimaryPodAndContainer(logContext)
 	if err != nil {
 		return connect.NewError(connect.CodeNotFound, err)

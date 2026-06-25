@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 
-	"connectrpc.com/connect"
 	"github.com/samber/lo"
 
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/dataproxy"
 )
 
+type Stream interface {
+	Send(*dataproxy.TailLogsResponse) error
+}
+
 // LogStreamer abstracts log fetching from different backends.
 type LogStreamer interface {
-	TailLogs(ctx context.Context, logContext *core.LogContext, stream *connect.ServerStream[dataproxy.TailLogsResponse]) error
+	TailLogs(ctx context.Context, logContext *core.LogContext, stream Stream) error
 }
 
 // GetPrimaryPodAndContainer finds the primary pod and container from a LogContext.

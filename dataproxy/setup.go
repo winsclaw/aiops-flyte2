@@ -63,6 +63,11 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 	sc.Mux.Handle(path, handler)
 	logger.Infof(ctx, "Mounted DataProxyService at %s", path)
 
+	runLogsSvc := service.NewRunLogsService(runClient, logStreamer)
+	runLogsPath, runLogsHandler := workflowconnect.NewRunLogsServiceHandler(runLogsSvc, connect.WithInterceptors(otelInterceptor))
+	sc.Mux.Handle(runLogsPath, runLogsHandler)
+	logger.Infof(ctx, "Mounted RunLogsService at %s", runLogsPath)
+
 	clusterSvc := service.NewClusterService()
 	clusterPath, clusterHandler := clusterconnect.NewClusterServiceHandler(clusterSvc, connect.WithInterceptors(otelInterceptor))
 	sc.Mux.Handle(clusterPath, clusterHandler)
