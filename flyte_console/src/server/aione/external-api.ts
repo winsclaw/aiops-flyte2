@@ -175,6 +175,60 @@ export async function getAioneExternalStatus(
   };
 }
 
+export async function getAioneExternalPvcSize(sourcePvcId: string) {
+  const sourceId = sourcePvcId.trim();
+  if (!sourceId) {
+    throw statusError("id is required", 400);
+  }
+
+  const cloudStorageClient = createCloudStorageClient();
+  let cloudStorage;
+  try {
+    const response = await cloudStorageClient.getCloudStorageById(
+      create(GetCloudStorageByIdRequestSchema, { id: sourceId }),
+    );
+    cloudStorage = response.cloudStorage;
+  } catch (error) {
+    if (error instanceof ConnectError && error.code === Code.NotFound) {
+      throw statusError("cloud storage record not found", 404);
+    }
+    throw error;
+  }
+  if (!cloudStorage?.id?.id) {
+    throw statusError("cloud storage record not found", 404);
+  }
+
+  const namespace =
+    cloudStorage.targetNamespace ||
+    cloudStorage.materializations[0]?.targetNamespace ||
+    AIONE_RUNTIME_NAMESPACE;
+  const { apiOrigin, namespace: kubeNamespace, token, ca } =
+    await getKubernetesClientConfig(namespace);
+  const { loadCloudStoragePvcStats } = await import(
+    "@/server/cloud-storage/stats"
+  );
+  const { pvcs } = await loadCloudStoragePvcStats({
+    apiOrigin,
+    namespace: kubeNamespace,
+    token,
+    ca,
+    storageId: sourceId,
+    cloudStorage,
+  });
+  if (pvcs.length === 0) {
+    throw statusError("cloud storage PVC not found", 404);
+  }
+
+  return pvcs.reduce(
+    (totals, pvc) => ({
+      used: totals.used + (pvc.usedBytes ?? 0),
+      provisioned:
+        totals.provisioned + (pvc.capacityBytes ?? pvc.requestedBytes ?? 0),
+    }),
+    { used: 0, provisioned: 0 },
+  );
+}
+
 async function createInstanceRun(payload: unknown) {
   const internalOrg =
     process.env.EXTERNAL_API_FLYTE_ORG?.trim() || DEFAULT_AIONE_INTERNAL_ORG;

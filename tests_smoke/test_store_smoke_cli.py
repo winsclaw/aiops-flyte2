@@ -2,12 +2,16 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest import mock
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import env_config
 import store_clear_smoke
+import store_size_smoke
 
 
 class FakeResponse:
@@ -36,6 +40,7 @@ class StoreSmokeCliTests(unittest.TestCase):
                     "AIONE_API_KEY=test-key",
                     "STORE_ID=cs-env",
                     "CLEAR_API_PATH_TEMPLATE=/v2/api/aione/{type}/{id}/clear",
+                    "PVC_SIZE_API_PATH_TEMPLATE=/v2/api/aione/pvc/{id}/size",
                 ]
             ),
             encoding="utf-8",
@@ -63,6 +68,31 @@ class StoreSmokeCliTests(unittest.TestCase):
     def test_store_clear_requires_store_id(self):
         with self.assertRaisesRegex(RuntimeError, "STORE_ID is required"):
             store_clear_smoke.delete_clear("")
+
+    def test_store_size_prints_pvc_size_url(self):
+        output = io.StringIO()
+        with mock.patch.object(
+            store_size_smoke.urllib.request,
+            "urlopen",
+            return_value=FakeResponse(
+                {"status": 200, "data": {"used": 123, "provisioned": 456}},
+            ),
+        ):
+            with contextlib.redirect_stdout(output):
+                result = store_size_smoke.get_size("cs/abc")
+
+        self.assertEqual(
+            {"status": 200, "data": {"used": 123, "provisioned": 456}},
+            result,
+        )
+        self.assertEqual(
+            "URL: http://example.test/v2/api/aione/pvc/cs%2Fabc/size",
+            output.getvalue().splitlines()[0],
+        )
+
+    def test_store_size_requires_store_id(self):
+        with self.assertRaisesRegex(RuntimeError, "STORE_ID is required"):
+            store_size_smoke.get_size("")
 
 
 if __name__ == "__main__":

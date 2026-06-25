@@ -92,6 +92,9 @@ return errorEnvelope(statusError("id is required", 400));
   `org/project/domain/name`。
 - 外部 clear 接口使用 `DELETE /v2/api/aione/{type}/{id}/clear`。`type` 支持
   `instance`、`task`、`store`；其中 run/status/stop 仍只支持 `instance` 和 `task`。
+- 外部云存储容量接口使用 `GET /v2/api/aione/pvc/{id}/size`，`id` 是云存储 id。
+  成功时返回 `{ status: 200, data: { used, provisioned } }`，单位为字节。
+  如果 kubelet 没有返回 `usedBytes`，`used` 按约定返回 `0`。
 - `instance/task clear` 必须先确认最新 run 不处于非终态，再删除匹配 label 的运行期
   Kubernetes 资源，包括 Secret、Service、Ingress；不得删除 PVC。
 - `store clear` 必须按 `flyte.org/cloud-storage=true` 和

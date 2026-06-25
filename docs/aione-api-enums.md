@@ -118,3 +118,34 @@ DELETE /v2/api/aione/store/{id}/clear
 
 `store` 按云存储 id 清理 `flyte` namespace 下带云存储 label 的 PVC，并清除
 CloudStorage 物化记录。若 PVC 仍被非终态 Pod 引用，返回 `409`。
+
+## 云存储容量接口
+
+AIONE 外部云存储容量查询使用 `GET` 方法：
+
+```text
+GET /v2/api/aione/pvc/{id}/size
+```
+
+`id` 是云存储 id。接口使用 AIONE 外部 API 认证，认证方式与实例、任务、资源清理接口一致。
+
+成功响应：
+
+```json
+{
+  "status": 200,
+  "data": {
+    "used": 123,
+    "provisioned": 456
+  }
+}
+```
+
+字段含义：
+
+| 字段 | 含义 |
+| --- | --- |
+| `used` | PVC 已使用字节数。优先来自 kubelet volume stats 的 `usedBytes`；如果 kubelet 没有返回用量，按约定返回 `0`。 |
+| `provisioned` | PVC 已分配字节数。优先来自 PVC `status.capacity.storage`，没有时使用 PVC request storage。 |
+
+如果同一个云存储 id 对应多个 PVC，`used` 和 `provisioned` 都返回所有匹配 PVC 的字节数总和。
