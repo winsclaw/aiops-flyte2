@@ -1,0 +1,19 @@
+# NVIDIA GPU Operator values for the single-node Flyte k3s cluster.
+#
+# The host driver is installed with Ubuntu packages before this chart is
+# applied. Keeping driver.enabled=false avoids a second driver manager path.
+driver:
+  enabled: false
+
+toolkit:
+  enabled: true
+
+devicePlugin:
+  enabled: true
+
+gfd:
+  enabled: true
+
+cdi:
+  enabled: true
+  nriPluginEnabled: true
