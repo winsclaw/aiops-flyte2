@@ -6,10 +6,12 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/flyteorg/flyte/v2/flyteplugins/aione/k8slogs"
 	"github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/pluginmachinery"
 	pluginsCore "github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/pluginmachinery/core"
 )
@@ -64,14 +66,23 @@ func (p *Plugin) Handle(ctx context.Context, tCtx pluginsCore.TaskExecutionConte
 		}
 		return pluginsCore.UnknownTransition, err
 	}
+	pods, err := p.workspacePods(ctx, &sts)
+	if err != nil {
+		return pluginsCore.UnknownTransition, err
+	}
+	taskInfo := taskInfoForPods(pods.Items)
 
 	if sts.Status.ReadyReplicas >= 1 {
-		info := pluginsCore.PhaseInfoRunning(pluginsCore.DefaultPhaseVersion, nil)
+		version := pluginsCore.DefaultPhaseVersion
+		if taskInfo != nil && taskInfo.LogContext != nil {
+			version++
+		}
+		info := pluginsCore.PhaseInfoRunning(version, taskInfo)
 		info.WithReason("SSH workspace is ready")
 		return pluginsCore.DoTransition(info), nil
 	}
 
-	return pluginsCore.DoTransition(pluginsCore.PhaseInfoInitializing(time.Now(), pluginsCore.DefaultPhaseVersion, "waiting for SSH workspace pod readiness", nil)), nil
+	return pluginsCore.DoTransition(pluginsCore.PhaseInfoInitializing(time.Now(), pluginsCore.DefaultPhaseVersion, "waiting for SSH workspace pod readiness", taskInfo)), nil
 }
 
 func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContext) error {
@@ -124,6 +135,29 @@ func (p *Plugin) deleteIngresses(ctx context.Context, namespace string, labels m
 
 func (p *Plugin) Finalize(ctx context.Context, tCtx pluginsCore.TaskExecutionContext) error {
 	return nil
+}
+
+func (p *Plugin) workspacePods(ctx context.Context, sts *appsv1.StatefulSet) (*corev1.PodList, error) {
+	pods := &corev1.PodList{}
+	if sts == nil {
+		return pods, nil
+	}
+	labels := sts.Spec.Template.Labels
+	if sts.Spec.Selector != nil && len(sts.Spec.Selector.MatchLabels) > 0 {
+		labels = sts.Spec.Selector.MatchLabels
+	}
+	if err := p.kubeClient.List(ctx, pods, client.InNamespace(sts.Namespace), client.MatchingLabels(labels)); err != nil {
+		return nil, err
+	}
+	return pods, nil
+}
+
+func taskInfoForPods(pods []corev1.Pod) *pluginsCore.TaskInfo {
+	logContext := k8slogs.LogContextFromPods(pods)
+	if logContext == nil {
+		return nil
+	}
+	return &pluginsCore.TaskInfo{LogContext: logContext}
 }
 
 func (p *Plugin) ensureResources(ctx context.Context, resources WorkspaceResources) (bool, error) {

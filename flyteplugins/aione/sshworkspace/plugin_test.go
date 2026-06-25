@@ -59,12 +59,41 @@ func TestPluginHandleReturnsRunningWhenStatefulSetReady(t *testing.T) {
 	sts.Status.ReadyReplicas = 1
 	sts.Status.Replicas = 1
 	require.NoError(t, k8sClient.Status().Update(ctx, &sts))
+	createWorkspacePod(t, ctx, k8sClient, "run-abc-0", sts.Spec.Template.Labels, corev1.PodRunning, corev1.ContainerState{
+		Running: &corev1.ContainerStateRunning{},
+	})
 
 	transition, err := plugin.Handle(ctx, tCtx)
 
 	require.NoError(t, err)
 	assert.Equal(t, pluginsCore.PhaseRunning, transition.Info().Phase())
+	assert.Equal(t, pluginsCore.DefaultPhaseVersion+1, transition.Info().Version())
 	assert.Contains(t, transition.Info().Reason(), "SSH workspace is ready")
+	assertWorkspaceLogContext(t, transition.Info().Info(), "run-abc-0")
+}
+
+func TestPluginHandleReturnsInitializingWithLogContextWhenWorkspacePodExists(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := newFakeClient(t)
+	plugin := NewPlugin(k8sClient, true)
+	tCtx := workspaceTaskContext(t, validWorkspaceTemplate(t), "run-abc")
+
+	_, err := plugin.Handle(ctx, tCtx)
+	require.NoError(t, err)
+
+	var sts appsv1.StatefulSet
+	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc"}, &sts))
+	sts.Status.Replicas = 1
+	require.NoError(t, k8sClient.Status().Update(ctx, &sts))
+	createWorkspacePod(t, ctx, k8sClient, "run-abc-0", sts.Spec.Template.Labels, corev1.PodRunning, corev1.ContainerState{
+		Running: &corev1.ContainerStateRunning{},
+	})
+
+	transition, err := plugin.Handle(ctx, tCtx)
+
+	require.NoError(t, err)
+	assert.Equal(t, pluginsCore.PhaseInitializing, transition.Info().Phase())
+	assertWorkspaceLogContext(t, transition.Info().Info(), "run-abc-0")
 }
 
 func TestPluginHandleInvalidConfigReturnsPermanentFailure(t *testing.T) {
@@ -167,4 +196,47 @@ func newFakeClient(t *testing.T) client.Client {
 	require.NoError(t, appsv1.AddToScheme(scheme))
 	require.NoError(t, networkingv1.AddToScheme(scheme))
 	return fake.NewClientBuilder().WithScheme(scheme).Build()
+}
+
+func createWorkspacePod(
+	t *testing.T,
+	ctx context.Context,
+	k8sClient client.Client,
+	name string,
+	labels map[string]string,
+	phase corev1.PodPhase,
+	state corev1.ContainerState,
+) {
+	t.Helper()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "flyte",
+			Labels:    labels,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "ssh"}},
+		},
+		Status: corev1.PodStatus{
+			Phase: phase,
+			ContainerStatuses: []corev1.ContainerStatus{{
+				Name:  "ssh",
+				State: state,
+			}},
+		},
+	}
+	require.NoError(t, k8sClient.Create(ctx, pod))
+}
+
+func assertWorkspaceLogContext(t *testing.T, info *pluginsCore.TaskInfo, podName string) {
+	t.Helper()
+	require.NotNil(t, info)
+	require.NotNil(t, info.LogContext)
+	assert.Equal(t, podName, info.LogContext.GetPrimaryPodName())
+	require.Len(t, info.LogContext.GetPods(), 1)
+	podContext := info.LogContext.GetPods()[0]
+	assert.Equal(t, podName, podContext.GetPodName())
+	assert.Equal(t, "ssh", podContext.GetPrimaryContainerName())
+	require.Len(t, podContext.GetContainers(), 1)
+	assert.Equal(t, "ssh", podContext.GetContainers()[0].GetContainerName())
 }

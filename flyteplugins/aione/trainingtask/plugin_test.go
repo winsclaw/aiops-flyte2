@@ -49,11 +49,99 @@ func TestPluginHandleReturnsSuccessWhenJobSucceeded(t *testing.T) {
 	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc"}, &job))
 	job.Status.Succeeded = 1
 	require.NoError(t, k8sClient.Status().Update(ctx, &job))
+	createTrainingPod(t, ctx, k8sClient, "run-abc-pod", job.Spec.Template.Labels, corev1.PodSucceeded, corev1.ContainerState{
+		Terminated: &corev1.ContainerStateTerminated{ExitCode: 0},
+	})
 
 	transition, err := plugin.Handle(ctx, tCtx)
 
 	require.NoError(t, err)
 	assert.Equal(t, pluginsCore.PhaseSuccess, transition.Info().Phase())
+	assertTrainingLogContext(t, transition.Info().Info(), "run-abc-pod")
+}
+
+func TestPluginHandleReturnsRunningWithoutLogContextBeforeContainerStatusExists(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := newFakeClient(t)
+	plugin := NewPlugin(k8sClient)
+	tCtx := trainingTaskContext(t, validTrainingTemplate(t), "run-abc")
+
+	_, err := plugin.Handle(ctx, tCtx)
+	require.NoError(t, err)
+
+	var job batchv1.Job
+	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc"}, &job))
+	job.Status.Active = 1
+	require.NoError(t, k8sClient.Status().Update(ctx, &job))
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run-abc-pod",
+			Namespace: "flyte",
+			Labels:    job.Spec.Template.Labels,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "training"}},
+		},
+		Status: corev1.PodStatus{Phase: corev1.PodRunning},
+	}
+	require.NoError(t, k8sClient.Create(ctx, pod))
+
+	transition, err := plugin.Handle(ctx, tCtx)
+
+	require.NoError(t, err)
+	assert.Equal(t, pluginsCore.PhaseRunning, transition.Info().Phase())
+	assert.Equal(t, pluginsCore.DefaultPhaseVersion, transition.Info().Version())
+	require.NotNil(t, transition.Info().Info())
+	assert.Nil(t, transition.Info().Info().LogContext)
+}
+
+func TestPluginHandleReturnsRunningWithLogContextWhenContainerStatusExists(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := newFakeClient(t)
+	plugin := NewPlugin(k8sClient)
+	tCtx := trainingTaskContext(t, validTrainingTemplate(t), "run-abc")
+
+	_, err := plugin.Handle(ctx, tCtx)
+	require.NoError(t, err)
+
+	var job batchv1.Job
+	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc"}, &job))
+	job.Status.Active = 1
+	require.NoError(t, k8sClient.Status().Update(ctx, &job))
+	createTrainingPod(t, ctx, k8sClient, "run-abc-pod", job.Spec.Template.Labels, corev1.PodRunning, corev1.ContainerState{
+		Running: &corev1.ContainerStateRunning{},
+	})
+
+	transition, err := plugin.Handle(ctx, tCtx)
+
+	require.NoError(t, err)
+	assert.Equal(t, pluginsCore.PhaseRunning, transition.Info().Phase())
+	assert.Equal(t, pluginsCore.DefaultPhaseVersion+1, transition.Info().Version())
+	assertTrainingLogContext(t, transition.Info().Info(), "run-abc-pod")
+}
+
+func TestPluginHandleReturnsFailureWithLogContextWhenJobFailed(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := newFakeClient(t)
+	plugin := NewPlugin(k8sClient)
+	tCtx := trainingTaskContext(t, validTrainingTemplate(t), "run-abc")
+
+	_, err := plugin.Handle(ctx, tCtx)
+	require.NoError(t, err)
+
+	var job batchv1.Job
+	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc"}, &job))
+	job.Status.Conditions = failedJobCondition()
+	require.NoError(t, k8sClient.Status().Update(ctx, &job))
+	createTrainingPod(t, ctx, k8sClient, "run-abc-pod", job.Spec.Template.Labels, corev1.PodFailed, corev1.ContainerState{
+		Terminated: &corev1.ContainerStateTerminated{ExitCode: 1},
+	})
+
+	transition, err := plugin.Handle(ctx, tCtx)
+
+	require.NoError(t, err)
+	assert.Equal(t, pluginsCore.PhasePermanentFailure, transition.Info().Phase())
+	assertTrainingLogContext(t, transition.Info().Info(), "run-abc-pod")
 }
 
 func TestPluginHandleFailsWhenPodImagePullBackOff(t *testing.T) {
@@ -159,6 +247,49 @@ func newFakeClient(t *testing.T) client.Client {
 	require.NoError(t, corev1.AddToScheme(scheme))
 	require.NoError(t, batchv1.AddToScheme(scheme))
 	return fake.NewClientBuilder().WithScheme(scheme).Build()
+}
+
+func createTrainingPod(
+	t *testing.T,
+	ctx context.Context,
+	k8sClient client.Client,
+	name string,
+	labels map[string]string,
+	phase corev1.PodPhase,
+	state corev1.ContainerState,
+) {
+	t.Helper()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "flyte",
+			Labels:    labels,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "training"}},
+		},
+		Status: corev1.PodStatus{
+			Phase: phase,
+			ContainerStatuses: []corev1.ContainerStatus{{
+				Name:  "training",
+				State: state,
+			}},
+		},
+	}
+	require.NoError(t, k8sClient.Create(ctx, pod))
+}
+
+func assertTrainingLogContext(t *testing.T, info *pluginsCore.TaskInfo, podName string) {
+	t.Helper()
+	require.NotNil(t, info)
+	require.NotNil(t, info.LogContext)
+	assert.Equal(t, podName, info.LogContext.GetPrimaryPodName())
+	require.Len(t, info.LogContext.GetPods(), 1)
+	podContext := info.LogContext.GetPods()[0]
+	assert.Equal(t, podName, podContext.GetPodName())
+	assert.Equal(t, "training", podContext.GetPrimaryContainerName())
+	require.Len(t, podContext.GetContainers(), 1)
+	assert.Equal(t, "training", podContext.GetContainers()[0].GetContainerName())
 }
 
 func failedJobCondition() []batchv1.JobCondition {

@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/flyteorg/flyte/v2/flyteplugins/aione/k8slogs"
 	"github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/pluginmachinery"
 	pluginsCore "github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/pluginmachinery/core"
 )
@@ -70,25 +71,32 @@ func (p *Plugin) Handle(ctx context.Context, tCtx pluginsCore.TaskExecutionConte
 		}
 		return pluginsCore.UnknownTransition, err
 	}
+	pods, err := p.trainingPods(ctx, &job)
+	if err != nil {
+		return pluginsCore.UnknownTransition, err
+	}
+	taskInfo := taskInfoForPods(pods.Items)
 
 	if job.Status.Succeeded > 0 {
-		return pluginsCore.DoTransition(pluginsCore.PhaseInfoSuccess(nil)), nil
+		return pluginsCore.DoTransition(pluginsCore.PhaseInfoSuccess(taskInfo)), nil
 	}
 	if condition := failedCondition(job.Status.Conditions); condition != nil {
-		return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure(condition.Reason, condition.Message, nil)), nil
+		return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure(condition.Reason, condition.Message, taskInfo)), nil
 	}
 	if job.Status.Active > 0 {
-		if imagePullFailure, err := p.imagePullFailure(ctx, &job); err != nil {
-			return pluginsCore.UnknownTransition, err
-		} else if imagePullFailure != "" {
-			return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure("ImagePullFailed", imagePullFailure, nil)), nil
+		if imagePullFailure := imagePullFailureFromPods(pods.Items); imagePullFailure != "" {
+			return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure("ImagePullFailed", imagePullFailure, taskInfo)), nil
 		}
-		info := pluginsCore.PhaseInfoRunning(pluginsCore.DefaultPhaseVersion, nil)
+		version := pluginsCore.DefaultPhaseVersion
+		if taskInfo != nil && taskInfo.LogContext != nil {
+			version++
+		}
+		info := pluginsCore.PhaseInfoRunning(version, taskInfo)
 		info.WithReason("training task is running")
 		return pluginsCore.DoTransition(info), nil
 	}
 
-	return pluginsCore.DoTransition(pluginsCore.PhaseInfoInitializing(time.Now(), pluginsCore.DefaultPhaseVersion, "waiting for training task pod", nil)), nil
+	return pluginsCore.DoTransition(pluginsCore.PhaseInfoInitializing(time.Now(), pluginsCore.DefaultPhaseVersion, "waiting for training task pod", taskInfo)), nil
 }
 
 func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContext) error {
@@ -117,16 +125,20 @@ func (p *Plugin) Finalize(context.Context, pluginsCore.TaskExecutionContext) err
 	return nil
 }
 
-func (p *Plugin) imagePullFailure(ctx context.Context, job *batchv1.Job) (string, error) {
+func (p *Plugin) trainingPods(ctx context.Context, job *batchv1.Job) (*corev1.PodList, error) {
+	pods := &corev1.PodList{}
 	if job == nil {
-		return "", nil
+		return pods, nil
 	}
-	var pods corev1.PodList
-	if err := p.kubeClient.List(ctx, &pods, client.InNamespace(job.Namespace), client.MatchingLabels(job.Spec.Template.Labels)); err != nil {
-		return "", err
+	if err := p.kubeClient.List(ctx, pods, client.InNamespace(job.Namespace), client.MatchingLabels(job.Spec.Template.Labels)); err != nil {
+		return nil, err
 	}
-	for i := range pods.Items {
-		for _, status := range pods.Items[i].Status.ContainerStatuses {
+	return pods, nil
+}
+
+func imagePullFailureFromPods(pods []corev1.Pod) string {
+	for i := range pods {
+		for _, status := range pods[i].Status.ContainerStatuses {
 			waiting := status.State.Waiting
 			if waiting == nil || !isImagePullFailureReason(waiting.Reason) {
 				continue
@@ -135,10 +147,18 @@ func (p *Plugin) imagePullFailure(ctx context.Context, job *batchv1.Job) (string
 			if message == "" {
 				message = waiting.Reason
 			}
-			return "镜像拉取失败: " + message, nil
+			return "镜像拉取失败: " + message
 		}
 	}
-	return "", nil
+	return ""
+}
+
+func taskInfoForPods(pods []corev1.Pod) *pluginsCore.TaskInfo {
+	logContext := k8slogs.LogContextFromPods(pods)
+	if logContext == nil {
+		return nil
+	}
+	return &pluginsCore.TaskInfo{LogContext: logContext}
 }
 
 func isImagePullFailureReason(reason string) bool {
