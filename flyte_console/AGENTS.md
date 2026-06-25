@@ -95,6 +95,10 @@ return errorEnvelope(statusError("id is required", 400));
 - 外部云存储容量接口使用 `GET /v2/api/aione/pvc/{id}/size`，`id` 是云存储 id。
   成功时返回 `{ status: 200, data: { used, provisioned } }`，单位为字节。
   如果 kubelet 没有返回 `usedBytes`，`used` 按约定返回 `0`。
+- 外部 GPU 使用量接口使用 `GET /v2/api/aione/gpus?keys=<gpu-resource-keys>`，
+  `keys` 是逗号拼接的 Kubernetes GPU resource key。成功时返回
+  `{ status: 200, data: { [key]: { total, allocated } } }`。`total` 来自全集群
+  Node `status.allocatable`，`allocated` 来自全集群已调度且非终态 Pod 的 GPU request。
 - `instance/task clear` 必须先确认最新 run 不处于非终态，再删除匹配 label 的运行期
   Kubernetes 资源，包括 Secret、Service、Ingress；不得删除 PVC。
 - `store clear` 必须按 `flyte.org/cloud-storage=true` 和

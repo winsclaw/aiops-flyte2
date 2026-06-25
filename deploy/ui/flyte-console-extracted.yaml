@@ -72,6 +72,32 @@ roleRef:
   kind: ClusterRole
   name: flyte-console-extracted-node-stats
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: flyte-console-extracted-gpu-usage
+  labels:
+    app: flyte-console-extracted
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: flyte-console-extracted-gpu-usage
+  labels:
+    app: flyte-console-extracted
+subjects:
+  - kind: ServiceAccount
+    name: flyte-console-extracted
+    namespace: flyte
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: flyte-console-extracted-gpu-usage
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
