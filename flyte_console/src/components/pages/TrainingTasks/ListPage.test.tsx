@@ -75,7 +75,7 @@ describe("TrainingTasksListPage", () => {
     mocks.stopTrainingTask.mockReset();
   });
 
-  it("renders display name and run ID without description or runtime duration columns", async () => {
+  it("renders display name and task ID without description or runtime duration columns", async () => {
     const taskId = "tsk-internal-1";
     const runId = "logs-smoke-180036";
     mocks.listTrainingTasks.mockResolvedValue({
@@ -105,7 +105,7 @@ describe("TrainingTasksListPage", () => {
     render(<TrainingTasksListPage />);
 
     expect(screen.getByRole("columnheader", { name: "名称" })).toBeVisible();
-    expect(screen.getByRole("columnheader", { name: "运行 ID" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "任务 ID" })).toBeVisible();
     expect(
       screen.queryByRole("columnheader", { name: "描述" }),
     ).not.toBeInTheDocument();
@@ -113,8 +113,8 @@ describe("TrainingTasksListPage", () => {
       screen.queryByRole("columnheader", { name: "运行时长" }),
     ).not.toBeInTheDocument();
     expect(await screen.findByText("logs-test")).toBeVisible();
-    expect(screen.getByText(runId)).toBeVisible();
-    expect(screen.queryByText(taskId)).not.toBeInTheDocument();
+    expect(screen.getByText(taskId)).toBeVisible();
+    expect(screen.queryByText(runId)).not.toBeInTheDocument();
     expect(
       screen.queryByText("external-system/logs-smoke-180036"),
     ).not.toBeInTheDocument();

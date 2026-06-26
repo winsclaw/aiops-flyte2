@@ -106,8 +106,8 @@ function idKey(id: TrainingTaskIdentifier | undefined) {
   return id?.id ?? "";
 }
 
-function runIdText(task: TrainingTask) {
-  return task.latestRunName || idKey(task.id) || "-";
+function taskIdText(task: TrainingTask) {
+  return idKey(task.id) || "-";
 }
 
 export function TrainingTasksListPage() {
@@ -330,7 +330,7 @@ export function TrainingTasksListPage() {
                     />
                   </th>
                   <th className="px-4 py-4">名称</th>
-                  <th className="px-4 py-4">运行 ID</th>
+                  <th className="px-4 py-4">任务 ID</th>
                   <th className="px-4 py-4">资源规格</th>
                   <th className="px-4 py-4">状态</th>
                   <th className="px-4 py-4">创建人</th>
@@ -367,7 +367,7 @@ export function TrainingTasksListPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-600 dark:text-zinc-300">
-                      {runIdText(task)}
+                      {taskIdText(task)}
                     </td>
                     <td className="px-4 py-4">
                       {task.resourceSpec?.displayLabel ?? "-"}
