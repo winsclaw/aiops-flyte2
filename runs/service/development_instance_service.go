@@ -226,12 +226,7 @@ func (s *DevelopmentInstanceService) StartDevelopmentInstance(ctx context.Contex
 		instance.CodeServerNodePort = req.Msg.GetCodeServerNodePort()
 	}
 	instance.WorkspacePVCName = defaultString(instance.WorkspacePVCName, instance.ID+"-workspace")
-	if instance.CodeServerURL == "" {
-		instance.CodeServerURL = buildDevelopmentInstanceCodeServerURL(runName)
-	}
-	if instance.CodeServerWorkspaceURL == "" {
-		instance.CodeServerWorkspaceURL = instance.CodeServerURL + "/?folder=/workspace"
-	}
+	applyDevelopmentInstanceRunAccess(instance, runName)
 	if err := s.resolveDevelopmentInstanceCloudStorageMounts(ctx, instance); err != nil {
 		return nil, err
 	}
@@ -763,6 +758,14 @@ func formatDevelopmentInstanceResourceDisplay(cpu string, memory string, gpuCoun
 
 func buildDevelopmentInstanceCodeServerURL(runName string) string {
 	return "https://" + buildDevelopmentInstanceCodeServerHost(runName) + ".ops.fzyun.io"
+}
+
+func applyDevelopmentInstanceRunAccess(instance *models.DevelopmentInstance, runName string) {
+	if instance == nil {
+		return
+	}
+	instance.CodeServerURL = buildDevelopmentInstanceCodeServerURL(runName)
+	instance.CodeServerWorkspaceURL = instance.CodeServerURL + "/?folder=/workspace"
 }
 
 func buildDevelopmentInstanceCodeServerHost(value string) string {

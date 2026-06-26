@@ -85,3 +85,15 @@ func TestNextDevelopmentInstanceRunNameSkipsExistingFlyteRuns(t *testing.T) {
 	require.Equal(t, uint32(2), generation)
 	require.Equal(t, "aione-instance-r2", runName)
 }
+
+func TestApplyDevelopmentInstanceRunAccessReplacesPreviousRunURL(t *testing.T) {
+	instance := &models.DevelopmentInstance{
+		CodeServerURL:          "https://aione-instance-r3-code.ops.fzyun.io",
+		CodeServerWorkspaceURL: "https://aione-instance-r3-code.ops.fzyun.io/?folder=/workspace",
+	}
+
+	applyDevelopmentInstanceRunAccess(instance, "aione-instance-r4")
+
+	require.Equal(t, "https://aione-instance-r4-code.ops.fzyun.io", instance.CodeServerURL)
+	require.Equal(t, "https://aione-instance-r4-code.ops.fzyun.io/?folder=/workspace", instance.CodeServerWorkspaceURL)
+}
