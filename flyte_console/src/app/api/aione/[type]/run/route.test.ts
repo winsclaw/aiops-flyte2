@@ -81,7 +81,7 @@ const taskPayload = {
   type: "INSTANCE",
   name: "外部训练任务",
   id: "task-contract-1",
-  command: "python train.py",
+  cmd: "python train.py",
   imageType: "OWN",
   image: "docker.fzyun.io/founder/train:1.0.0",
   resourceDefinition: {
@@ -325,6 +325,7 @@ describe("aione external typed run route", () => {
         }),
         trainingTask: expect.objectContaining({
           name: "外部训练任务",
+          command: "python train.py",
         }),
       }),
     );
@@ -352,20 +353,39 @@ describe("aione external typed run route", () => {
     });
   });
 
-  it("requires command for task runs", async () => {
+  it("requires cmd for task runs", async () => {
     const { POST } = await import("./route");
     const response = await POST(
       new NextRequest("http://localhost/v2/api/aione/task/run", {
         method: "POST",
         headers: { authorization: "Bearer external-key" },
-        body: JSON.stringify({ ...taskPayload, command: "  " }),
+        body: JSON.stringify({ ...taskPayload, cmd: "  " }),
       }),
       { params: Promise.resolve({ type: "task" }) },
     );
     const body = await response.json();
 
     expect(response.status).toBe(400);
-    expect(body).toEqual({ status: 400, message: "command is required" });
+    expect(body).toEqual({ status: 400, message: "cmd is required" });
+    expect(createTrainingTaskMock).not.toHaveBeenCalled();
+  });
+
+  it("does not accept legacy command for task runs", async () => {
+    const { POST } = await import("./route");
+    const legacyPayload: Record<string, unknown> = { ...taskPayload };
+    delete legacyPayload.cmd;
+    const response = await POST(
+      new NextRequest("http://localhost/v2/api/aione/task/run", {
+        method: "POST",
+        headers: { authorization: "Bearer external-key" },
+        body: JSON.stringify({ ...legacyPayload, command: "python train.py" }),
+      }),
+      { params: Promise.resolve({ type: "task" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({ status: 400, message: "cmd is required" });
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
   });
 

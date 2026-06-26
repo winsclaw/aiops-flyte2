@@ -81,19 +81,20 @@ class TaskSmokeCliTests(unittest.TestCase):
             output.getvalue().splitlines()[0],
         )
 
-    def test_task_payload_uses_task_fields_and_command(self):
+    def test_task_payload_uses_task_fields_and_cmd(self):
         payload = task_start_smoke.build_payload()
 
         self.assertEqual("env-task", payload["id"])
         self.assertEqual("env-task-name", payload["name"])
-        self.assertEqual("python train.py", payload["command"])
+        self.assertEqual("python train.py", payload["cmd"])
+        self.assertNotIn("command", payload)
         self.assertNotIn("type", payload)
         self.assertEqual(
             {"cpu": "500m", "memory": "128Mi", "gpu": 1, "gpu_key": "nvidia.com/gpu"},
             payload["resourceDefinition"],
         )
 
-    def test_task_payload_requires_command(self):
+    def test_task_payload_requires_cmd_source_value(self):
         content = self.env_path.read_text(encoding="utf-8")
         self.env_path.write_text(
             content.replace("TASK_COMMAND=python train.py", "TASK_COMMAND="),

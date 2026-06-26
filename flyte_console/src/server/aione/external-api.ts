@@ -618,7 +618,7 @@ async function clearInstanceRuntimeResources(sourceInstanceId: string) {
     runName: instance.latestRunName,
   });
   const deleted = await deleteRuntimeCollections(
-    { apiOrigin, namespace, token, ca },
+    { token, ca },
     buildDeleteCollectionRequests({
       apiOrigin,
       namespace,
@@ -985,9 +985,9 @@ function buildExternalTrainingTaskValues(payload: unknown) {
   const sourceOrg = stringField(object, "org");
   const sourceId = requiredStringField(object, "id");
   const name = stringField(object, "name") || sourceId;
-  const command = stringField(object, "command");
+  const command = stringField(object, "cmd");
   if (!command) {
-    throw statusError("command is required", 400);
+    throw statusError("cmd is required", 400);
   }
   const image = resolveTrainingTaskImage(object);
   const resources = getPayloadObject(object.resourceDefinition);

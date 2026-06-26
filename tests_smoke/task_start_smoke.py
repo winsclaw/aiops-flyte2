@@ -76,7 +76,7 @@ def build_payload() -> dict:
         "baseImage": {
             "image": config["BASE_IMAGE"],
         },
-        "command": command,
+        "cmd": command,
         "resourceDefinition": resource_definition,
     }
 
