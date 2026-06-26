@@ -189,7 +189,7 @@ flyte_console/Dockerfile
 Base image:
 
 ```text
-docker.fzyun.io/node:23.11.1-alpine3.22
+docker.fzyun.io/library/node:23.11.1-alpine3.22
 ```
 
 The Dockerfile builds from source, runs `pnpm run build:prod`, copies `.next/standalone`, `.next/static`, generated `public`, and `proxy-server.js`, then serves through `node proxy-server.js` on port `8080`.

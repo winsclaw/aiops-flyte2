@@ -39,7 +39,7 @@ assert_file "${console_dir}/postcss.config.mjs"
 assert_file "${console_dir}/.dockerignore"
 assert_file "${console_dir}/proxy-server.js"
 
-assert_contains "${dockerfile}" "FROM docker.fzyun.io/node:23.11.1-alpine3.22 AS builder"
+assert_contains "${dockerfile}" "FROM docker.fzyun.io/library/node:23.11.1-alpine3.22 AS builder"
 assert_contains "${dockerfile}" "pnpm run build:prod"
 assert_contains "${dockerfile}" "COPY --from=builder /app/.next/standalone ./"
 assert_not_contains "${dockerfile}" "ghcr.io/unionai-oss/flyteconsole-v2"

@@ -1,4 +1,4 @@
-FROM docker.fzyun.io/node:23.11.1-alpine3.22 AS builder
+FROM docker.fzyun.io/library/node:23.11.1-alpine3.22 AS builder
 
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
@@ -19,7 +19,7 @@ RUN corepack enable \
 COPY . .
 RUN pnpm run build:prod
 
-FROM docker.fzyun.io/node:23.11.1-alpine3.22 AS runner
+FROM docker.fzyun.io/library/node:23.11.1-alpine3.22 AS runner
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
