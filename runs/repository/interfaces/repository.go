@@ -5,6 +5,7 @@ type Repository interface {
 	TaskRepo() TaskRepo
 	TriggerRepo() TriggerRepo
 	TrainingTaskRepo() TrainingTaskRepo
+	DevelopmentInstanceRepo() DevelopmentInstanceRepo
 	CloudStorageRepo() CloudStorageRepo
 	CodeRepositoryRepo() CodeRepositoryRepo
 }

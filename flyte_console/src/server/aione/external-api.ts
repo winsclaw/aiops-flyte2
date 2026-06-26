@@ -6,8 +6,7 @@ import { create } from "@bufbuild/protobuf";
 import { createClient, Code, ConnectError } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import {
-  buildCreateDevelopmentInstanceRequest,
-  buildRunIdentifier,
+  buildDevelopmentInstanceRunName,
   getNextNodePort,
   type DevelopmentInstanceFormValues,
 } from "@/components/pages/DevelopmentInstances/utils";
@@ -23,7 +22,26 @@ import {
   type TrainingTaskIdentifier,
   TrainingTaskIdentifierSchema,
 } from "@/gen/flyteidl2/trainingtask/training_task_definition_pb";
-import { CloudStorageIdentifierSchema } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
+import {
+  CloudStorageIdentifierSchema,
+  CloudStorageMountSchema,
+} from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
+import { CodeRepositoryMountSchema } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
+import {
+  DevelopmentInstance,
+  DevelopmentInstanceCodeRepositoryDetailSchema,
+  DevelopmentInstanceIdentifierSchema,
+  ImageType as DevelopmentInstanceImageType,
+} from "@/gen/flyteidl2/developmentinstance/development_instance_definition_pb";
+import {
+  CreateDevelopmentInstanceRequestSchema,
+  DevelopmentInstanceInputSchema,
+  DevelopmentInstanceService,
+  GetDevelopmentInstanceByIdRequestSchema,
+  ListDevelopmentInstanceRunsRequestSchema,
+  StartDevelopmentInstanceRequestSchema,
+  StopDevelopmentInstanceRequestSchema,
+} from "@/gen/flyteidl2/developmentinstance/development_instance_service_pb";
 import {
   ClearCloudStorageMaterializationsRequestSchema,
   CloudStorageInputSchema,
@@ -40,10 +58,7 @@ import {
   TrainingTaskInputSchema,
   TrainingTaskService,
 } from "@/gen/flyteidl2/trainingtask/training_task_service_pb";
-import {
-  AbortRunRequestSchema,
-  RunService,
-} from "@/gen/flyteidl2/workflow/run_service_pb";
+import { RunService } from "@/gen/flyteidl2/workflow/run_service_pb";
 import type { ActionStatus } from "@/gen/flyteidl2/workflow/run_definition_pb";
 import {
   getKubernetesClientConfig,
@@ -66,18 +81,11 @@ import {
   RegistryCredentials,
   buildAioneCreateInstanceResponse,
   buildAioneInstanceAccessInfo,
-  buildAioneInstanceRecord,
   buildAioneInstanceValues,
   buildDockerConfigJson,
   buildWorkspaceLabels,
   getAioneNodePortRange,
 } from "@/server/aione/helpers";
-import {
-  isAioneInstanceActive,
-  nextAioneInstanceGeneration,
-  readAioneInstanceRecord,
-  writeAioneInstanceRecord,
-} from "@/server/aione/state";
 
 export type AioneExternalType = "instance" | "task";
 export type AioneClearType = AioneExternalType | "store";
@@ -209,6 +217,39 @@ export async function getAioneExternalLogs(
   return paginateLogLines(lines, pagination);
 }
 
+export async function listAioneInstanceRuns(sourceInstanceId: string) {
+  const sourceId = sourceInstanceId.trim();
+  if (!sourceId) {
+    throw statusError("id is required", 400);
+  }
+  const client = createDevelopmentInstanceClient();
+  const instance = await getDevelopmentInstanceById(client, sourceId);
+  const instanceID = requireDevelopmentInstanceIdentifier(instance);
+  const response = await client.listDevelopmentInstanceRuns(
+    create(ListDevelopmentInstanceRunsRequestSchema, { id: instanceID }),
+  );
+  return {
+    total: response.total,
+    runs: response.runs.map((run) => ({
+      instanceId: run.instanceId,
+      org: run.org,
+      project: run.project,
+      domain: run.domain,
+      runName: run.runName,
+      generation: run.generation,
+      status: run.status,
+      nodePort: run.nodePort,
+      codeServerNodePort: run.codeServerNodePort,
+      startedAt: run.startedAt?.seconds
+        ? new Date(Number(run.startedAt.seconds) * 1000).toISOString()
+        : "",
+      endedAt: run.endedAt?.seconds
+        ? new Date(Number(run.endedAt.seconds) * 1000).toISOString()
+        : "",
+    })),
+  };
+}
+
 export async function getAioneExternalPvcSize(sourcePvcId: string) {
   const sourceId = sourcePvcId.trim();
   if (!sourceId) {
@@ -275,6 +316,29 @@ async function createInstanceRun(payload: unknown) {
   const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
     AIONE_RUNTIME_NAMESPACE,
   );
+  const developmentClient = createDevelopmentInstanceClient();
+  const baseMapped = buildAioneInstanceValues({
+    payload: payload as Parameters<
+      typeof buildAioneInstanceValues
+    >[0]["payload"],
+    nodePort: 0,
+    codeServerNodePort: 0,
+    internalOrg,
+    defaultStorageClass,
+    defaultAuthorizedKey,
+    runNameSuffix: "r0",
+  });
+  const existingInstance = await findDevelopmentInstanceById(
+    developmentClient,
+    baseMapped.sourceInstanceId,
+  );
+  if (
+    existingInstance &&
+    (await hasActiveLatestDevelopmentInstanceRun(existingInstance))
+  ) {
+    throw statusError("instance is already running", 409);
+  }
+  const generation = Number(existingInstance?.generation ?? 0) + 1;
 
   let lastError: unknown;
   for (let attempt = 0; attempt < NODE_PORT_RETRIES; attempt += 1) {
@@ -284,26 +348,6 @@ async function createInstanceRun(payload: unknown) {
       token,
       ca,
     });
-    const baseMapped = buildAioneInstanceValues({
-      payload: payload as Parameters<
-        typeof buildAioneInstanceValues
-      >[0]["payload"],
-      nodePort,
-      codeServerNodePort,
-      internalOrg,
-      defaultStorageClass,
-      defaultAuthorizedKey,
-      runNameSuffix: "r0",
-    });
-    const existingRecord = await readAioneInstanceRecord(
-      { apiOrigin, namespace, token, ca },
-      baseMapped.sourceInstanceId,
-    );
-    if (isAioneInstanceActive(existingRecord?.status)) {
-      throw statusError("instance is already running", 409);
-    }
-
-    const generation = nextAioneInstanceGeneration(existingRecord);
     const mapped = buildAioneInstanceValues({
       payload: payload as Parameters<
         typeof buildAioneInstanceValues
@@ -315,23 +359,6 @@ async function createInstanceRun(payload: unknown) {
       defaultAuthorizedKey,
       runNameSuffix: `r${generation}`,
     });
-    const startingRecord = buildAioneInstanceRecord({
-      sourceInstanceId: mapped.sourceInstanceId,
-      latestRunName: mapped.runName,
-      org: internalOrg,
-      project: mapped.values.project,
-      domain: mapped.values.domain,
-      status: "STARTING",
-      generation,
-      workspacePVCName: mapped.workspacePVCName,
-      nodePort,
-      codeServerNodePort,
-      updatedAt: new Date().toISOString(),
-    });
-    await writeAioneInstanceRecord(
-      { apiOrigin, namespace, token, ca },
-      startingRecord,
-    );
 
     try {
       await ensureExternalSecrets({
@@ -360,9 +387,28 @@ async function createInstanceRun(payload: unknown) {
         creator: mapped.values.sourceOrg || "external-api",
         mounts: mapped.values.cloudStorageMounts ?? [],
       });
-      await createFlyteRunClient().createRun(
-        buildCreateDevelopmentInstanceRequest(mapped.values),
+      const saved = await developmentClient.createDevelopmentInstance(
+        create(CreateDevelopmentInstanceRequestSchema, {
+          project: create(ProjectIdentifierSchema, {
+            organization: internalOrg,
+            name: mapped.values.project,
+            domain: mapped.values.domain,
+          }),
+          developmentInstance: buildDevelopmentInstanceInput(mapped.values),
+          creator: mapped.values.sourceOrg || "external-api",
+          developmentInstanceId: mapped.sourceInstanceId,
+        }),
       );
+      const instanceID =
+        saved.developmentInstance?.id?.id || mapped.sourceInstanceId;
+      const started = await developmentClient.startDevelopmentInstance(
+        create(StartDevelopmentInstanceRequestSchema, {
+          id: create(DevelopmentInstanceIdentifierSchema, { id: instanceID }),
+          nodePort,
+          codeServerNodePort,
+        }),
+      );
+      const runName = started.runName || mapped.runName;
       await materializeExternalCloudStorages({
         client: cloudStorageClient,
         org: mapped.values.org,
@@ -371,16 +417,8 @@ async function createInstanceRun(payload: unknown) {
         targetNamespace: namespace,
         mounts: mapped.values.cloudStorageMounts ?? [],
       });
-      await writeAioneInstanceRecord(
-        { apiOrigin, namespace, token, ca },
-        {
-          ...startingRecord,
-          status: "RUNNING",
-          updatedAt: new Date().toISOString(),
-        },
-      );
       const info = buildAioneInstanceAccessInfo({
-        runName: mapped.runName,
+        runName,
         sourceName: mapped.values.sourceName ?? "",
         sshUser: mapped.values.sshUser,
         nodePort,
@@ -397,20 +435,12 @@ async function createInstanceRun(payload: unknown) {
         internalOrg,
         project: mapped.values.project,
         domain: mapped.values.domain,
-        runName: mapped.runName,
+        runName,
         sourceOrg: mapped.values.sourceOrg ?? "",
         sourceInstanceId: mapped.sourceInstanceId,
         info,
       }).data;
     } catch (error) {
-      await writeAioneInstanceRecord(
-        { apiOrigin, namespace, token, ca },
-        {
-          ...startingRecord,
-          status: "FAILED",
-          updatedAt: new Date().toISOString(),
-        },
-      );
       if (isAlreadyExists(error)) {
         throw statusError("run already exists", 409);
       }
@@ -527,49 +557,12 @@ async function stopInstanceRun(sourceInstanceId: string) {
   if (!sourceId) {
     throw statusError("id is required", 400);
   }
-  const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
-    AIONE_RUNTIME_NAMESPACE,
+  await createDevelopmentInstanceClient().stopDevelopmentInstance(
+    create(StopDevelopmentInstanceRequestSchema, {
+      id: create(DevelopmentInstanceIdentifierSchema, { id: sourceId }),
+      reason: "Stopped from AIONE external instance API",
+    }),
   );
-  const kubeContext = { apiOrigin, namespace, token, ca };
-  const record = await readAioneInstanceRecord(kubeContext, sourceId);
-  if (!record) {
-    throw statusError("instance record not found", 404);
-  }
-
-  if (record.status !== "STOPPED") {
-    await writeAioneInstanceRecord(kubeContext, {
-      ...record,
-      status: "STOPPING",
-      updatedAt: new Date().toISOString(),
-    });
-    try {
-      await createFlyteRunClient().abortRun(
-        create(AbortRunRequestSchema, {
-          runId: buildRunIdentifier(
-            record.org,
-            record.project,
-            record.domain,
-            record.latestRunName,
-          ),
-          reason: "Stopped from AIONE external instance API",
-        }),
-      );
-    } catch (error) {
-      if (!isNotFound(error)) {
-        await writeAioneInstanceRecord(kubeContext, {
-          ...record,
-          status: "RUNNING",
-          updatedAt: new Date().toISOString(),
-        });
-        throw error;
-      }
-    }
-    await writeAioneInstanceRecord(kubeContext, {
-      ...record,
-      status: "STOPPED",
-      updatedAt: new Date().toISOString(),
-    });
-  }
   return {};
 }
 
@@ -597,33 +590,36 @@ async function clearInstanceRuntimeResources(sourceInstanceId: string) {
   const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
     AIONE_RUNTIME_NAMESPACE,
   );
-  const kubeContext = { apiOrigin, namespace, token, ca };
-  const record = await readAioneInstanceRecord(kubeContext, sourceId);
-  if (!record) {
-    throw statusError("instance record not found", 404);
+  const instance = await getDevelopmentInstanceById(
+    createDevelopmentInstanceClient(),
+    sourceId,
+  );
+  const instanceID = requireDevelopmentInstanceIdentifier(instance);
+  if (!instance.latestRunName) {
+    throw statusError("instance has no run", 404);
   }
   await assertLatestRunIsNotActive({
     type: "instance",
-    org: record.org,
-    project: record.project,
-    domain: record.domain,
-    runName: record.latestRunName,
+    org: instance.org,
+    project: instance.project,
+    domain: instance.domain,
+    runName: instance.latestRunName,
   });
   const labelSelector = buildWorkspaceLabelSelector({
-    org: record.org,
-    project: record.project,
-    domain: record.domain,
-    runName: record.latestRunName,
+    org: instance.org,
+    project: instance.project,
+    domain: instance.domain,
+    runName: instance.latestRunName,
   });
   const deleted = await deleteRuntimeCollections(
-    kubeContext,
+    { apiOrigin, namespace, token, ca },
     buildDeleteCollectionRequests({
       apiOrigin,
       namespace,
       labelSelector,
     }),
   );
-  return { type: "instance", id: sourceId, deleted };
+  return { type: "instance", id: instanceID.id, deleted };
 }
 
 async function clearTaskRuntimeResources(sourceTaskId: string) {
@@ -762,24 +758,21 @@ async function resolveInstanceRunIdentifier(
     return directRunId;
   }
 
-  const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
-    AIONE_RUNTIME_NAMESPACE,
-  );
-  const record = await readAioneInstanceRecord(
-    { apiOrigin, namespace, token, ca },
+  const instance = await getDevelopmentInstanceById(
+    createDevelopmentInstanceClient(),
     sourceOrRunId,
   );
-  if (record) {
+  if (instance.latestRunName) {
     return {
-      org: record.org,
-      project: record.project,
-      domain: record.domain,
-      name: record.latestRunName,
+      org: instance.org,
+      project: instance.project,
+      domain: instance.domain,
+      name: instance.latestRunName,
     };
   }
 
   throw statusError(
-    "instance record not found and id is not a Flyte workflow id",
+    "instance has no run and id is not a Flyte workflow id",
     404,
   );
 }
@@ -924,6 +917,30 @@ async function hasActiveLatestRun(task: TrainingTask) {
   }
 }
 
+async function hasActiveLatestDevelopmentInstanceRun(
+  instance: DevelopmentInstance,
+) {
+  if (!instance.latestRunName) {
+    return false;
+  }
+  try {
+    const response = await createFlyteRunClient().getRunDetails({
+      runId: {
+        org: instance.org,
+        project: instance.project,
+        domain: instance.domain,
+        name: instance.latestRunName,
+      },
+    });
+    return isActiveActionPhase(response.details?.action?.status?.phase);
+  } catch (error) {
+    if (isNotFound(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function assertLatestRunIsNotActive({
   type,
   org,
@@ -1057,6 +1074,15 @@ function createTrainingTaskClient() {
   );
 }
 
+function createDevelopmentInstanceClient() {
+  return createClient(
+    DevelopmentInstanceService,
+    createConnectTransport({
+      baseUrl: getFlyteApiOrigin(),
+    }),
+  );
+}
+
 function createCloudStorageClient() {
   return createClient(
     CloudStorageService,
@@ -1064,6 +1090,57 @@ function createCloudStorageClient() {
       baseUrl: getFlyteApiOrigin(),
     }),
   );
+}
+
+function buildDevelopmentInstanceInput(values: DevelopmentInstanceFormValues) {
+  return create(DevelopmentInstanceInputSchema, {
+    name:
+      values.sourceName?.trim() ||
+      values.sourceInstanceId?.trim() ||
+      values.name.trim(),
+    description: values.description?.trim() ?? "",
+    owner: values.owner?.trim() ?? "",
+    imageType:
+      values.imageType === "official"
+        ? DevelopmentInstanceImageType.OFFICIAL
+        : DevelopmentInstanceImageType.CUSTOM,
+    officialImageId: values.officialImageId,
+    imageName: values.image,
+    imageUri: values.image,
+    sshUser: values.sshUser,
+    authorizedKeys: [values.authorizedKey].filter((key) => key.trim()),
+    cpu: values.cpu,
+    memory: values.memory,
+    gpuCount: values.gpuCount ?? 0,
+    gpuModel: values.gpuModel ?? "",
+    workspaceSize: values.workspaceSize,
+    maxHours: values.maxHours,
+    sourceSystem: values.sourceSystem ?? "",
+    cloudStorageMounts: (values.cloudStorageMounts ?? []).map((mount) =>
+      create(CloudStorageMountSchema, {
+        cloudStorageId: mount.cloudStorageId,
+        mountPath: mount.mountPath,
+      }),
+    ),
+    codeRepositoryMounts: (values.codeRepositories ?? []).map((repo) =>
+      create(CodeRepositoryMountSchema, {
+        codeRepositoryId: repo.id,
+        mountPath: repo.mountPath,
+      }),
+    ),
+    codeRepositoryDetails: (values.codeRepositories ?? []).map((repo) =>
+      create(DevelopmentInstanceCodeRepositoryDetailSchema, {
+        id: repo.id,
+        repoUrl: repo.repoUrl,
+        branch: repo.branch,
+        mountPath: repo.mountPath,
+      }),
+    ),
+    imagePullSecretName: values.imagePullSecretName ?? "",
+    codeRepositorySecretName: values.codeRepositorySecretName ?? "",
+    gpuNodeLabelKey: values.gpuNodeLabelKey ?? "",
+    baseImageMountPath: values.baseImageMountPath ?? "",
+  });
 }
 
 function getFlyteApiOrigin() {
@@ -1495,6 +1572,48 @@ async function getTrainingTaskById(
     }
     throw error;
   }
+}
+
+async function findDevelopmentInstanceById(
+  client: ReturnType<typeof createDevelopmentInstanceClient>,
+  id: string,
+) {
+  try {
+    return await getDevelopmentInstanceById(client, id);
+  } catch (error) {
+    if (error instanceof Error && error.message === "development instance not found") {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+async function getDevelopmentInstanceById(
+  client: ReturnType<typeof createDevelopmentInstanceClient>,
+  id: string,
+) {
+  try {
+    const response = await client.getDevelopmentInstanceById(
+      create(GetDevelopmentInstanceByIdRequestSchema, { id }),
+    );
+    const instance = response.developmentInstance;
+    if (!instance?.id?.id) {
+      throw statusError("development instance not found", 404);
+    }
+    return instance;
+  } catch (error) {
+    if (error instanceof ConnectError && error.code === Code.NotFound) {
+      throw statusError("development instance not found", 404);
+    }
+    throw error;
+  }
+}
+
+function requireDevelopmentInstanceIdentifier(instance: DevelopmentInstance) {
+  if (!instance.id?.id) {
+    throw statusError("development instance not found", 404);
+  }
+  return create(DevelopmentInstanceIdentifierSchema, instance.id);
 }
 
 function requireTrainingTaskIdentifier(task: TrainingTask) {

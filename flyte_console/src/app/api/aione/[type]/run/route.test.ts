@@ -8,14 +8,13 @@ const getRunDetailsMock = vi.hoisted(() => vi.fn());
 const getTrainingTaskByIdMock = vi.hoisted(() => vi.fn());
 const createTrainingTaskMock = vi.hoisted(() => vi.fn());
 const startTrainingTaskMock = vi.hoisted(() => vi.fn());
+const getDevelopmentInstanceByIdMock = vi.hoisted(() => vi.fn());
+const createDevelopmentInstanceMock = vi.hoisted(() => vi.fn());
+const startDevelopmentInstanceMock = vi.hoisted(() => vi.fn());
 const ensureCloudStorageMock = vi.hoisted(() => vi.fn());
 const materializeCloudStorageMock = vi.hoisted(() => vi.fn());
 const getKubernetesClientConfigMock = vi.hoisted(() => vi.fn());
 const requestKubernetesMock = vi.hoisted(() => vi.fn());
-const readAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
-const writeAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
-const readAioneTaskRecordMock = vi.hoisted(() => vi.fn());
-const writeAioneTaskRecordMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@connectrpc/connect", async () => {
   const actual = await vi.importActual<typeof import("@connectrpc/connect")>(
@@ -30,6 +29,13 @@ vi.mock("@connectrpc/connect", async () => {
             createTrainingTask: createTrainingTaskMock,
             startTrainingTask: startTrainingTaskMock,
           }
+        : service.typeName ===
+            "flyteidl2.developmentinstance.DevelopmentInstanceService"
+          ? {
+              getDevelopmentInstanceById: getDevelopmentInstanceByIdMock,
+              createDevelopmentInstance: createDevelopmentInstanceMock,
+              startDevelopmentInstance: startDevelopmentInstanceMock,
+            }
         : service.typeName ===
             "flyteidl2.aione.cloudstorage.CloudStorageService"
           ? {
@@ -51,17 +57,6 @@ vi.mock("@connectrpc/connect-web", () => ({
 vi.mock("@/server/kubernetes/client", () => ({
   getKubernetesClientConfig: getKubernetesClientConfigMock,
   requestKubernetes: requestKubernetesMock,
-}));
-
-vi.mock("@/server/aione/state", () => ({
-  isAioneInstanceActive: vi.fn((status?: string) =>
-    ["STARTING", "RUNNING", "STOPPING"].includes(status ?? ""),
-  ),
-  nextAioneInstanceGeneration: vi.fn((record) => (record?.generation ?? 0) + 1),
-  readAioneInstanceRecord: readAioneInstanceRecordMock,
-  writeAioneInstanceRecord: writeAioneInstanceRecordMock,
-  readAioneTaskRecord: readAioneTaskRecordMock,
-  writeAioneTaskRecord: writeAioneTaskRecordMock,
 }));
 
 const instancePayload = {
@@ -123,11 +118,22 @@ describe("aione external typed run route", () => {
       ok: true,
       json: () => ({ items: [] }),
     });
-    readAioneInstanceRecordMock.mockResolvedValue(null);
-    writeAioneInstanceRecordMock.mockResolvedValue(undefined);
-    readAioneTaskRecordMock.mockResolvedValue(null);
-    writeAioneTaskRecordMock.mockResolvedValue(undefined);
     createRunMock.mockResolvedValue({});
+    getDevelopmentInstanceByIdMock.mockRejectedValue(
+      new ConnectError("development instance not found", Code.NotFound),
+    );
+    createDevelopmentInstanceMock.mockResolvedValue({
+      developmentInstance: {
+        id: { id: "ins-contract-1" },
+      },
+    });
+    startDevelopmentInstanceMock.mockResolvedValue({
+      runName: "ins-contract-1-r1",
+      developmentInstance: {
+        id: { id: "ins-contract-1" },
+        latestRunName: "ins-contract-1-r1",
+      },
+    });
     ensureCloudStorageMock.mockResolvedValue({
       cloudStorage: {
         id: {
@@ -206,7 +212,17 @@ describe("aione external typed run route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(createRunMock).toHaveBeenCalledTimes(1);
+    expect(createDevelopmentInstanceMock).toHaveBeenCalledTimes(1);
+    expect(createDevelopmentInstanceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        developmentInstanceId: "ins-contract-1",
+        developmentInstance: expect.objectContaining({
+          name: "开发实例一",
+        }),
+      }),
+    );
+    expect(startDevelopmentInstanceMock).toHaveBeenCalledTimes(1);
+    expect(createRunMock).not.toHaveBeenCalled();
     expect(ensureCloudStorageMock).not.toHaveBeenCalled();
     expect(materializeCloudStorageMock).not.toHaveBeenCalled();
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
@@ -254,7 +270,7 @@ describe("aione external typed run route", () => {
         creator: "external-system",
       }),
     );
-    expect(createRunMock).toHaveBeenCalledTimes(1);
+    expect(startDevelopmentInstanceMock).toHaveBeenCalledTimes(1);
     expect(materializeCloudStorageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: expect.objectContaining({
@@ -269,8 +285,8 @@ describe("aione external typed run route", () => {
     );
     expect(
       ensureCloudStorageMock.mock.invocationCallOrder[0],
-    ).toBeLessThan(createRunMock.mock.invocationCallOrder[0]);
-    expect(createRunMock.mock.invocationCallOrder[0]).toBeLessThan(
+    ).toBeLessThan(startDevelopmentInstanceMock.mock.invocationCallOrder[0]);
+    expect(startDevelopmentInstanceMock.mock.invocationCallOrder[0]).toBeLessThan(
       materializeCloudStorageMock.mock.invocationCallOrder[0],
     );
   });
@@ -305,8 +321,6 @@ describe("aione external typed run route", () => {
       }),
     );
     expect(startTrainingTaskMock).toHaveBeenCalledTimes(1);
-    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
-    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
     expect(body).toEqual({
       status: 200,
       data: {
@@ -380,8 +394,6 @@ describe("aione external typed run route", () => {
     });
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
     expect(startTrainingTaskMock).not.toHaveBeenCalled();
-    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
-    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when the external task id latest run is paused", async () => {
@@ -417,8 +429,6 @@ describe("aione external typed run route", () => {
     });
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
     expect(startTrainingTaskMock).not.toHaveBeenCalled();
-    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
-    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
   });
 
   it("starts an existing training task when the external task id latest run is terminal", async () => {
@@ -449,8 +459,6 @@ describe("aione external typed run route", () => {
     expect(body.data.id).toBe("task-contract-1");
     expect(body.data.task.id).toBe("task-contract-1");
     expect(body.data.task.latestRunName).toBe("task-contract-1-run");
-    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
-    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when the external task id matches multiple training tasks", async () => {

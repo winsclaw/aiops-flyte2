@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package flyteidl2.developmentinstance;
+
+import "flyteidl2/aione/cloudstorage/cloud_storage_definition.proto";
+import "flyteidl2/aione/coderepository/code_repository_definition.proto";
+import "flyteidl2/common/identifier.proto";
+import "flyteidl2/common/list.proto";
+import "flyteidl2/developmentinstance/development_instance_definition.proto";
+
+option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/developmentinstance";
+
+service DevelopmentInstanceService {
+  rpc ListDevelopmentInstances(ListDevelopmentInstancesRequest) returns (ListDevelopmentInstancesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetDevelopmentInstance(GetDevelopmentInstanceRequest) returns (GetDevelopmentInstanceResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetDevelopmentInstanceById(GetDevelopmentInstanceByIdRequest) returns (GetDevelopmentInstanceByIdResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListDevelopmentInstanceRuns(ListDevelopmentInstanceRunsRequest) returns (ListDevelopmentInstanceRunsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc CreateDevelopmentInstance(CreateDevelopmentInstanceRequest) returns (CreateDevelopmentInstanceResponse) {}
+  rpc StartDevelopmentInstance(StartDevelopmentInstanceRequest) returns (StartDevelopmentInstanceResponse) {}
+  rpc StopDevelopmentInstance(StopDevelopmentInstanceRequest) returns (StopDevelopmentInstanceResponse) {}
+  rpc DeleteDevelopmentInstance(DeleteDevelopmentInstanceRequest) returns (DeleteDevelopmentInstanceResponse) {}
+}
+
+message DevelopmentInstanceInput {
+  string name = 1;
+  string description = 2;
+  string owner = 3;
+  ImageType image_type = 4;
+  string official_image_id = 5;
+  string image_name = 6;
+  string image_uri = 7;
+  string ssh_user = 8;
+  repeated string authorized_keys = 9;
+  string cpu = 10;
+  string memory = 11;
+  uint32 gpu_count = 12;
+  string gpu_model = 13;
+  string bandwidth = 14;
+  string workspace_size = 15;
+  uint32 max_hours = 16;
+  string source_system = 17;
+  repeated aione.cloudstorage.CloudStorageMount cloud_storage_mounts = 18;
+  repeated aione.coderepository.CodeRepositoryMount code_repository_mounts = 19;
+  string image_pull_secret_name = 20;
+  string code_repository_secret_name = 21;
+  string gpu_node_label_key = 22;
+  string base_image_mount_path = 23;
+  repeated DevelopmentInstanceCodeRepositoryDetail code_repository_details = 24;
+}
+
+message ListDevelopmentInstancesRequest {
+  common.ListRequest request = 1;
+  common.ProjectIdentifier project = 2;
+}
+
+message ListDevelopmentInstancesResponse {
+  repeated DevelopmentInstance development_instances = 1;
+  string token = 2;
+  uint32 total = 3;
+}
+
+message GetDevelopmentInstanceRequest {
+  DevelopmentInstanceIdentifier id = 1;
+}
+
+message GetDevelopmentInstanceResponse {
+  DevelopmentInstance development_instance = 1;
+}
+
+message GetDevelopmentInstanceByIdRequest {
+  string id = 1;
+}
+
+message GetDevelopmentInstanceByIdResponse {
+  DevelopmentInstance development_instance = 1;
+}
+
+message ListDevelopmentInstanceRunsRequest {
+  DevelopmentInstanceIdentifier id = 1;
+  common.ListRequest request = 2;
+}
+
+message ListDevelopmentInstanceRunsResponse {
+  repeated DevelopmentInstanceRun runs = 1;
+  string token = 2;
+  uint32 total = 3;
+}
+
+message CreateDevelopmentInstanceRequest {
+  common.ProjectIdentifier project = 1;
+  DevelopmentInstanceInput development_instance = 2;
+  string creator = 3;
+  string development_instance_id = 4;
+}
+
+message CreateDevelopmentInstanceResponse {
+  DevelopmentInstance development_instance = 1;
+}
+
+message StartDevelopmentInstanceRequest {
+  DevelopmentInstanceIdentifier id = 1;
+  uint32 node_port = 2;
+  uint32 code_server_node_port = 3;
+}
+
+message StartDevelopmentInstanceResponse {
+  DevelopmentInstance development_instance = 1;
+  string run_name = 2;
+}
+
+message StopDevelopmentInstanceRequest {
+  DevelopmentInstanceIdentifier id = 1;
+  string reason = 2;
+}
+
+message StopDevelopmentInstanceResponse {
+  DevelopmentInstance development_instance = 1;
+}
+
+message DeleteDevelopmentInstanceRequest {
+  DevelopmentInstanceIdentifier id = 1;
+}
+
+message DeleteDevelopmentInstanceResponse {}

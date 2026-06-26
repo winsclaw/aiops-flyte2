@@ -2350,6 +2350,52 @@ func (_c *Repository_TrainingTaskRepo_Call) RunAndReturn(run func() interfaces.T
 	return _c
 }
 
+// DevelopmentInstanceRepo provides a mock function for the type Repository
+func (_mock *Repository) DevelopmentInstanceRepo() interfaces.DevelopmentInstanceRepo {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for DevelopmentInstanceRepo")
+	}
+
+	var r0 interfaces.DevelopmentInstanceRepo
+	if returnFunc, ok := ret.Get(0).(func() interfaces.DevelopmentInstanceRepo); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(interfaces.DevelopmentInstanceRepo)
+		}
+	}
+	return r0
+}
+
+// Repository_DevelopmentInstanceRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DevelopmentInstanceRepo'
+type Repository_DevelopmentInstanceRepo_Call struct {
+	*mock.Call
+}
+
+// DevelopmentInstanceRepo is a helper method to define mock.On call
+func (_e *Repository_Expecter) DevelopmentInstanceRepo() *Repository_DevelopmentInstanceRepo_Call {
+	return &Repository_DevelopmentInstanceRepo_Call{Call: _e.mock.On("DevelopmentInstanceRepo")}
+}
+
+func (_c *Repository_DevelopmentInstanceRepo_Call) Run(run func()) *Repository_DevelopmentInstanceRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Repository_DevelopmentInstanceRepo_Call) Return(developmentInstanceRepo interfaces.DevelopmentInstanceRepo) *Repository_DevelopmentInstanceRepo_Call {
+	_c.Call.Return(developmentInstanceRepo)
+	return _c
+}
+
+func (_c *Repository_DevelopmentInstanceRepo_Call) RunAndReturn(run func() interfaces.DevelopmentInstanceRepo) *Repository_DevelopmentInstanceRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewSortParameter creates a new instance of SortParameter. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewSortParameter(t interface {

@@ -12,6 +12,7 @@ import (
 	"github.com/flyteorg/flyte/v2/flytestdlib/app"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/actions/actionsconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/auth/authconnect"
+	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/developmentinstance/developmentinstanceconnect"
 	projectpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/project"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/project/projectconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/task/taskconnect"
@@ -95,6 +96,7 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 	runsSvc := service.NewRunService(repo, actionsClient, projectClient, cfg.StoragePrefix, sc.DataStore, abortReconciler, cfg.AuthMetadata.ExternalAuthServerBaseURL, cfg.TrustForwardedIdentityHeaders, cfg.IdentityHeaders)
 	taskSvc := service.NewTaskService(repo, projectClient)
 	trainingTaskSvc := service.NewTrainingTaskService(repo, runsSvc, sc.Namespace)
+	developmentInstanceSvc := service.NewDevelopmentInstanceService(repo, runsSvc, sc.Namespace)
 
 	runsPath, runsHandler := workflowconnect.NewRunServiceHandler(runsSvc, connect.WithInterceptors(otelInterceptor))
 	sc.Mux.Handle(runsPath, runsHandler)
@@ -111,6 +113,10 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 	trainingTaskPath, trainingTaskHandler := trainingtaskconnect.NewTrainingTaskServiceHandler(trainingTaskSvc, connect.WithInterceptors(otelInterceptor))
 	sc.Mux.Handle(trainingTaskPath, trainingTaskHandler)
 	logger.Infof(ctx, "Mounted TrainingTaskService at %s", trainingTaskPath)
+
+	developmentInstancePath, developmentInstanceHandler := developmentinstanceconnect.NewDevelopmentInstanceServiceHandler(developmentInstanceSvc, connect.WithInterceptors(otelInterceptor))
+	sc.Mux.Handle(developmentInstancePath, developmentInstanceHandler)
+	logger.Infof(ctx, "Mounted DevelopmentInstanceService at %s", developmentInstancePath)
 
 	aionecloudstorage.Setup(ctx, sc, repo.CloudStorageRepo(), otelInterceptor)
 	aionecoderepository.Setup(ctx, sc, repo.CodeRepositoryRepo(), otelInterceptor)

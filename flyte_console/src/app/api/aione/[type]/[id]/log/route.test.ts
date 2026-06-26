@@ -4,10 +4,9 @@ import { Code, ConnectError } from "@connectrpc/connect";
 
 const getRunDetailsMock = vi.hoisted(() => vi.fn());
 const getTrainingTaskByIdMock = vi.hoisted(() => vi.fn());
+const getDevelopmentInstanceByIdMock = vi.hoisted(() => vi.fn());
 const getKubernetesClientConfigMock = vi.hoisted(() => vi.fn());
 const requestKubernetesMock = vi.hoisted(() => vi.fn());
-const readAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
-const readAioneTaskRecordMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@connectrpc/connect", async () => {
   const actual = await vi.importActual<typeof import("@connectrpc/connect")>(
@@ -20,6 +19,11 @@ vi.mock("@connectrpc/connect", async () => {
         ? {
             getTrainingTaskById: getTrainingTaskByIdMock,
           }
+        : service.typeName ===
+            "flyteidl2.developmentinstance.DevelopmentInstanceService"
+          ? {
+              getDevelopmentInstanceById: getDevelopmentInstanceByIdMock,
+            }
         : {
             getRunDetails: getRunDetailsMock,
           },
@@ -34,11 +38,6 @@ vi.mock("@connectrpc/connect-web", () => ({
 vi.mock("@/server/kubernetes/client", () => ({
   getKubernetesClientConfig: getKubernetesClientConfigMock,
   requestKubernetes: requestKubernetesMock,
-}));
-
-vi.mock("@/server/aione/state", () => ({
-  readAioneInstanceRecord: readAioneInstanceRecordMock,
-  readAioneTaskRecord: readAioneTaskRecordMock,
 }));
 
 const latestLogContext = {
@@ -64,28 +63,14 @@ describe("aione external typed log route", () => {
       token: "token",
       ca: "ca",
     });
-    readAioneInstanceRecordMock.mockResolvedValue({
-      sourceInstanceId: "ins-contract-1",
-      latestRunName: "ins-contract-1-r1",
-      org: "aione",
-      project: "aione",
-      domain: "development",
-      status: "RUNNING",
-      generation: 1,
-      workspacePVCName: "ins-contract-1-workspace",
-      updatedAt: "2026-06-22T00:00:00.000Z",
-    });
-    readAioneTaskRecordMock.mockResolvedValue({
-      sourceTaskId: "legacy-task",
-      sourceOrg: "legacy-system",
-      org: "legacy-org",
-      project: "legacy-project",
-      domain: "legacy-domain",
-      trainingTaskId: "tt-legacy",
-      latestRunName: "task-contract-1-run",
-      status: "RUNNING",
-      lastError: "",
-      updatedAt: "2026-06-24T00:00:00.000Z",
+    getDevelopmentInstanceByIdMock.mockResolvedValue({
+      developmentInstance: {
+        id: { id: "ins-contract-1" },
+        org: "aione",
+        project: "aione",
+        domain: "development",
+        latestRunName: "ins-contract-1-r1",
+      },
     });
     getTrainingTaskByIdMock.mockResolvedValue({
       trainingTask: {
@@ -203,7 +188,6 @@ describe("aione external typed log route", () => {
     expect(getTrainingTaskByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: "task-contract-1" }),
     );
-    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
     expect(body.data).toEqual({
       total: 4,
       logs: ["line 1", "line 2", "line 3", "line 4"],

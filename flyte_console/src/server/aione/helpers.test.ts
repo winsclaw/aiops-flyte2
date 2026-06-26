@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   authenticateAioneRequest,
   buildAioneCreateInstanceResponse,
-  buildAioneInstanceConfigMapName,
   buildAioneInstanceAccessInfo,
   buildAioneInstanceValues,
   buildDockerConfigJson,
@@ -140,9 +139,6 @@ describe("aione external instance helpers", () => {
       second.values.codeRepositorySecretName,
     );
     expect(first.runName.length).toBeLessThanOrEqual(30);
-    expect(
-      buildAioneInstanceConfigMapName(first.sourceInstanceId).length,
-    ).toBeLessThanOrEqual(253);
   });
 
   it("uses OWN image fields and the default authorized key when provided", () => {

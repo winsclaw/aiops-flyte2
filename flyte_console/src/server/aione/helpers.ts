@@ -101,27 +101,6 @@ export type AioneInstanceAccessInfo = ReturnType<
   typeof buildAioneInstanceAccessInfo
 >;
 
-export type AioneInstanceRecordStatus =
-  | "STARTING"
-  | "RUNNING"
-  | "STOPPING"
-  | "STOPPED"
-  | "FAILED";
-
-export type AioneInstanceRecord = {
-  sourceInstanceId: string;
-  latestRunName: string;
-  org: string;
-  project: string;
-  domain: string;
-  status: AioneInstanceRecordStatus;
-  generation: number;
-  workspacePVCName: string;
-  nodePort?: number;
-  codeServerNodePort?: number;
-  updatedAt: string;
-};
-
 export type BuildAioneCreateInstanceResponseInput = {
   internalOrg: string;
   project: string;
@@ -419,44 +398,6 @@ export function getAioneNodePortRange() {
     10,
   );
   return { min, max };
-}
-
-export function buildAioneInstanceConfigMapName(sourceInstanceId: string) {
-  const sourceBaseName = normalizeRunName(sourceInstanceId);
-  if (!sourceBaseName) {
-    throw new Error("id must produce a valid ConfigMap name");
-  }
-  return buildBoundedName(`aione-instance-${sourceBaseName}`, 253);
-}
-
-export function buildAioneInstanceRecord({
-  sourceInstanceId,
-  latestRunName,
-  org,
-  project,
-  domain,
-  status,
-  generation,
-  workspacePVCName,
-  nodePort,
-  codeServerNodePort,
-  updatedAt = new Date().toISOString(),
-}: Omit<AioneInstanceRecord, "updatedAt"> & {
-  updatedAt?: string;
-}): AioneInstanceRecord {
-  return {
-    sourceInstanceId,
-    latestRunName,
-    org,
-    project,
-    domain,
-    status,
-    generation,
-    workspacePVCName,
-    nodePort,
-    codeServerNodePort,
-    updatedAt,
-  };
 }
 
 function buildRestartableRunName(sourceBaseName: string, suffix?: string) {

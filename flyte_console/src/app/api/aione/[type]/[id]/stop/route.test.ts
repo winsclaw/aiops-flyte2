@@ -5,11 +5,8 @@ import { Code, ConnectError } from "@connectrpc/connect";
 const abortRunMock = vi.hoisted(() => vi.fn());
 const getTrainingTaskByIdMock = vi.hoisted(() => vi.fn());
 const stopTrainingTaskMock = vi.hoisted(() => vi.fn());
+const stopDevelopmentInstanceMock = vi.hoisted(() => vi.fn());
 const getKubernetesClientConfigMock = vi.hoisted(() => vi.fn());
-const readAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
-const writeAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
-const readAioneTaskRecordMock = vi.hoisted(() => vi.fn());
-const writeAioneTaskRecordMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@connectrpc/connect", async () => {
   const actual = await vi.importActual<typeof import("@connectrpc/connect")>(
@@ -23,6 +20,11 @@ vi.mock("@connectrpc/connect", async () => {
             getTrainingTaskById: getTrainingTaskByIdMock,
             stopTrainingTask: stopTrainingTaskMock,
           }
+        : service.typeName ===
+            "flyteidl2.developmentinstance.DevelopmentInstanceService"
+          ? {
+              stopDevelopmentInstance: stopDevelopmentInstanceMock,
+            }
         : {
             abortRun: abortRunMock,
           },
@@ -38,13 +40,6 @@ vi.mock("@/server/kubernetes/client", () => ({
   getKubernetesClientConfig: getKubernetesClientConfigMock,
 }));
 
-vi.mock("@/server/aione/state", () => ({
-  readAioneInstanceRecord: readAioneInstanceRecordMock,
-  writeAioneInstanceRecord: writeAioneInstanceRecordMock,
-  readAioneTaskRecord: readAioneTaskRecordMock,
-  writeAioneTaskRecord: writeAioneTaskRecordMock,
-}));
-
 describe("aione external typed stop route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -54,29 +49,6 @@ describe("aione external typed stop route", () => {
       namespace: "flyte",
       token: "token",
       ca: "ca",
-    });
-    readAioneInstanceRecordMock.mockResolvedValue({
-      sourceInstanceId: "ins-contract-1",
-      latestRunName: "ins-contract-1-r1",
-      org: "aione",
-      project: "aione",
-      domain: "development",
-      status: "RUNNING",
-      generation: 1,
-      workspacePVCName: "ins-contract-1-workspace",
-      updatedAt: "2026-06-22T00:00:00.000Z",
-    });
-    readAioneTaskRecordMock.mockResolvedValue({
-      sourceTaskId: "legacy-task",
-      sourceOrg: "legacy-system",
-      org: "legacy-org",
-      project: "legacy-project",
-      domain: "legacy-domain",
-      trainingTaskId: "tt-legacy",
-      latestRunName: "task-contract-1-run",
-      status: "RUNNING",
-      lastError: "",
-      updatedAt: "2026-06-24T00:00:00.000Z",
     });
     getTrainingTaskByIdMock.mockResolvedValue({
       trainingTask: {
@@ -90,9 +62,8 @@ describe("aione external typed stop route", () => {
         latestRunName: "task-contract-1-run",
       },
     });
-    writeAioneInstanceRecordMock.mockResolvedValue(undefined);
-    writeAioneTaskRecordMock.mockResolvedValue(undefined);
     abortRunMock.mockResolvedValue({});
+    stopDevelopmentInstanceMock.mockResolvedValue({});
     stopTrainingTaskMock.mockResolvedValue({});
   });
 
@@ -122,10 +93,10 @@ describe("aione external typed stop route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(abortRunMock).toHaveBeenCalledWith(
+    expect(stopDevelopmentInstanceMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        runId: expect.objectContaining({
-          name: "ins-contract-1-r1",
+        id: expect.objectContaining({
+          id: "ins-contract-1",
         }),
         reason: "Stopped from AIONE external instance API",
       }),
@@ -159,8 +130,6 @@ describe("aione external typed stop route", () => {
     expect(getTrainingTaskByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: "task-contract-1" }),
     );
-    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
-    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
     expect(body).toEqual({ status: 200, data: {} });
   });
 

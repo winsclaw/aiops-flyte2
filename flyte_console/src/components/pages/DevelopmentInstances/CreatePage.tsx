@@ -9,8 +9,12 @@ import { NavPanelLayout } from "@/components/NavPanel/NavPanelLayout";
 import {
   CloudStorage,
   CloudStorageIdentifierSchema,
+  CloudStorageMountSchema,
 } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
-import { CodeRepository } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
+import {
+  CodeRepository,
+  CodeRepositoryMountSchema,
+} from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
 import {
   CodeRepositoryService,
   GetCodeRepositoryRequestSchema,
@@ -22,20 +26,25 @@ import {
   MaterializeCloudStorageRequestSchema,
 } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_service_pb";
 import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
-import { Filter_Function } from "@/gen/flyteidl2/common/list_pb";
-import { RunService } from "@/gen/flyteidl2/workflow/run_service_pb";
+import {
+  DevelopmentInstanceCodeRepositoryDetailSchema,
+  DevelopmentInstanceIdentifierSchema,
+  ImageType as DevelopmentInstanceImageType,
+} from "@/gen/flyteidl2/developmentinstance/development_instance_definition_pb";
+import {
+  CreateDevelopmentInstanceRequestSchema,
+  DevelopmentInstanceInputSchema,
+  DevelopmentInstanceService,
+  StartDevelopmentInstanceRequestSchema,
+} from "@/gen/flyteidl2/developmentinstance/development_instance_service_pb";
 import { useConnectRpcClient } from "@/hooks/useConnectRpc";
 import { useOrg } from "@/hooks/useOrg";
-import { useWatchRuns } from "@/hooks/useWatchRuns";
-import { getFilter } from "@/lib/filterUtils";
 import { create } from "@bufbuild/protobuf";
 import { ArrowLeftIcon, PlusIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  buildCreateDevelopmentInstanceRequest,
-  buildDevelopmentInstanceRunName,
   buildGeneratedDevelopmentInstanceSourceId,
   DEFAULT_CUSTOM_DEVELOPMENT_INSTANCE_IMAGE,
   DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
@@ -43,7 +52,6 @@ import {
   DEVELOPMENT_INSTANCE_RESOURCE_SPECS,
   getConsoleApiPath,
   getNextNodePort,
-  getUsedNodePorts,
   normalizeRunName,
 } from "./utils";
 
@@ -61,7 +69,9 @@ export function DevelopmentInstanceCreatePage() {
   const params = useParams<ProjectDomainParams>();
   const router = useRouter();
   const org = useOrg();
-  const runClient = useConnectRpcClient(RunService);
+  const developmentInstanceClient = useConnectRpcClient(
+    DevelopmentInstanceService,
+  );
   const cloudStorageClient = useConnectRpcClient(CloudStorageService);
   const codeRepositoryClient = useConnectRpcClient(CodeRepositoryService);
   const [displayName, setDisplayName] = useState("");
@@ -110,24 +120,6 @@ export function DevelopmentInstanceCreatePage() {
           })
         : undefined,
     [params.domain, params.project, org],
-  );
-
-  const runsQuery = useWatchRuns({
-    limit: 100,
-    projectId,
-    filters: [
-      getFilter({
-        function: Filter_Function.EQUAL,
-        field: "task_name",
-        values: ["ssh_workspace"],
-      }),
-    ],
-    enabled: !!projectId,
-  });
-
-  const runs = useMemo(
-    () => runsQuery.data?.pages.flatMap((page) => page.runs ?? []) ?? [],
-    [runsQuery.data?.pages],
   );
 
   useEffect(() => {
@@ -206,22 +198,22 @@ export function DevelopmentInstanceCreatePage() {
 
   const autoNodePort = useMemo(() => {
     try {
-      return getNextNodePort([...usedNodePorts, ...getUsedNodePorts(runs)]);
+      return getNextNodePort(usedNodePorts);
     } catch {
       return 0;
     }
-  }, [runs, usedNodePorts]);
+  }, [usedNodePorts]);
   const autoCodeServerNodePort = useMemo(() => {
     try {
       return getNextNodePort(
-        [...usedNodePorts, ...getUsedNodePorts(runs), autoNodePort].filter(
+        [...usedNodePorts, autoNodePort].filter(
           (port): port is number => Boolean(port),
         ),
       );
     } catch {
       return 0;
     }
-  }, [autoNodePort, runs, usedNodePorts]);
+  }, [autoNodePort, usedNodePorts]);
   const listHref = `/domain/${params.domain}/project/${params.project}/development-instances`;
 
   const onSubmit = async (event: FormEvent) => {
@@ -269,7 +261,6 @@ export function DevelopmentInstanceCreatePage() {
     setIsSubmitting(true);
     try {
       const sourceInstanceId = buildGeneratedDevelopmentInstanceSourceId();
-      const runName = buildDevelopmentInstanceRunName(sourceInstanceId, 1);
       const selectedCodeRepositories = await Promise.all(
         codeRepositoryMounts.map(async (mount) => {
           const repository = codeRepositories.find(
@@ -290,32 +281,74 @@ export function DevelopmentInstanceCreatePage() {
           };
         }),
       );
-      await runClient.createRun(
-        buildCreateDevelopmentInstanceRequest({
-          org: projectId.organization,
-          project: projectId.name,
-          domain: projectId.domain,
-          name: runName,
-          sourceName: trimmedDisplayName,
-          sourceInstanceId,
-          description,
-          owner,
-          imageType,
-          officialImageId,
-          image,
-          sshUser,
-          authorizedKey,
-          cpu,
-          memory,
-          gpuCount,
-          gpuModel,
-          workspaceSize,
-          workspacePVCName: `${sourceInstanceId}-workspace`,
+      const created = await developmentInstanceClient.createDevelopmentInstance(
+        create(CreateDevelopmentInstanceRequestSchema, {
+          project: projectId,
+          creator: owner || "console",
+          developmentInstanceId: sourceInstanceId,
+          developmentInstance: create(DevelopmentInstanceInputSchema, {
+            name: trimmedDisplayName,
+            description,
+            owner,
+            imageType:
+              imageType === "official"
+                ? DevelopmentInstanceImageType.OFFICIAL
+                : DevelopmentInstanceImageType.CUSTOM,
+            officialImageId,
+            imageName:
+              imageType === "official"
+                ? DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES.find(
+                    (item) => item.id === officialImageId,
+                  )?.name || "官方编辑器"
+                : image,
+            imageUri:
+              imageType === "official"
+                ? DEVELOPMENT_INSTANCE_OFFICIAL_IMAGES.find(
+                    (item) => item.id === officialImageId,
+                  )?.imageUri || ""
+                : image,
+            sshUser,
+            authorizedKeys: [authorizedKey],
+            cpu,
+            memory,
+            gpuCount,
+            gpuModel,
+            workspaceSize,
+            maxHours,
+            sourceSystem: "console",
+            cloudStorageMounts: cloudStorageMounts.map((mount) =>
+              create(CloudStorageMountSchema, {
+                cloudStorageId: mount.cloudStorageId,
+                mountPath: mount.mountPath,
+              }),
+            ),
+            codeRepositoryMounts: selectedCodeRepositories.map((repo) =>
+              create(CodeRepositoryMountSchema, {
+                codeRepositoryId: repo.id,
+                mountPath: repo.mountPath,
+              }),
+            ),
+            codeRepositoryDetails: selectedCodeRepositories.map((repo) =>
+              create(DevelopmentInstanceCodeRepositoryDetailSchema, {
+                id: repo.id,
+                repoUrl: repo.repoUrl,
+                branch: repo.branch,
+                mountPath: repo.mountPath,
+                token: repo.token,
+              }),
+            ),
+          }),
+        }),
+      );
+      const instanceId = created.developmentInstance?.id?.id;
+      if (!instanceId) {
+        throw new Error("development instance id is missing");
+      }
+      await developmentInstanceClient.startDevelopmentInstance(
+        create(StartDevelopmentInstanceRequestSchema, {
+          id: create(DevelopmentInstanceIdentifierSchema, { id: instanceId }),
           nodePort: autoNodePort,
           codeServerNodePort: autoCodeServerNodePort,
-          maxHours,
-          cloudStorageMounts,
-          codeRepositories: selectedCodeRepositories,
         }),
       );
       await Promise.all(

@@ -7,16 +7,20 @@
 import { Header } from "@/components/Header";
 import { NavPanelLayout } from "@/components/NavPanel/NavPanelLayout";
 import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
-import { Filter_Function } from "@/gen/flyteidl2/common/list_pb";
 import {
-  AbortRunRequestSchema,
-  GetRunDetailsRequestSchema,
-  RunService,
-} from "@/gen/flyteidl2/workflow/run_service_pb";
-import { useWatchRuns } from "@/hooks/useWatchRuns";
+  DevelopmentInstance,
+  DevelopmentInstanceIdentifierSchema,
+  DevelopmentInstanceStatus,
+} from "@/gen/flyteidl2/developmentinstance/development_instance_definition_pb";
+import {
+  DeleteDevelopmentInstanceRequestSchema,
+  DevelopmentInstanceService,
+  ListDevelopmentInstancesRequestSchema,
+  StartDevelopmentInstanceRequestSchema,
+  StopDevelopmentInstanceRequestSchema,
+} from "@/gen/flyteidl2/developmentinstance/development_instance_service_pb";
 import { useConnectRpcClient } from "@/hooks/useConnectRpc";
 import { useOrg } from "@/hooks/useOrg";
-import { getFilter } from "@/lib/filterUtils";
 import { create } from "@bufbuild/protobuf";
 import {
   ArrowPathIcon,
@@ -30,20 +34,7 @@ import clsx from "clsx";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  DevelopmentInstance,
-  DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
-  DELETED_DEVELOPMENT_INSTANCE_REASON,
-  buildCreateDevelopmentInstanceRequest,
-  buildDevelopmentInstanceRunName,
-  buildRunIdentifier,
-  formatDevelopmentInstance,
-  getConsoleApiPath,
-  getNextDevelopmentInstanceRunGeneration,
-  getNextNodePort,
-  getUsedNodePorts,
-  isTerminalPhase,
-} from "./utils";
+import { getConsoleApiPath, getNextNodePort } from "./utils";
 
 type ProjectDomainParams = {
   domain?: string;
@@ -53,9 +44,48 @@ type ProjectDomainParams = {
 const buttonClass =
   "inline-flex h-9 min-w-20 items-center justify-center gap-2 border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
 
-function StatusPill({ instance }: { instance: DevelopmentInstance }) {
-  const isError = instance.statusLabel === "异常";
-  const isRunning = instance.statusLabel === "运行中";
+function instanceId(instance: DevelopmentInstance) {
+  return instance.id?.id ?? "";
+}
+
+function statusText(status: DevelopmentInstanceStatus) {
+  switch (status) {
+    case DevelopmentInstanceStatus.STARTING:
+      return "启动中";
+    case DevelopmentInstanceStatus.RUNNING:
+      return "运行中";
+    case DevelopmentInstanceStatus.STOPPING:
+      return "停止中";
+    case DevelopmentInstanceStatus.STOPPED:
+      return "已停止";
+    case DevelopmentInstanceStatus.SUCCEEDED:
+      return "已完成";
+    case DevelopmentInstanceStatus.FAILED:
+      return "异常";
+    case DevelopmentInstanceStatus.TIMED_OUT:
+      return "已超时";
+    default:
+      return "未启动";
+  }
+}
+
+function isTerminalStatus(status: DevelopmentInstanceStatus) {
+  return (
+    status === DevelopmentInstanceStatus.STOPPED ||
+    status === DevelopmentInstanceStatus.SUCCEEDED ||
+    status === DevelopmentInstanceStatus.FAILED ||
+    status === DevelopmentInstanceStatus.TIMED_OUT ||
+    status === DevelopmentInstanceStatus.NOT_STARTED
+  );
+}
+
+function StatusPill({ status }: { status: DevelopmentInstanceStatus }) {
+  const isError = status === DevelopmentInstanceStatus.FAILED;
+  const isRunning =
+    status === DevelopmentInstanceStatus.RUNNING ||
+    status === DevelopmentInstanceStatus.STARTING ||
+    status === DevelopmentInstanceStatus.STOPPING;
+  const isSuccess = status === DevelopmentInstanceStatus.SUCCEEDED;
   return (
     <span
       className={clsx(
@@ -64,7 +94,9 @@ function StatusPill({ instance }: { instance: DevelopmentInstance }) {
           ? "text-red-600"
           : isRunning
             ? "text-blue-600"
-            : "text-zinc-600 dark:text-zinc-300",
+            : isSuccess
+              ? "text-green-700"
+              : "text-zinc-600 dark:text-zinc-300",
       )}
     >
       <span
@@ -74,25 +106,55 @@ function StatusPill({ instance }: { instance: DevelopmentInstance }) {
             ? "border-red-600"
             : isRunning
               ? "border-blue-600 bg-blue-600"
-              : "border-zinc-500",
+              : isSuccess
+                ? "border-green-700"
+                : "border-zinc-500",
         )}
       />
-      {instance.statusLabel}
+      {statusText(status)}
     </span>
   );
+}
+
+function formatTimestamp(timestamp?: { seconds?: bigint | number }) {
+  if (!timestamp?.seconds) {
+    return "-";
+  }
+  return new Date(Number(timestamp.seconds) * 1000).toLocaleString("zh-CN", {
+    hour12: false,
+  });
+}
+
+function sshCommand(instance: DevelopmentInstance) {
+  const port = instance.access?.nodePort;
+  if (!port) {
+    return "-";
+  }
+  return `ssh -p ${port} ${instance.access?.sshUser || "dev"}@172.19.65.230`;
+}
+
+async function loadUsedNodePorts() {
+  const response = await fetch(
+    getConsoleApiPath("/api/development-instances/nodeports?namespace=flyte"),
+  );
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  const envelope = (await response.json()) as {
+    data?: { nodePorts?: number[] };
+  };
+  return envelope.data?.nodePorts ?? [];
 }
 
 export function DevelopmentInstancesListPage() {
   const params = useParams<ProjectDomainParams>();
   const org = useOrg();
-  const runClient = useConnectRpcClient(RunService);
+  const client = useConnectRpcClient(DevelopmentInstanceService);
+  const [instances, setInstances] = useState<DevelopmentInstance[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [deletedRuns, setDeletedRuns] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
-  const [details, setDetails] = useState<
-    Record<string, Awaited<ReturnType<typeof runClient.getRunDetails>>>
-  >({});
   const [operationMessage, setOperationMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [isOperating, setIsOperating] = useState(false);
 
   const projectId = useMemo(
@@ -107,114 +169,89 @@ export function DevelopmentInstancesListPage() {
     [params.domain, params.project, org],
   );
 
-  const filters = useMemo(
-    () => [
-      getFilter({
-        function: Filter_Function.EQUAL,
-        field: "task_name",
-        values: ["ssh_workspace"],
-      }),
-    ],
-    [],
-  );
-
-  const runsQuery = useWatchRuns({
-    limit: 100,
-    projectId,
-    filters,
-    enabled: !!projectId,
-  });
-
-  const runs = useMemo(
-    () => runsQuery.data?.pages.flatMap((page) => page.runs ?? []) ?? [],
-    [runsQuery.data?.pages],
-  );
+  const loadInstances = useCallback(async () => {
+    if (!projectId) {
+      return;
+    }
+    setIsLoading(true);
+    setOperationMessage("");
+    try {
+      const response = await client.listDevelopmentInstances(
+        create(ListDevelopmentInstancesRequestSchema, { project: projectId }),
+      );
+      setInstances(response.developmentInstances ?? []);
+    } catch (error) {
+      console.error("Error loading development instances", error);
+      setOperationMessage("加载开发实例失败");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [client, projectId]);
 
   useEffect(() => {
-    let cancelled = false;
-    const loadDetails = async () => {
-      const missing = runs.filter((run) => {
-        const name = run.action?.id?.run?.name;
-        return name && !details[name];
-      });
-      if (missing.length === 0) {
-        return;
-      }
-      const loaded = await Promise.all(
-        missing.map(async (run) => {
-          const runId = run.action?.id?.run;
-          if (!runId?.name) {
-            return null;
-          }
-          const response = await runClient.getRunDetails(
-            create(GetRunDetailsRequestSchema, {
-              runId,
-            }),
-          );
-          return [runId.name, response] as const;
-        }),
-      );
-      if (cancelled) {
-        return;
-      }
-      setDetails((current) => {
-        const next = { ...current };
-        for (const item of loaded) {
-          if (item) {
-            next[item[0]] = item[1];
-          }
-        }
-        return next;
-      });
-    };
-    loadDetails().catch((error) => {
-      console.error("Error loading development instance details", error);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [details, runClient, runs]);
+    loadInstances();
+  }, [loadInstances]);
 
-  const allInstances = useMemo(
+  const filteredInstances = useMemo(
     () =>
-      runs
-        .map((run) =>
-          formatDevelopmentInstance(
-            run,
-            details[run.action?.id?.run?.name ?? ""]?.details?.action,
-          ),
-        )
-        .filter((instance): instance is DevelopmentInstance => !!instance)
-        .filter((instance) => !deletedRuns.has(instance.runName)),
-    [deletedRuns, details, runs],
-  );
-
-  const instances = useMemo(
-    () =>
-      allInstances.filter((instance) =>
+      instances.filter((instance) =>
         searchTerm
-          ? `${instance.name} ${instance.runName} ${instance.description} ${instance.owner}`
+          ? `${instance.name} ${instanceId(instance)} ${instance.latestRunName} ${instance.owner}`
               .toLowerCase()
               .includes(searchTerm.toLowerCase())
           : true,
       ),
-    [allInstances, searchTerm],
+    [instances, searchTerm],
   );
 
   const selectedInstances = useMemo(
-    () => instances.filter((instance) => selected.has(instance.runName)),
-    [instances, selected],
+    () =>
+      filteredInstances.filter((instance) =>
+        selected.has(instanceId(instance)),
+      ),
+    [filteredInstances, selected],
   );
 
-  const createHref = `/domain/${params.domain}/project/${params.project}/development-instances/create`;
+  const baseHref = `/domain/${params.domain}/project/${params.project}/development-instances`;
+  const createHref = `${baseHref}/create`;
 
   const refresh = useCallback(() => {
-    setDetails({});
-    runsQuery.refetch();
-  }, [runsQuery]);
+    loadInstances();
+  }, [loadInstances]);
+
+  const startSelected = useCallback(async () => {
+    if (selectedInstances.length !== 1) {
+      return;
+    }
+    const target = selectedInstances[0];
+    setIsOperating(true);
+    setOperationMessage("");
+    try {
+      const usedPorts = await loadUsedNodePorts();
+      const nodePort = getNextNodePort(usedPorts);
+      const codeServerNodePort = getNextNodePort([...usedPorts, nodePort]);
+      await client.startDevelopmentInstance(
+        create(StartDevelopmentInstanceRequestSchema, {
+          id: create(DevelopmentInstanceIdentifierSchema, {
+            id: instanceId(target),
+          }),
+          nodePort,
+          codeServerNodePort,
+        }),
+      );
+      setOperationMessage("已提交启动请求");
+      setSelected(new Set());
+      await loadInstances();
+    } catch (error) {
+      console.error("Error starting development instance", error);
+      setOperationMessage("启动失败，请查看服务日志");
+    } finally {
+      setIsOperating(false);
+    }
+  }, [client, loadInstances, selectedInstances]);
 
   const stopSelected = useCallback(async () => {
-    if (!projectId || selectedInstances.length === 0) {
+    if (selectedInstances.length === 0) {
       return;
     }
     setIsOperating(true);
@@ -222,31 +259,29 @@ export function DevelopmentInstancesListPage() {
     try {
       await Promise.all(
         selectedInstances.map((instance) =>
-          runClient.abortRun(
-            create(AbortRunRequestSchema, {
-              runId: buildRunIdentifier(
-                projectId.organization,
-                projectId.name,
-                projectId.domain,
-                instance.runName,
-              ),
+          client.stopDevelopmentInstance(
+            create(StopDevelopmentInstanceRequestSchema, {
+              id: create(DevelopmentInstanceIdentifierSchema, {
+                id: instanceId(instance),
+              }),
               reason: "Stopped from development instance console",
             }),
           ),
         ),
       );
       setOperationMessage("已提交停止请求");
-      refresh();
+      setSelected(new Set());
+      await loadInstances();
     } catch (error) {
       console.error("Error stopping development instances", error);
       setOperationMessage("停止失败，请查看服务日志");
     } finally {
       setIsOperating(false);
     }
-  }, [projectId, refresh, runClient, selectedInstances]);
+  }, [client, loadInstances, selectedInstances]);
 
   const deleteSelected = useCallback(async () => {
-    if (!projectId || selectedInstances.length === 0) {
+    if (selectedInstances.length === 0) {
       return;
     }
     setIsOperating(true);
@@ -254,142 +289,48 @@ export function DevelopmentInstancesListPage() {
     try {
       await Promise.all(
         selectedInstances.map(async (instance) => {
-          await runClient
-            .abortRun(
-              create(AbortRunRequestSchema, {
-                runId: buildRunIdentifier(
-                  projectId.organization,
-                  projectId.name,
-                  projectId.domain,
-                  instance.runName,
-                ),
-                reason: "Stopped before development instance deletion",
-              }),
-            )
-            .catch(() => undefined);
-          const response = await fetch(
-            getConsoleApiPath("/api/development-instances/delete"),
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                org: projectId.organization,
-                project: projectId.name,
-                domain: projectId.domain,
-                runName: instance.runName,
-                namespace: "flyte",
-              }),
-            },
-          );
-          if (!response.ok) {
-            throw new Error(await response.text());
+          if (instance.latestRunName) {
+            const response = await fetch(
+              getConsoleApiPath("/api/development-instances/delete"),
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  org: instance.org,
+                  project: instance.project,
+                  domain: instance.domain,
+                  runName: instance.latestRunName,
+                  namespace: "flyte",
+                }),
+              },
+            );
+            if (!response.ok) {
+              throw new Error(await response.text());
+            }
           }
-          await runClient.abortRun(
-            create(AbortRunRequestSchema, {
-              runId: buildRunIdentifier(
-                projectId.organization,
-                projectId.name,
-                projectId.domain,
-                instance.runName,
-              ),
-              reason: DELETED_DEVELOPMENT_INSTANCE_REASON,
+          await client.deleteDevelopmentInstance(
+            create(DeleteDevelopmentInstanceRequestSchema, {
+              id: create(DevelopmentInstanceIdentifierSchema, {
+                id: instanceId(instance),
+              }),
             }),
           );
         }),
       );
-      setDeletedRuns((current) => new Set([...current, ...selected]));
       setSelected(new Set());
       setOperationMessage("已删除实例资源，PVC 数据已保留");
+      await loadInstances();
     } catch (error) {
       console.error("Error deleting development instances", error);
       setOperationMessage("删除失败，请查看服务日志");
     } finally {
       setIsOperating(false);
     }
-  }, [projectId, runClient, selected, selectedInstances]);
-
-  const startSelected = useCallback(async () => {
-    if (!projectId || selectedInstances.length !== 1) {
-      return;
-    }
-    const source = selectedInstances[0];
-    const custom = source.custom ?? {};
-    const sourceImageType =
-      custom.imageType === "custom" || custom.imageType === "official"
-        ? custom.imageType
-        : typeof custom.image === "string" && custom.image
-          ? "custom"
-          : "official";
-    setIsOperating(true);
-    setOperationMessage("");
-    try {
-      const usedPorts = getUsedNodePorts(runs);
-      const nodePort = getNextNodePort(usedPorts);
-      const codeServerNodePort = getNextNodePort([...usedPorts, nodePort]);
-      const sourceInstanceId = source.sourceInstanceId || source.runName;
-      const nextGeneration = getNextDevelopmentInstanceRunGeneration(
-        allInstances,
-        sourceInstanceId,
-      );
-      const runName = buildDevelopmentInstanceRunName(
-        sourceInstanceId,
-        nextGeneration,
-      );
-      const sourceName =
-        typeof custom.sourceName === "string" && custom.sourceName.trim()
-          ? custom.sourceName.trim()
-          : source.name;
-      const workspacePVCName =
-        typeof custom.workspacePVCName === "string" &&
-        custom.workspacePVCName.trim()
-          ? custom.workspacePVCName.trim()
-          : `${sourceInstanceId}-workspace`;
-      await runClient.createRun(
-        buildCreateDevelopmentInstanceRequest({
-          org: projectId.organization,
-          project: projectId.name,
-          domain: projectId.domain,
-          name: runName,
-          sourceName,
-          sourceInstanceId,
-          description:
-            typeof custom.description === "string" ? custom.description : "",
-          owner: typeof custom.owner === "string" ? custom.owner : source.owner,
-          imageType: sourceImageType,
-          officialImageId:
-            typeof custom.officialImageId === "string"
-              ? custom.officialImageId
-              : DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
-          image: typeof custom.image === "string" ? custom.image : "",
-          sshUser: typeof custom.sshUser === "string" ? custom.sshUser : "dev",
-          authorizedKey: Array.isArray(custom.authorizedKeys)
-            ? String(custom.authorizedKeys[0] ?? "")
-            : "",
-          cpu: typeof custom.cpu === "string" ? custom.cpu : "2",
-          memory: typeof custom.memory === "string" ? custom.memory : "4Gi",
-          workspaceSize:
-            typeof custom.workspaceSize === "string"
-              ? custom.workspaceSize
-              : "20Gi",
-          workspacePVCName,
-          nodePort,
-          codeServerNodePort,
-          maxHours: typeof custom.maxHours === "number" ? custom.maxHours : 24,
-        }),
-      );
-      setOperationMessage("已创建新的启动实例");
-      refresh();
-    } catch (error) {
-      console.error("Error starting development instance", error);
-      setOperationMessage("启动失败，请确认原实例包含 SSH 公钥");
-    } finally {
-      setIsOperating(false);
-    }
-  }, [allInstances, projectId, refresh, runClient, runs, selectedInstances]);
+  }, [client, loadInstances, selectedInstances]);
 
   const allSelected =
-    instances.length > 0 &&
-    instances.every((instance) => selected.has(instance.runName));
+    filteredInstances.length > 0 &&
+    filteredInstances.every((instance) => selected.has(instanceId(instance)));
 
   return (
     <main className="bg-primary flex h-full min-h-0 w-full">
@@ -400,13 +341,13 @@ export function DevelopmentInstancesListPage() {
           <div className="border-b border-zinc-200 px-8 py-6 dark:border-zinc-800">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h1 className="text-2xl font-semibold text-zinc-950 dark:text-white">
-                开发实例 ({instances.length})
+                开发实例 ({filteredInstances.length})
               </h1>
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   className={buttonClass}
                   onClick={refresh}
-                  disabled={runsQuery.isFetching || isOperating}
+                  disabled={isLoading || isOperating}
                   title="刷新"
                 >
                   <ArrowPathIcon className="size-5" />
@@ -432,7 +373,7 @@ export function DevelopmentInstancesListPage() {
                   onClick={startSelected}
                   disabled={
                     selectedInstances.length !== 1 ||
-                    !isTerminalPhase(selectedInstances[0]?.status) ||
+                    !isTerminalStatus(selectedInstances[0]?.status) ||
                     isOperating
                   }
                 >
@@ -475,14 +416,19 @@ export function DevelopmentInstancesListPage() {
                       onChange={(event) =>
                         setSelected(
                           event.target.checked
-                            ? new Set(instances.map((item) => item.runName))
+                            ? new Set(
+                                filteredInstances.map((item) =>
+                                  instanceId(item),
+                                ),
+                              )
                             : new Set(),
                         )
                       }
                     />
                   </th>
                   <th className="px-4 py-4">名称</th>
-                  <th className="px-4 py-4">运行 ID</th>
+                  <th className="px-4 py-4">实例 ID</th>
+                  <th className="px-4 py-4">最新运行 ID</th>
                   <th className="px-4 py-4">资源规格</th>
                   <th className="px-4 py-4">状态</th>
                   <th className="px-4 py-4">所有者</th>
@@ -491,55 +437,61 @@ export function DevelopmentInstancesListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {instances.map((instance) => (
-                  <tr
-                    key={instance.runName}
-                    className="text-sm text-zinc-900 hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-900"
-                  >
-                    <td className="px-8 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(instance.runName)}
-                        onChange={(event) => {
-                          setSelected((current) => {
-                            const next = new Set(current);
-                            if (event.target.checked) {
-                              next.add(instance.runName);
-                            } else {
-                              next.delete(instance.runName);
-                            }
-                            return next;
-                          });
-                        }}
-                      />
-                    </td>
-                    <td className="px-4 py-4 font-medium text-blue-600">
-                      <Link
-                        href={`/domain/${params.domain}/project/${params.project}/runs/${instance.runName}`}
-                      >
-                        {instance.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-600 dark:text-zinc-300">
-                      {instance.runName}
-                    </td>
-                    <td className="px-4 py-4">{instance.resourceSummary}</td>
-                    <td className="px-4 py-4">
-                      <StatusPill instance={instance} />
-                    </td>
-                    <td className="px-4 py-4">{instance.owner}</td>
-                    <td className="px-4 py-4 font-mono text-xs">
-                      {instance.sshCommand ?? "-"}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      {instance.createdAt}
-                    </td>
-                  </tr>
-                ))}
-                {instances.length === 0 && (
+                {filteredInstances.map((instance) => {
+                  const id = instanceId(instance);
+                  return (
+                    <tr
+                      key={id}
+                      className="text-sm text-zinc-900 hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                    >
+                      <td className="px-8 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(id)}
+                          onChange={(event) => {
+                            setSelected((current) => {
+                              const next = new Set(current);
+                              if (event.target.checked) {
+                                next.add(id);
+                              } else {
+                                next.delete(id);
+                              }
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
+                      <td className="px-4 py-4 font-medium text-blue-600">
+                        <Link href={`${baseHref}/${encodeURIComponent(id)}`}>
+                          {instance.name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-600 dark:text-zinc-300">
+                        {id || "-"}
+                      </td>
+                      <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-zinc-600 dark:text-zinc-300">
+                        {instance.latestRunName || "-"}
+                      </td>
+                      <td className="px-4 py-4">
+                        {instance.resourceSpec?.displayLabel || "-"}
+                      </td>
+                      <td className="px-4 py-4">
+                        <StatusPill status={instance.status} />
+                      </td>
+                      <td className="px-4 py-4">{instance.owner || "-"}</td>
+                      <td className="px-4 py-4 font-mono text-xs">
+                        {sshCommand(instance)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        {formatTimestamp(instance.createdAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredInstances.length === 0 && (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-8 py-12 text-center text-sm text-zinc-500"
                     >
                       暂无开发实例

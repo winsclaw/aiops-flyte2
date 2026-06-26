@@ -16,6 +16,7 @@ type repository struct {
 	taskRepo           interfaces.TaskRepo
 	triggerRepo        interfaces.TriggerRepo
 	trainingTaskRepo   interfaces.TrainingTaskRepo
+	developmentRepo    interfaces.DevelopmentInstanceRepo
 	cloudStorageRepo   interfaces.CloudStorageRepo
 	codeRepositoryRepo interfaces.CodeRepositoryRepo
 }
@@ -31,6 +32,7 @@ func NewRepository(db *sqlx.DB, dbConfig database.DbConfig) (interfaces.Reposito
 		taskRepo:           impl.NewTaskRepo(db),
 		triggerRepo:        impl.NewTriggerRepo(db),
 		trainingTaskRepo:   impl.NewTrainingTaskRepo(db),
+		developmentRepo:    impl.NewDevelopmentInstanceRepo(db),
 		cloudStorageRepo:   impl.NewCloudStorageRepo(db),
 		codeRepositoryRepo: impl.NewCodeRepositoryRepo(db),
 	}, nil
@@ -54,6 +56,11 @@ func (r *repository) TriggerRepo() interfaces.TriggerRepo {
 // TrainingTaskRepo returns the training task repository
 func (r *repository) TrainingTaskRepo() interfaces.TrainingTaskRepo {
 	return r.trainingTaskRepo
+}
+
+// DevelopmentInstanceRepo returns the development instance repository.
+func (r *repository) DevelopmentInstanceRepo() interfaces.DevelopmentInstanceRepo {
+	return r.developmentRepo
 }
 
 // CloudStorageRepo returns the Aione cloud storage repository.

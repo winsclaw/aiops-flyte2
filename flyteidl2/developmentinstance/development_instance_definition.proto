@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package flyteidl2.developmentinstance;
+
+import "buf/validate/validate.proto";
+import "flyteidl2/aione/cloudstorage/cloud_storage_definition.proto";
+import "flyteidl2/aione/coderepository/code_repository_definition.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/developmentinstance";
+
+message DevelopmentInstanceIdentifier {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+enum ImageType {
+  IMAGE_TYPE_UNSPECIFIED = 0;
+  IMAGE_TYPE_OFFICIAL = 1;
+  IMAGE_TYPE_CUSTOM = 2;
+}
+
+enum DevelopmentInstanceStatus {
+  DEVELOPMENT_INSTANCE_STATUS_UNSPECIFIED = 0;
+  DEVELOPMENT_INSTANCE_STATUS_NOT_STARTED = 1;
+  DEVELOPMENT_INSTANCE_STATUS_STARTING = 2;
+  DEVELOPMENT_INSTANCE_STATUS_RUNNING = 3;
+  DEVELOPMENT_INSTANCE_STATUS_STOPPING = 4;
+  DEVELOPMENT_INSTANCE_STATUS_STOPPED = 5;
+  DEVELOPMENT_INSTANCE_STATUS_SUCCEEDED = 6;
+  DEVELOPMENT_INSTANCE_STATUS_FAILED = 7;
+  DEVELOPMENT_INSTANCE_STATUS_TIMED_OUT = 8;
+}
+
+message DevelopmentInstanceResourceSpec {
+  string display_label = 1;
+  string cpu = 2;
+  string memory = 3;
+  uint32 gpu_count = 4;
+  string gpu_model = 5;
+  string bandwidth = 6;
+  string workspace_size = 7;
+}
+
+message DevelopmentInstanceAccessInfo {
+  string ssh_user = 1;
+  uint32 node_port = 2;
+  uint32 code_server_node_port = 3;
+  string code_server_url = 4;
+  string code_server_workspace_url = 5;
+  string workspace_pvc_name = 6;
+}
+
+message DevelopmentInstanceCodeRepositoryDetail {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  string repo_url = 2 [(buf.validate.field).string.min_len = 1];
+  string branch = 3;
+  string mount_path = 4 [(buf.validate.field).string.min_len = 1];
+  string token = 5;
+}
+
+message DevelopmentInstance {
+  DevelopmentInstanceIdentifier id = 1 [(buf.validate.field).required = true];
+  string org = 2 [(buf.validate.field).string.min_len = 1];
+  string project = 3 [(buf.validate.field).string.min_len = 1];
+  string domain = 4 [(buf.validate.field).string.min_len = 1];
+  string name = 5 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  string description = 6 [(buf.validate.field).string.max_len = 255];
+  string owner = 7;
+  string source_system = 8;
+  DevelopmentInstanceResourceSpec resource_spec = 9;
+  ImageType image_type = 10;
+  string official_image_id = 11;
+  string image_name = 12;
+  string image_uri = 13;
+  DevelopmentInstanceAccessInfo access = 14;
+  DevelopmentInstanceStatus status = 15;
+  uint32 generation = 16;
+  string latest_run_name = 17;
+  google.protobuf.Timestamp created_at = 18;
+  google.protobuf.Timestamp updated_at = 19;
+  repeated aione.cloudstorage.CloudStorageMount cloud_storage_mounts = 20;
+  repeated aione.coderepository.CodeRepositoryMount code_repository_mounts = 21;
+  string image_pull_secret_name = 22;
+  string code_repository_secret_name = 23;
+  string gpu_node_label_key = 24;
+  string base_image_mount_path = 25;
+  repeated DevelopmentInstanceCodeRepositoryDetail code_repository_details = 26;
+}
+
+message DevelopmentInstanceRun {
+  string instance_id = 1 [(buf.validate.field).string.min_len = 1];
+  string org = 2 [(buf.validate.field).string.min_len = 1];
+  string project = 3 [(buf.validate.field).string.min_len = 1];
+  string domain = 4 [(buf.validate.field).string.min_len = 1];
+  string run_name = 5 [(buf.validate.field).string.min_len = 1];
+  uint32 generation = 6;
+  DevelopmentInstanceStatus status = 7;
+  uint32 node_port = 8;
+  uint32 code_server_node_port = 9;
+  google.protobuf.Timestamp started_at = 10;
+  google.protobuf.Timestamp ended_at = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}

@@ -5,12 +5,11 @@ import { ActionPhase } from "@/gen/flyteidl2/common/phase_pb";
 
 const getRunDetailsMock = vi.hoisted(() => vi.fn());
 const getTrainingTaskByIdMock = vi.hoisted(() => vi.fn());
+const getDevelopmentInstanceByIdMock = vi.hoisted(() => vi.fn());
 const getCloudStorageByIdMock = vi.hoisted(() => vi.fn());
 const clearCloudStorageMaterializationsMock = vi.hoisted(() => vi.fn());
 const getKubernetesClientConfigMock = vi.hoisted(() => vi.fn());
 const requestKubernetesMock = vi.hoisted(() => vi.fn());
-const readAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
-const readAioneTaskRecordMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@connectrpc/connect", async () => {
   const actual = await vi.importActual<typeof import("@connectrpc/connect")>(
@@ -22,6 +21,11 @@ vi.mock("@connectrpc/connect", async () => {
       service.typeName === "flyteidl2.trainingtask.TrainingTaskService"
         ? {
             getTrainingTaskById: getTrainingTaskByIdMock,
+          }
+        : service.typeName ===
+            "flyteidl2.developmentinstance.DevelopmentInstanceService"
+        ? {
+            getDevelopmentInstanceById: getDevelopmentInstanceByIdMock,
           }
         : service.typeName === "flyteidl2.aione.cloudstorage.CloudStorageService"
         ? {
@@ -45,36 +49,6 @@ vi.mock("@/server/kubernetes/client", () => ({
   requestKubernetes: requestKubernetesMock,
 }));
 
-vi.mock("@/server/aione/state", () => ({
-  readAioneInstanceRecord: readAioneInstanceRecordMock,
-  readAioneTaskRecord: readAioneTaskRecordMock,
-}));
-
-const instanceRecord = {
-  sourceInstanceId: "ins-contract-1",
-  latestRunName: "ins-contract-1-r1",
-  org: "aione",
-  project: "aione",
-  domain: "development",
-  status: "STOPPED",
-  generation: 1,
-  workspacePVCName: "ins-contract-1-workspace",
-  updatedAt: "2026-06-24T00:00:00.000Z",
-};
-
-const taskRecord = {
-  sourceTaskId: "legacy-task",
-  sourceOrg: "legacy-system",
-  org: "legacy-org",
-  project: "legacy-project",
-  domain: "legacy-domain",
-  trainingTaskId: "tt-legacy",
-  latestRunName: "task-contract-1-run",
-  status: "STOPPED",
-  lastError: "",
-  updatedAt: "2026-06-24T00:00:00.000Z",
-};
-
 describe("aione external typed clear route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -85,8 +59,15 @@ describe("aione external typed clear route", () => {
       token: "token",
       ca: "ca",
     });
-    readAioneInstanceRecordMock.mockResolvedValue(instanceRecord);
-    readAioneTaskRecordMock.mockResolvedValue(taskRecord);
+    getDevelopmentInstanceByIdMock.mockResolvedValue({
+      developmentInstance: {
+        id: { id: "ins-contract-1" },
+        org: "aione",
+        project: "aione",
+        domain: "development",
+        latestRunName: "ins-contract-1-r1",
+      },
+    });
     getTrainingTaskByIdMock.mockResolvedValue({
       trainingTask: {
         id: {
@@ -231,7 +212,6 @@ describe("aione external typed clear route", () => {
     expect(getTrainingTaskByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: "task-contract-1" }),
     );
-    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
     expect(body.data).toEqual({
       type: "task",
       id: "task-contract-1",
