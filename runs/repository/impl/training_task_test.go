@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 )
 
@@ -76,4 +77,51 @@ func TestTrainingTaskRepoCreateGetListUpdateDelete(t *testing.T) {
 	require.NoError(t, repo.Delete(ctx, key))
 	_, err = repo.Get(ctx, key)
 	require.Error(t, err)
+}
+
+func TestTrainingTaskRepoGetByIDRequiresUniqueID(t *testing.T) {
+	ctx := context.Background()
+	repo := NewTrainingTaskRepo(testDB)
+	uniqueKey := models.TrainingTaskKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "train-unique"}
+	duplicateKeyA := models.TrainingTaskKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "train-duplicate"}
+	duplicateKeyB := models.TrainingTaskKey{Org: "otherorg", Project: "otherproject", Domain: "development", ID: "train-duplicate"}
+	_ = repo.Delete(ctx, uniqueKey)
+	_ = repo.Delete(ctx, duplicateKeyA)
+	_ = repo.Delete(ctx, duplicateKeyB)
+
+	require.NoError(t, repo.Create(ctx, trainingTaskModelForRepoTest(uniqueKey, "unique")))
+	require.NoError(t, repo.Create(ctx, trainingTaskModelForRepoTest(duplicateKeyA, "duplicate-a")))
+	require.NoError(t, repo.Create(ctx, trainingTaskModelForRepoTest(duplicateKeyB, "duplicate-b")))
+
+	got, err := repo.GetByID(ctx, "train-unique")
+	require.NoError(t, err)
+	require.Equal(t, uniqueKey, got.TrainingTaskKey)
+
+	_, err = repo.GetByID(ctx, "train-missing")
+	require.Error(t, err)
+
+	_, err = repo.GetByID(ctx, "train-duplicate")
+	require.ErrorIs(t, err, interfaces.ErrTrainingTaskIDAmbiguous)
+
+	require.NoError(t, repo.Delete(ctx, uniqueKey))
+	require.NoError(t, repo.Delete(ctx, duplicateKeyA))
+	require.NoError(t, repo.Delete(ctx, duplicateKeyB))
+}
+
+func trainingTaskModelForRepoTest(key models.TrainingTaskKey, name string) *models.TrainingTask {
+	return &models.TrainingTask{
+		TrainingTaskKey: key,
+		Name:            name,
+		ResourceSpecID:  "cpu-1c-2g",
+		ResourceDisplay: "1vCPU, 2GiB RAM, 1Gbps",
+		CPU:             "1",
+		Memory:          "2Gi",
+		Command:         "echo hello",
+		MaxRuntimeHours: 1,
+		ImageType:       "official",
+		OfficialImageID: "busybox",
+		ImageName:       "BusyBox",
+		ImageURI:        "busybox:1.36",
+		Creator:         "test",
+	}
 }

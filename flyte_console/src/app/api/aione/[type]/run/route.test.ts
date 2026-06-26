@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { ActionPhase } from "@/gen/flyteidl2/common/phase_pb";
 
 const createRunMock = vi.hoisted(() => vi.fn());
 const getRunDetailsMock = vi.hoisted(() => vi.fn());
+const getTrainingTaskByIdMock = vi.hoisted(() => vi.fn());
 const createTrainingTaskMock = vi.hoisted(() => vi.fn());
 const startTrainingTaskMock = vi.hoisted(() => vi.fn());
 const ensureCloudStorageMock = vi.hoisted(() => vi.fn());
@@ -24,6 +26,7 @@ vi.mock("@connectrpc/connect", async () => {
     createClient: vi.fn((service: { typeName?: string }) =>
       service.typeName === "flyteidl2.trainingtask.TrainingTaskService"
         ? {
+            getTrainingTaskById: getTrainingTaskByIdMock,
             createTrainingTask: createTrainingTaskMock,
             startTrainingTask: startTrainingTaskMock,
           }
@@ -94,17 +97,15 @@ const taskPayload = {
   },
 };
 
-const taskRecord = {
-  sourceTaskId: "task-contract-1",
-  sourceOrg: "external-system",
-  org: "aione",
-  project: "aione",
-  domain: "development",
-  trainingTaskId: "tt-internal-1",
+const existingTrainingTask = {
+  id: {
+    org: "aione",
+    project: "aione",
+    domain: "development",
+    id: "task-contract-1",
+  },
+  name: "外部训练任务",
   latestRunName: "old-run",
-  status: "RUNNING",
-  lastError: "",
-  updatedAt: "2026-06-24T00:00:00.000Z",
 };
 
 describe("aione external typed run route", () => {
@@ -154,18 +155,21 @@ describe("aione external typed run route", () => {
           org: "aione",
           project: "aione",
           domain: "development",
-          id: "tt-internal-1",
+          id: "task-contract-1",
         },
         name: "外部训练任务",
       },
     });
+    getTrainingTaskByIdMock.mockRejectedValue(
+      new ConnectError("training task not found", Code.NotFound),
+    );
     startTrainingTaskMock.mockResolvedValue({
       trainingTask: {
         id: {
           org: "aione",
           project: "aione",
           domain: "development",
-          id: "tt-internal-1",
+          id: "task-contract-1",
         },
         name: "外部训练任务",
         latestRunName: "task-contract-1-run",
@@ -284,16 +288,25 @@ describe("aione external typed run route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(getTrainingTaskByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "task-contract-1" }),
+    );
     expect(createTrainingTaskMock).toHaveBeenCalledTimes(1);
-    expect(startTrainingTaskMock).toHaveBeenCalledTimes(1);
-    expect(writeAioneTaskRecordMock).toHaveBeenLastCalledWith(
-      expect.any(Object),
+    expect(createTrainingTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        sourceTaskId: "task-contract-1",
-        trainingTaskId: "tt-internal-1",
-        latestRunName: "task-contract-1-run",
+        trainingTaskId: "task-contract-1",
+        project: expect.objectContaining({
+          name: "aione",
+          domain: "development",
+        }),
+        trainingTask: expect.objectContaining({
+          name: "外部训练任务",
+        }),
       }),
     );
+    expect(startTrainingTaskMock).toHaveBeenCalledTimes(1);
+    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
+    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
     expect(body).toEqual({
       status: 200,
       data: {
@@ -309,7 +322,7 @@ describe("aione external typed run route", () => {
           id: "task-contract-1",
         },
         task: {
-          id: "tt-internal-1",
+          id: "task-contract-1",
           name: "外部训练任务",
           latestRunName: "task-contract-1-run",
         },
@@ -335,7 +348,9 @@ describe("aione external typed run route", () => {
   });
 
   it("returns 409 when the external task id already has a running latest run", async () => {
-    readAioneTaskRecordMock.mockResolvedValue(taskRecord);
+    getTrainingTaskByIdMock.mockResolvedValue({
+      trainingTask: existingTrainingTask,
+    });
     getRunDetailsMock.mockResolvedValue({
       details: {
         action: {
@@ -365,10 +380,14 @@ describe("aione external typed run route", () => {
     });
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
     expect(startTrainingTaskMock).not.toHaveBeenCalled();
+    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
+    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when the external task id latest run is paused", async () => {
-    readAioneTaskRecordMock.mockResolvedValue(taskRecord);
+    getTrainingTaskByIdMock.mockResolvedValue({
+      trainingTask: existingTrainingTask,
+    });
     getRunDetailsMock.mockResolvedValue({
       details: {
         action: {
@@ -398,10 +417,14 @@ describe("aione external typed run route", () => {
     });
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
     expect(startTrainingTaskMock).not.toHaveBeenCalled();
+    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
+    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
   });
 
   it("starts an existing training task when the external task id latest run is terminal", async () => {
-    readAioneTaskRecordMock.mockResolvedValue(taskRecord);
+    getTrainingTaskByIdMock.mockResolvedValue({
+      trainingTask: existingTrainingTask,
+    });
 
     const { POST } = await import("./route");
     const response = await POST(
@@ -419,13 +442,40 @@ describe("aione external typed run route", () => {
     expect(startTrainingTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: expect.objectContaining({
-          id: "tt-internal-1",
+          id: "task-contract-1",
         }),
       }),
     );
     expect(body.data.id).toBe("task-contract-1");
-    expect(body.data.task.id).toBe("tt-internal-1");
+    expect(body.data.task.id).toBe("task-contract-1");
     expect(body.data.task.latestRunName).toBe("task-contract-1-run");
+    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
+    expect(writeAioneTaskRecordMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the external task id matches multiple training tasks", async () => {
+    getTrainingTaskByIdMock.mockRejectedValue(
+      new ConnectError("task id is ambiguous", Code.FailedPrecondition),
+    );
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new NextRequest("http://localhost/v2/api/aione/task/run", {
+        method: "POST",
+        headers: { authorization: "Bearer external-key" },
+        body: JSON.stringify(taskPayload),
+      }),
+      { params: Promise.resolve({ type: "task" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toEqual({
+      status: 409,
+      message: "task id is ambiguous",
+    });
+    expect(createTrainingTaskMock).not.toHaveBeenCalled();
+    expect(startTrainingTaskMock).not.toHaveBeenCalled();
   });
 
   it("rejects unsupported path types", async () => {

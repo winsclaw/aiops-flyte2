@@ -39,6 +39,9 @@ const (
 	// TrainingTaskServiceGetTrainingTaskProcedure is the fully-qualified name of the
 	// TrainingTaskService's GetTrainingTask RPC.
 	TrainingTaskServiceGetTrainingTaskProcedure = "/flyteidl2.trainingtask.TrainingTaskService/GetTrainingTask"
+	// TrainingTaskServiceGetTrainingTaskByIdProcedure is the fully-qualified name of the
+	// TrainingTaskService's GetTrainingTaskById RPC.
+	TrainingTaskServiceGetTrainingTaskByIdProcedure = "/flyteidl2.trainingtask.TrainingTaskService/GetTrainingTaskById"
 	// TrainingTaskServiceCreateTrainingTaskProcedure is the fully-qualified name of the
 	// TrainingTaskService's CreateTrainingTask RPC.
 	TrainingTaskServiceCreateTrainingTaskProcedure = "/flyteidl2.trainingtask.TrainingTaskService/CreateTrainingTask"
@@ -64,22 +67,24 @@ const (
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
-	trainingTaskServiceServiceDescriptor                  = trainingtask.File_flyteidl2_trainingtask_training_task_service_proto.Services().ByName("TrainingTaskService")
-	trainingTaskServiceListTrainingTasksMethodDescriptor  = trainingTaskServiceServiceDescriptor.Methods().ByName("ListTrainingTasks")
-	trainingTaskServiceGetTrainingTaskMethodDescriptor    = trainingTaskServiceServiceDescriptor.Methods().ByName("GetTrainingTask")
-	trainingTaskServiceCreateTrainingTaskMethodDescriptor = trainingTaskServiceServiceDescriptor.Methods().ByName("CreateTrainingTask")
-	trainingTaskServiceUpdateTrainingTaskMethodDescriptor = trainingTaskServiceServiceDescriptor.Methods().ByName("UpdateTrainingTask")
-	trainingTaskServiceDeleteTrainingTaskMethodDescriptor = trainingTaskServiceServiceDescriptor.Methods().ByName("DeleteTrainingTask")
-	trainingTaskServiceStartTrainingTaskMethodDescriptor  = trainingTaskServiceServiceDescriptor.Methods().ByName("StartTrainingTask")
-	trainingTaskServiceStopTrainingTaskMethodDescriptor   = trainingTaskServiceServiceDescriptor.Methods().ByName("StopTrainingTask")
-	trainingTaskServiceListResourceSpecsMethodDescriptor  = trainingTaskServiceServiceDescriptor.Methods().ByName("ListResourceSpecs")
-	trainingTaskServiceListOfficialImagesMethodDescriptor = trainingTaskServiceServiceDescriptor.Methods().ByName("ListOfficialImages")
+	trainingTaskServiceServiceDescriptor                   = trainingtask.File_flyteidl2_trainingtask_training_task_service_proto.Services().ByName("TrainingTaskService")
+	trainingTaskServiceListTrainingTasksMethodDescriptor   = trainingTaskServiceServiceDescriptor.Methods().ByName("ListTrainingTasks")
+	trainingTaskServiceGetTrainingTaskMethodDescriptor     = trainingTaskServiceServiceDescriptor.Methods().ByName("GetTrainingTask")
+	trainingTaskServiceGetTrainingTaskByIdMethodDescriptor = trainingTaskServiceServiceDescriptor.Methods().ByName("GetTrainingTaskById")
+	trainingTaskServiceCreateTrainingTaskMethodDescriptor  = trainingTaskServiceServiceDescriptor.Methods().ByName("CreateTrainingTask")
+	trainingTaskServiceUpdateTrainingTaskMethodDescriptor  = trainingTaskServiceServiceDescriptor.Methods().ByName("UpdateTrainingTask")
+	trainingTaskServiceDeleteTrainingTaskMethodDescriptor  = trainingTaskServiceServiceDescriptor.Methods().ByName("DeleteTrainingTask")
+	trainingTaskServiceStartTrainingTaskMethodDescriptor   = trainingTaskServiceServiceDescriptor.Methods().ByName("StartTrainingTask")
+	trainingTaskServiceStopTrainingTaskMethodDescriptor    = trainingTaskServiceServiceDescriptor.Methods().ByName("StopTrainingTask")
+	trainingTaskServiceListResourceSpecsMethodDescriptor   = trainingTaskServiceServiceDescriptor.Methods().ByName("ListResourceSpecs")
+	trainingTaskServiceListOfficialImagesMethodDescriptor  = trainingTaskServiceServiceDescriptor.Methods().ByName("ListOfficialImages")
 )
 
 // TrainingTaskServiceClient is a client for the flyteidl2.trainingtask.TrainingTaskService service.
 type TrainingTaskServiceClient interface {
 	ListTrainingTasks(context.Context, *connect.Request[trainingtask.ListTrainingTasksRequest]) (*connect.Response[trainingtask.ListTrainingTasksResponse], error)
 	GetTrainingTask(context.Context, *connect.Request[trainingtask.GetTrainingTaskRequest]) (*connect.Response[trainingtask.GetTrainingTaskResponse], error)
+	GetTrainingTaskById(context.Context, *connect.Request[trainingtask.GetTrainingTaskByIdRequest]) (*connect.Response[trainingtask.GetTrainingTaskByIdResponse], error)
 	CreateTrainingTask(context.Context, *connect.Request[trainingtask.CreateTrainingTaskRequest]) (*connect.Response[trainingtask.CreateTrainingTaskResponse], error)
 	UpdateTrainingTask(context.Context, *connect.Request[trainingtask.UpdateTrainingTaskRequest]) (*connect.Response[trainingtask.UpdateTrainingTaskResponse], error)
 	DeleteTrainingTask(context.Context, *connect.Request[trainingtask.DeleteTrainingTaskRequest]) (*connect.Response[trainingtask.DeleteTrainingTaskResponse], error)
@@ -110,6 +115,13 @@ func NewTrainingTaskServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+TrainingTaskServiceGetTrainingTaskProcedure,
 			connect.WithSchema(trainingTaskServiceGetTrainingTaskMethodDescriptor),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getTrainingTaskById: connect.NewClient[trainingtask.GetTrainingTaskByIdRequest, trainingtask.GetTrainingTaskByIdResponse](
+			httpClient,
+			baseURL+TrainingTaskServiceGetTrainingTaskByIdProcedure,
+			connect.WithSchema(trainingTaskServiceGetTrainingTaskByIdMethodDescriptor),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -162,15 +174,16 @@ func NewTrainingTaskServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // trainingTaskServiceClient implements TrainingTaskServiceClient.
 type trainingTaskServiceClient struct {
-	listTrainingTasks  *connect.Client[trainingtask.ListTrainingTasksRequest, trainingtask.ListTrainingTasksResponse]
-	getTrainingTask    *connect.Client[trainingtask.GetTrainingTaskRequest, trainingtask.GetTrainingTaskResponse]
-	createTrainingTask *connect.Client[trainingtask.CreateTrainingTaskRequest, trainingtask.CreateTrainingTaskResponse]
-	updateTrainingTask *connect.Client[trainingtask.UpdateTrainingTaskRequest, trainingtask.UpdateTrainingTaskResponse]
-	deleteTrainingTask *connect.Client[trainingtask.DeleteTrainingTaskRequest, trainingtask.DeleteTrainingTaskResponse]
-	startTrainingTask  *connect.Client[trainingtask.StartTrainingTaskRequest, trainingtask.StartTrainingTaskResponse]
-	stopTrainingTask   *connect.Client[trainingtask.StopTrainingTaskRequest, trainingtask.StopTrainingTaskResponse]
-	listResourceSpecs  *connect.Client[trainingtask.ListResourceSpecsRequest, trainingtask.ListResourceSpecsResponse]
-	listOfficialImages *connect.Client[trainingtask.ListOfficialImagesRequest, trainingtask.ListOfficialImagesResponse]
+	listTrainingTasks   *connect.Client[trainingtask.ListTrainingTasksRequest, trainingtask.ListTrainingTasksResponse]
+	getTrainingTask     *connect.Client[trainingtask.GetTrainingTaskRequest, trainingtask.GetTrainingTaskResponse]
+	getTrainingTaskById *connect.Client[trainingtask.GetTrainingTaskByIdRequest, trainingtask.GetTrainingTaskByIdResponse]
+	createTrainingTask  *connect.Client[trainingtask.CreateTrainingTaskRequest, trainingtask.CreateTrainingTaskResponse]
+	updateTrainingTask  *connect.Client[trainingtask.UpdateTrainingTaskRequest, trainingtask.UpdateTrainingTaskResponse]
+	deleteTrainingTask  *connect.Client[trainingtask.DeleteTrainingTaskRequest, trainingtask.DeleteTrainingTaskResponse]
+	startTrainingTask   *connect.Client[trainingtask.StartTrainingTaskRequest, trainingtask.StartTrainingTaskResponse]
+	stopTrainingTask    *connect.Client[trainingtask.StopTrainingTaskRequest, trainingtask.StopTrainingTaskResponse]
+	listResourceSpecs   *connect.Client[trainingtask.ListResourceSpecsRequest, trainingtask.ListResourceSpecsResponse]
+	listOfficialImages  *connect.Client[trainingtask.ListOfficialImagesRequest, trainingtask.ListOfficialImagesResponse]
 }
 
 // ListTrainingTasks calls flyteidl2.trainingtask.TrainingTaskService.ListTrainingTasks.
@@ -181,6 +194,11 @@ func (c *trainingTaskServiceClient) ListTrainingTasks(ctx context.Context, req *
 // GetTrainingTask calls flyteidl2.trainingtask.TrainingTaskService.GetTrainingTask.
 func (c *trainingTaskServiceClient) GetTrainingTask(ctx context.Context, req *connect.Request[trainingtask.GetTrainingTaskRequest]) (*connect.Response[trainingtask.GetTrainingTaskResponse], error) {
 	return c.getTrainingTask.CallUnary(ctx, req)
+}
+
+// GetTrainingTaskById calls flyteidl2.trainingtask.TrainingTaskService.GetTrainingTaskById.
+func (c *trainingTaskServiceClient) GetTrainingTaskById(ctx context.Context, req *connect.Request[trainingtask.GetTrainingTaskByIdRequest]) (*connect.Response[trainingtask.GetTrainingTaskByIdResponse], error) {
+	return c.getTrainingTaskById.CallUnary(ctx, req)
 }
 
 // CreateTrainingTask calls flyteidl2.trainingtask.TrainingTaskService.CreateTrainingTask.
@@ -223,6 +241,7 @@ func (c *trainingTaskServiceClient) ListOfficialImages(ctx context.Context, req 
 type TrainingTaskServiceHandler interface {
 	ListTrainingTasks(context.Context, *connect.Request[trainingtask.ListTrainingTasksRequest]) (*connect.Response[trainingtask.ListTrainingTasksResponse], error)
 	GetTrainingTask(context.Context, *connect.Request[trainingtask.GetTrainingTaskRequest]) (*connect.Response[trainingtask.GetTrainingTaskResponse], error)
+	GetTrainingTaskById(context.Context, *connect.Request[trainingtask.GetTrainingTaskByIdRequest]) (*connect.Response[trainingtask.GetTrainingTaskByIdResponse], error)
 	CreateTrainingTask(context.Context, *connect.Request[trainingtask.CreateTrainingTaskRequest]) (*connect.Response[trainingtask.CreateTrainingTaskResponse], error)
 	UpdateTrainingTask(context.Context, *connect.Request[trainingtask.UpdateTrainingTaskRequest]) (*connect.Response[trainingtask.UpdateTrainingTaskResponse], error)
 	DeleteTrainingTask(context.Context, *connect.Request[trainingtask.DeleteTrainingTaskRequest]) (*connect.Response[trainingtask.DeleteTrainingTaskResponse], error)
@@ -249,6 +268,13 @@ func NewTrainingTaskServiceHandler(svc TrainingTaskServiceHandler, opts ...conne
 		TrainingTaskServiceGetTrainingTaskProcedure,
 		svc.GetTrainingTask,
 		connect.WithSchema(trainingTaskServiceGetTrainingTaskMethodDescriptor),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	trainingTaskServiceGetTrainingTaskByIdHandler := connect.NewUnaryHandler(
+		TrainingTaskServiceGetTrainingTaskByIdProcedure,
+		svc.GetTrainingTaskById,
+		connect.WithSchema(trainingTaskServiceGetTrainingTaskByIdMethodDescriptor),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -302,6 +328,8 @@ func NewTrainingTaskServiceHandler(svc TrainingTaskServiceHandler, opts ...conne
 			trainingTaskServiceListTrainingTasksHandler.ServeHTTP(w, r)
 		case TrainingTaskServiceGetTrainingTaskProcedure:
 			trainingTaskServiceGetTrainingTaskHandler.ServeHTTP(w, r)
+		case TrainingTaskServiceGetTrainingTaskByIdProcedure:
+			trainingTaskServiceGetTrainingTaskByIdHandler.ServeHTTP(w, r)
 		case TrainingTaskServiceCreateTrainingTaskProcedure:
 			trainingTaskServiceCreateTrainingTaskHandler.ServeHTTP(w, r)
 		case TrainingTaskServiceUpdateTrainingTaskProcedure:
@@ -331,6 +359,10 @@ func (UnimplementedTrainingTaskServiceHandler) ListTrainingTasks(context.Context
 
 func (UnimplementedTrainingTaskServiceHandler) GetTrainingTask(context.Context, *connect.Request[trainingtask.GetTrainingTaskRequest]) (*connect.Response[trainingtask.GetTrainingTaskResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.trainingtask.TrainingTaskService.GetTrainingTask is not implemented"))
+}
+
+func (UnimplementedTrainingTaskServiceHandler) GetTrainingTaskById(context.Context, *connect.Request[trainingtask.GetTrainingTaskByIdRequest]) (*connect.Response[trainingtask.GetTrainingTaskByIdResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flyteidl2.trainingtask.TrainingTaskService.GetTrainingTaskById is not implemented"))
 }
 
 func (UnimplementedTrainingTaskServiceHandler) CreateTrainingTask(context.Context, *connect.Request[trainingtask.CreateTrainingTaskRequest]) (*connect.Response[trainingtask.CreateTrainingTaskResponse], error) {

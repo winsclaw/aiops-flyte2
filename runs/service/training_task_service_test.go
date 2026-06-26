@@ -14,6 +14,7 @@ import (
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/common"
 	trainingtaskpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow"
+	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 	repositorymocks "github.com/flyteorg/flyte/v2/runs/repository/mocks"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 )
@@ -509,6 +510,72 @@ func TestResolveTrainingTaskCodeRepositoryMounts(t *testing.T) {
 	require.Equal(t, "/workspace/override", task.CodeRepositoryMounts[0].MountPath)
 }
 
+func TestTrainingTaskServiceCreatesWithExplicitID(t *testing.T) {
+	repo := repositorymocks.NewRepository(t)
+	trainingRepo := &fakeTrainingTaskRepo{}
+	repo.EXPECT().TrainingTaskRepo().Return(trainingRepo).Twice()
+	svc := NewTrainingTaskService(repo, nil)
+
+	response, err := svc.CreateTrainingTask(context.Background(), connect.NewRequest(&trainingtaskpb.CreateTrainingTaskRequest{
+		Project:        &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
+		Creator:        "external-api",
+		TrainingTaskId: "task-contract-1",
+		TrainingTask: &trainingtaskpb.TrainingTaskInput{
+			Name:            "外部训练任务",
+			ResourceSpecId:  "cpu-1c-2g",
+			Command:         "python train.py",
+			MaxRuntimeHours: 1,
+			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_OFFICIAL,
+			OfficialImageId: "flyte-py311-v251",
+		},
+	}))
+
+	require.NoError(t, err)
+	require.Equal(t, "task-contract-1", trainingRepo.created.ID)
+	require.Equal(t, "task-contract-1", response.Msg.GetTrainingTask().GetId().GetId())
+}
+
+func TestTrainingTaskServiceGeneratesIDWhenExplicitIDIsMissing(t *testing.T) {
+	repo := repositorymocks.NewRepository(t)
+	trainingRepo := &fakeTrainingTaskRepo{}
+	repo.EXPECT().TrainingTaskRepo().Return(trainingRepo).Twice()
+	svc := NewTrainingTaskService(repo, nil)
+
+	response, err := svc.CreateTrainingTask(context.Background(), connect.NewRequest(&trainingtaskpb.CreateTrainingTaskRequest{
+		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
+		Creator: "ljgong",
+		TrainingTask: &trainingtaskpb.TrainingTaskInput{
+			Name:            "UI 训练任务",
+			ResourceSpecId:  "cpu-1c-2g",
+			Command:         "echo hello",
+			MaxRuntimeHours: 1,
+			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_OFFICIAL,
+			OfficialImageId: "flyte-py311-v251",
+		},
+	}))
+
+	require.NoError(t, err)
+	require.NotEmpty(t, trainingRepo.created.ID)
+	require.Contains(t, trainingRepo.created.ID, "tt-")
+	require.Equal(t, trainingRepo.created.ID, response.Msg.GetTrainingTask().GetId().GetId())
+}
+
+func TestTrainingTaskServiceGetTrainingTaskByIdRejectsAmbiguousID(t *testing.T) {
+	repo := repositorymocks.NewRepository(t)
+	trainingRepo := &fakeTrainingTaskRepo{
+		getByIDErr: fmt.Errorf("%w: task-contract-1", interfaces.ErrTrainingTaskIDAmbiguous),
+	}
+	repo.EXPECT().TrainingTaskRepo().Return(trainingRepo).Once()
+	svc := NewTrainingTaskService(repo, nil)
+
+	_, err := svc.GetTrainingTaskById(context.Background(), connect.NewRequest(&trainingtaskpb.GetTrainingTaskByIdRequest{
+		Id: "task-contract-1",
+	}))
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed_precondition")
+}
+
 func TestTrainingTaskServiceRejectsMissingCommand(t *testing.T) {
 	svc := NewTrainingTaskService(nil, nil)
 
@@ -561,20 +628,42 @@ func (r *fakeCodeRepositoryRepo) List(context.Context, models.CodeRepositoryList
 type fakeTrainingTaskRepo struct {
 	listResult *models.TrainingTaskListResult
 	getResult  *models.TrainingTask
+	created    *models.TrainingTask
+	getByIDErr error
 }
 
-func (r *fakeTrainingTaskRepo) Create(context.Context, *models.TrainingTask) error {
+func (r *fakeTrainingTaskRepo) Create(_ context.Context, task *models.TrainingTask) error {
+	copy := *task
+	r.created = &copy
 	return nil
 }
 
 func (r *fakeTrainingTaskRepo) Get(_ context.Context, key models.TrainingTaskKey) (*models.TrainingTask, error) {
-	if r.getResult == nil {
+	result := r.getResult
+	if result == nil {
+		result = r.created
+	}
+	if result == nil {
 		return nil, fmt.Errorf("not found")
 	}
-	if r.getResult.Org != key.Org || r.getResult.Project != key.Project || r.getResult.Domain != key.Domain || r.getResult.ID != key.ID {
+	if result.Org != key.Org || result.Project != key.Project || result.Domain != key.Domain || result.ID != key.ID {
 		return nil, fmt.Errorf("unexpected get key: %+v", key)
 	}
-	return r.getResult, nil
+	return result, nil
+}
+
+func (r *fakeTrainingTaskRepo) GetByID(_ context.Context, id string) (*models.TrainingTask, error) {
+	if r.getByIDErr != nil {
+		return nil, r.getByIDErr
+	}
+	result := r.getResult
+	if result == nil {
+		result = r.created
+	}
+	if result == nil || result.ID != id {
+		return nil, fmt.Errorf("not found")
+	}
+	return result, nil
 }
 
 func (r *fakeTrainingTaskRepo) Update(context.Context, *models.TrainingTask) error {
@@ -604,6 +693,10 @@ type fakeTrainingTaskCloudStorageRepo struct {
 
 func (r *fakeTrainingTaskCloudStorageRepo) Create(context.Context, *models.CloudStorage) error {
 	return nil
+}
+
+func (r *fakeTrainingTaskCloudStorageRepo) Ensure(_ context.Context, storage *models.CloudStorage) (*models.CloudStorage, error) {
+	return storage, nil
 }
 
 func (r *fakeTrainingTaskCloudStorageRepo) Get(_ context.Context, key models.CloudStorageKey) (*models.CloudStorage, error) {

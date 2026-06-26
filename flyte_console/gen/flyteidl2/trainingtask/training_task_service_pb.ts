@@ -20,7 +20,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file flyteidl2/trainingtask/training_task_service.proto.
  */
 export const file_flyteidl2_trainingtask_training_task_service: GenFile = /*@__PURE__*/
-  fileDesc("CjJmbHl0ZWlkbDIvdHJhaW5pbmd0YXNrL3RyYWluaW5nX3Rhc2tfc2VydmljZS5wcm90bxIWZmx5dGVpZGwyLnRyYWluaW5ndGFzayLvAwoRVHJhaW5pbmdUYXNrSW5wdXQSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIYChByZXNvdXJjZV9zcGVjX2lkGAMgASgJEg8KB2NvbW1hbmQYBCABKAkSGQoRbWF4X3J1bnRpbWVfaG91cnMYBSABKA0SNQoKaW1hZ2VfdHlwZRgGIAEoDjIhLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suSW1hZ2VUeXBlEhkKEW9mZmljaWFsX2ltYWdlX2lkGAcgASgJEhIKCmltYWdlX25hbWUYCCABKAkSEQoJaW1hZ2VfdXJpGAkgASgJEk0KFGNsb3VkX3N0b3JhZ2VfbW91bnRzGAogAygLMi8uZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2VNb3VudBJTChZjb2RlX3JlcG9zaXRvcnlfbW91bnRzGAsgAygLMjMuZmx5dGVpZGwyLmFpb25lLmNvZGVyZXBvc2l0b3J5LkNvZGVSZXBvc2l0b3J5TW91bnQSCwoDY3B1GAwgASgJEg4KBm1lbW9yeRgNIAEoCRIRCglncHVfY291bnQYDiABKA0SEQoJZ3B1X21vZGVsGA8gASgJEhEKCWJhbmR3aWR0aBgQIAEoCSKAAQoYTGlzdFRyYWluaW5nVGFza3NSZXF1ZXN0Ei4KB3JlcXVlc3QYASABKAsyHS5mbHl0ZWlkbDIuY29tbW9uLkxpc3RSZXF1ZXN0EjQKB3Byb2plY3QYAiABKAsyIy5mbHl0ZWlkbDIuY29tbW9uLlByb2plY3RJZGVudGlmaWVyIncKGUxpc3RUcmFpbmluZ1Rhc2tzUmVzcG9uc2USPAoOdHJhaW5pbmdfdGFza3MYASADKAsyJC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFzaxINCgV0b2tlbhgCIAEoCRINCgV0b3RhbBgDIAEoDSJUChZHZXRUcmFpbmluZ1Rhc2tSZXF1ZXN0EjoKAmlkGAEgASgLMi4uZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2tJZGVudGlmaWVyIlYKF0dldFRyYWluaW5nVGFza1Jlc3BvbnNlEjsKDXRyYWluaW5nX3Rhc2sYASABKAsyJC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFzayKkAQoZQ3JlYXRlVHJhaW5pbmdUYXNrUmVxdWVzdBI0Cgdwcm9qZWN0GAEgASgLMiMuZmx5dGVpZGwyLmNvbW1vbi5Qcm9qZWN0SWRlbnRpZmllchJACg10cmFpbmluZ190YXNrGAIgASgLMikuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2tJbnB1dBIPCgdjcmVhdG9yGAMgASgJIlkKGkNyZWF0ZVRyYWluaW5nVGFza1Jlc3BvbnNlEjsKDXRyYWluaW5nX3Rhc2sYASABKAsyJC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFzayKZAQoZVXBkYXRlVHJhaW5pbmdUYXNrUmVxdWVzdBI6CgJpZBgBIAEoCzIuLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suVHJhaW5pbmdUYXNrSWRlbnRpZmllchJACg10cmFpbmluZ190YXNrGAIgASgLMikuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2tJbnB1dCJZChpVcGRhdGVUcmFpbmluZ1Rhc2tSZXNwb25zZRI7Cg10cmFpbmluZ190YXNrGAEgASgLMiQuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2siVwoZRGVsZXRlVHJhaW5pbmdUYXNrUmVxdWVzdBI6CgJpZBgBIAEoCzIuLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suVHJhaW5pbmdUYXNrSWRlbnRpZmllciIcChpEZWxldGVUcmFpbmluZ1Rhc2tSZXNwb25zZSJWChhTdGFydFRyYWluaW5nVGFza1JlcXVlc3QSOgoCaWQYASABKAsyLi5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFza0lkZW50aWZpZXIiagoZU3RhcnRUcmFpbmluZ1Rhc2tSZXNwb25zZRI7Cg10cmFpbmluZ190YXNrGAEgASgLMiQuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2sSEAoIcnVuX25hbWUYAiABKAkiZQoXU3RvcFRyYWluaW5nVGFza1JlcXVlc3QSOgoCaWQYASABKAsyLi5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFza0lkZW50aWZpZXISDgoGcmVhc29uGAIgASgJIlcKGFN0b3BUcmFpbmluZ1Rhc2tSZXNwb25zZRI7Cg10cmFpbmluZ190YXNrGAEgASgLMiQuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2siGgoYTGlzdFJlc291cmNlU3BlY3NSZXF1ZXN0IlkKGUxpc3RSZXNvdXJjZVNwZWNzUmVzcG9uc2USPAoOcmVzb3VyY2Vfc3BlY3MYASADKAsyJC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlJlc291cmNlU3BlYyIbChlMaXN0T2ZmaWNpYWxJbWFnZXNSZXF1ZXN0IlwKGkxpc3RPZmZpY2lhbEltYWdlc1Jlc3BvbnNlEj4KD29mZmljaWFsX2ltYWdlcxgBIAMoCzIlLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suT2ZmaWNpYWxJbWFnZTKBCQoTVHJhaW5pbmdUYXNrU2VydmljZRJ9ChFMaXN0VHJhaW5pbmdUYXNrcxIwLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suTGlzdFRyYWluaW5nVGFza3NSZXF1ZXN0GjEuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5MaXN0VHJhaW5pbmdUYXNrc1Jlc3BvbnNlIgOQAgESdwoPR2V0VHJhaW5pbmdUYXNrEi4uZmx5dGVpZGwyLnRyYWluaW5ndGFzay5HZXRUcmFpbmluZ1Rhc2tSZXF1ZXN0Gi8uZmx5dGVpZGwyLnRyYWluaW5ndGFzay5HZXRUcmFpbmluZ1Rhc2tSZXNwb25zZSIDkAIBEn0KEkNyZWF0ZVRyYWluaW5nVGFzaxIxLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suQ3JlYXRlVHJhaW5pbmdUYXNrUmVxdWVzdBoyLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suQ3JlYXRlVHJhaW5pbmdUYXNrUmVzcG9uc2UiABJ9ChJVcGRhdGVUcmFpbmluZ1Rhc2sSMS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlVwZGF0ZVRyYWluaW5nVGFza1JlcXVlc3QaMi5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlVwZGF0ZVRyYWluaW5nVGFza1Jlc3BvbnNlIgASfQoSRGVsZXRlVHJhaW5pbmdUYXNrEjEuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5EZWxldGVUcmFpbmluZ1Rhc2tSZXF1ZXN0GjIuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5EZWxldGVUcmFpbmluZ1Rhc2tSZXNwb25zZSIAEnoKEVN0YXJ0VHJhaW5pbmdUYXNrEjAuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5TdGFydFRyYWluaW5nVGFza1JlcXVlc3QaMS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlN0YXJ0VHJhaW5pbmdUYXNrUmVzcG9uc2UiABJ3ChBTdG9wVHJhaW5pbmdUYXNrEi8uZmx5dGVpZGwyLnRyYWluaW5ndGFzay5TdG9wVHJhaW5pbmdUYXNrUmVxdWVzdBowLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suU3RvcFRyYWluaW5nVGFza1Jlc3BvbnNlIgASfQoRTGlzdFJlc291cmNlU3BlY3MSMC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLkxpc3RSZXNvdXJjZVNwZWNzUmVxdWVzdBoxLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suTGlzdFJlc291cmNlU3BlY3NSZXNwb25zZSIDkAIBEoABChJMaXN0T2ZmaWNpYWxJbWFnZXMSMS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLkxpc3RPZmZpY2lhbEltYWdlc1JlcXVlc3QaMi5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLkxpc3RPZmZpY2lhbEltYWdlc1Jlc3BvbnNlIgOQAgFC7QEKGmNvbS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrQhhUcmFpbmluZ1Rhc2tTZXJ2aWNlUHJvdG9IAlABWjpnaXRodWIuY29tL2ZseXRlb3JnL2ZseXRlL3YyL2dlbi9nby9mbHl0ZWlkbDIvdHJhaW5pbmd0YXNrogIDRlRYqgIWRmx5dGVpZGwyLlRyYWluaW5ndGFza8oCFkZseXRlaWRsMlxUcmFpbmluZ3Rhc2viAiJGbHl0ZWlkbDJcVHJhaW5pbmd0YXNrXEdQQk1ldGFkYXRh6gIXRmx5dGVpZGwyOjpUcmFpbmluZ3Rhc2tiBnByb3RvMw", [file_flyteidl2_common_identifier, file_flyteidl2_common_list, file_flyteidl2_aione_cloudstorage_cloud_storage_definition, file_flyteidl2_aione_coderepository_code_repository_definition, file_flyteidl2_trainingtask_training_task_definition]);
+  fileDesc("CjJmbHl0ZWlkbDIvdHJhaW5pbmd0YXNrL3RyYWluaW5nX3Rhc2tfc2VydmljZS5wcm90bxIWZmx5dGVpZGwyLnRyYWluaW5ndGFzayLvAwoRVHJhaW5pbmdUYXNrSW5wdXQSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIYChByZXNvdXJjZV9zcGVjX2lkGAMgASgJEg8KB2NvbW1hbmQYBCABKAkSGQoRbWF4X3J1bnRpbWVfaG91cnMYBSABKA0SNQoKaW1hZ2VfdHlwZRgGIAEoDjIhLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suSW1hZ2VUeXBlEhkKEW9mZmljaWFsX2ltYWdlX2lkGAcgASgJEhIKCmltYWdlX25hbWUYCCABKAkSEQoJaW1hZ2VfdXJpGAkgASgJEk0KFGNsb3VkX3N0b3JhZ2VfbW91bnRzGAogAygLMi8uZmx5dGVpZGwyLmFpb25lLmNsb3Vkc3RvcmFnZS5DbG91ZFN0b3JhZ2VNb3VudBJTChZjb2RlX3JlcG9zaXRvcnlfbW91bnRzGAsgAygLMjMuZmx5dGVpZGwyLmFpb25lLmNvZGVyZXBvc2l0b3J5LkNvZGVSZXBvc2l0b3J5TW91bnQSCwoDY3B1GAwgASgJEg4KBm1lbW9yeRgNIAEoCRIRCglncHVfY291bnQYDiABKA0SEQoJZ3B1X21vZGVsGA8gASgJEhEKCWJhbmR3aWR0aBgQIAEoCSKAAQoYTGlzdFRyYWluaW5nVGFza3NSZXF1ZXN0Ei4KB3JlcXVlc3QYASABKAsyHS5mbHl0ZWlkbDIuY29tbW9uLkxpc3RSZXF1ZXN0EjQKB3Byb2plY3QYAiABKAsyIy5mbHl0ZWlkbDIuY29tbW9uLlByb2plY3RJZGVudGlmaWVyIncKGUxpc3RUcmFpbmluZ1Rhc2tzUmVzcG9uc2USPAoOdHJhaW5pbmdfdGFza3MYASADKAsyJC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFzaxINCgV0b2tlbhgCIAEoCRINCgV0b3RhbBgDIAEoDSJUChZHZXRUcmFpbmluZ1Rhc2tSZXF1ZXN0EjoKAmlkGAEgASgLMi4uZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2tJZGVudGlmaWVyIlYKF0dldFRyYWluaW5nVGFza1Jlc3BvbnNlEjsKDXRyYWluaW5nX3Rhc2sYASABKAsyJC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFzayIoChpHZXRUcmFpbmluZ1Rhc2tCeUlkUmVxdWVzdBIKCgJpZBgBIAEoCSJaChtHZXRUcmFpbmluZ1Rhc2tCeUlkUmVzcG9uc2USOwoNdHJhaW5pbmdfdGFzaxgBIAEoCzIkLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suVHJhaW5pbmdUYXNrIr4BChlDcmVhdGVUcmFpbmluZ1Rhc2tSZXF1ZXN0EjQKB3Byb2plY3QYASABKAsyIy5mbHl0ZWlkbDIuY29tbW9uLlByb2plY3RJZGVudGlmaWVyEkAKDXRyYWluaW5nX3Rhc2sYAiABKAsyKS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFza0lucHV0Eg8KB2NyZWF0b3IYAyABKAkSGAoQdHJhaW5pbmdfdGFza19pZBgEIAEoCSJZChpDcmVhdGVUcmFpbmluZ1Rhc2tSZXNwb25zZRI7Cg10cmFpbmluZ190YXNrGAEgASgLMiQuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2simQEKGVVwZGF0ZVRyYWluaW5nVGFza1JlcXVlc3QSOgoCaWQYASABKAsyLi5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFza0lkZW50aWZpZXISQAoNdHJhaW5pbmdfdGFzaxgCIAEoCzIpLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suVHJhaW5pbmdUYXNrSW5wdXQiWQoaVXBkYXRlVHJhaW5pbmdUYXNrUmVzcG9uc2USOwoNdHJhaW5pbmdfdGFzaxgBIAEoCzIkLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suVHJhaW5pbmdUYXNrIlcKGURlbGV0ZVRyYWluaW5nVGFza1JlcXVlc3QSOgoCaWQYASABKAsyLi5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlRyYWluaW5nVGFza0lkZW50aWZpZXIiHAoaRGVsZXRlVHJhaW5pbmdUYXNrUmVzcG9uc2UiVgoYU3RhcnRUcmFpbmluZ1Rhc2tSZXF1ZXN0EjoKAmlkGAEgASgLMi4uZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2tJZGVudGlmaWVyImoKGVN0YXJ0VHJhaW5pbmdUYXNrUmVzcG9uc2USOwoNdHJhaW5pbmdfdGFzaxgBIAEoCzIkLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suVHJhaW5pbmdUYXNrEhAKCHJ1bl9uYW1lGAIgASgJImUKF1N0b3BUcmFpbmluZ1Rhc2tSZXF1ZXN0EjoKAmlkGAEgASgLMi4uZmx5dGVpZGwyLnRyYWluaW5ndGFzay5UcmFpbmluZ1Rhc2tJZGVudGlmaWVyEg4KBnJlYXNvbhgCIAEoCSJXChhTdG9wVHJhaW5pbmdUYXNrUmVzcG9uc2USOwoNdHJhaW5pbmdfdGFzaxgBIAEoCzIkLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suVHJhaW5pbmdUYXNrIhoKGExpc3RSZXNvdXJjZVNwZWNzUmVxdWVzdCJZChlMaXN0UmVzb3VyY2VTcGVjc1Jlc3BvbnNlEjwKDnJlc291cmNlX3NwZWNzGAEgAygLMiQuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5SZXNvdXJjZVNwZWMiGwoZTGlzdE9mZmljaWFsSW1hZ2VzUmVxdWVzdCJcChpMaXN0T2ZmaWNpYWxJbWFnZXNSZXNwb25zZRI+Cg9vZmZpY2lhbF9pbWFnZXMYASADKAsyJS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLk9mZmljaWFsSW1hZ2UyhwoKE1RyYWluaW5nVGFza1NlcnZpY2USfQoRTGlzdFRyYWluaW5nVGFza3MSMC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLkxpc3RUcmFpbmluZ1Rhc2tzUmVxdWVzdBoxLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suTGlzdFRyYWluaW5nVGFza3NSZXNwb25zZSIDkAIBEncKD0dldFRyYWluaW5nVGFzaxIuLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suR2V0VHJhaW5pbmdUYXNrUmVxdWVzdBovLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suR2V0VHJhaW5pbmdUYXNrUmVzcG9uc2UiA5ACARKDAQoTR2V0VHJhaW5pbmdUYXNrQnlJZBIyLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suR2V0VHJhaW5pbmdUYXNrQnlJZFJlcXVlc3QaMy5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLkdldFRyYWluaW5nVGFza0J5SWRSZXNwb25zZSIDkAIBEn0KEkNyZWF0ZVRyYWluaW5nVGFzaxIxLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suQ3JlYXRlVHJhaW5pbmdUYXNrUmVxdWVzdBoyLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suQ3JlYXRlVHJhaW5pbmdUYXNrUmVzcG9uc2UiABJ9ChJVcGRhdGVUcmFpbmluZ1Rhc2sSMS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlVwZGF0ZVRyYWluaW5nVGFza1JlcXVlc3QaMi5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlVwZGF0ZVRyYWluaW5nVGFza1Jlc3BvbnNlIgASfQoSRGVsZXRlVHJhaW5pbmdUYXNrEjEuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5EZWxldGVUcmFpbmluZ1Rhc2tSZXF1ZXN0GjIuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5EZWxldGVUcmFpbmluZ1Rhc2tSZXNwb25zZSIAEnoKEVN0YXJ0VHJhaW5pbmdUYXNrEjAuZmx5dGVpZGwyLnRyYWluaW5ndGFzay5TdGFydFRyYWluaW5nVGFza1JlcXVlc3QaMS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLlN0YXJ0VHJhaW5pbmdUYXNrUmVzcG9uc2UiABJ3ChBTdG9wVHJhaW5pbmdUYXNrEi8uZmx5dGVpZGwyLnRyYWluaW5ndGFzay5TdG9wVHJhaW5pbmdUYXNrUmVxdWVzdBowLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suU3RvcFRyYWluaW5nVGFza1Jlc3BvbnNlIgASfQoRTGlzdFJlc291cmNlU3BlY3MSMC5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLkxpc3RSZXNvdXJjZVNwZWNzUmVxdWVzdBoxLmZseXRlaWRsMi50cmFpbmluZ3Rhc2suTGlzdFJlc291cmNlU3BlY3NSZXNwb25zZSIDkAIBEoABChJMaXN0T2ZmaWNpYWxJbWFnZXMSMS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLkxpc3RPZmZpY2lhbEltYWdlc1JlcXVlc3QaMi5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrLkxpc3RPZmZpY2lhbEltYWdlc1Jlc3BvbnNlIgOQAgFC7QEKGmNvbS5mbHl0ZWlkbDIudHJhaW5pbmd0YXNrQhhUcmFpbmluZ1Rhc2tTZXJ2aWNlUHJvdG9IAlABWjpnaXRodWIuY29tL2ZseXRlb3JnL2ZseXRlL3YyL2dlbi9nby9mbHl0ZWlkbDIvdHJhaW5pbmd0YXNrogIDRlRYqgIWRmx5dGVpZGwyLlRyYWluaW5ndGFza8oCFkZseXRlaWRsMlxUcmFpbmluZ3Rhc2viAiJGbHl0ZWlkbDJcVHJhaW5pbmd0YXNrXEdQQk1ldGFkYXRh6gIXRmx5dGVpZGwyOjpUcmFpbmluZ3Rhc2tiBnByb3RvMw", [file_flyteidl2_common_identifier, file_flyteidl2_common_list, file_flyteidl2_aione_cloudstorage_cloud_storage_definition, file_flyteidl2_aione_coderepository_code_repository_definition, file_flyteidl2_trainingtask_training_task_definition]);
 
 /**
  * @generated from message flyteidl2.trainingtask.TrainingTaskInput
@@ -121,12 +121,12 @@ export type ListTrainingTasksRequest = Message<"flyteidl2.trainingtask.ListTrain
   /**
    * @generated from field: flyteidl2.common.ListRequest request = 1;
    */
-  request?: ListRequest | undefined;
+  request?: ListRequest;
 
   /**
    * @generated from field: flyteidl2.common.ProjectIdentifier project = 2;
    */
-  project?: ProjectIdentifier | undefined;
+  project?: ProjectIdentifier;
 };
 
 /**
@@ -170,7 +170,7 @@ export type GetTrainingTaskRequest = Message<"flyteidl2.trainingtask.GetTraining
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTaskIdentifier id = 1;
    */
-  id?: TrainingTaskIdentifier | undefined;
+  id?: TrainingTaskIdentifier;
 };
 
 /**
@@ -187,7 +187,7 @@ export type GetTrainingTaskResponse = Message<"flyteidl2.trainingtask.GetTrainin
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTask training_task = 1;
    */
-  trainingTask?: TrainingTask | undefined;
+  trainingTask?: TrainingTask;
 };
 
 /**
@@ -198,23 +198,62 @@ export const GetTrainingTaskResponseSchema: GenMessage<GetTrainingTaskResponse> 
   messageDesc(file_flyteidl2_trainingtask_training_task_service, 4);
 
 /**
+ * @generated from message flyteidl2.trainingtask.GetTrainingTaskByIdRequest
+ */
+export type GetTrainingTaskByIdRequest = Message<"flyteidl2.trainingtask.GetTrainingTaskByIdRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message flyteidl2.trainingtask.GetTrainingTaskByIdRequest.
+ * Use `create(GetTrainingTaskByIdRequestSchema)` to create a new message.
+ */
+export const GetTrainingTaskByIdRequestSchema: GenMessage<GetTrainingTaskByIdRequest> = /*@__PURE__*/
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 5);
+
+/**
+ * @generated from message flyteidl2.trainingtask.GetTrainingTaskByIdResponse
+ */
+export type GetTrainingTaskByIdResponse = Message<"flyteidl2.trainingtask.GetTrainingTaskByIdResponse"> & {
+  /**
+   * @generated from field: flyteidl2.trainingtask.TrainingTask training_task = 1;
+   */
+  trainingTask?: TrainingTask;
+};
+
+/**
+ * Describes the message flyteidl2.trainingtask.GetTrainingTaskByIdResponse.
+ * Use `create(GetTrainingTaskByIdResponseSchema)` to create a new message.
+ */
+export const GetTrainingTaskByIdResponseSchema: GenMessage<GetTrainingTaskByIdResponse> = /*@__PURE__*/
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 6);
+
+/**
  * @generated from message flyteidl2.trainingtask.CreateTrainingTaskRequest
  */
 export type CreateTrainingTaskRequest = Message<"flyteidl2.trainingtask.CreateTrainingTaskRequest"> & {
   /**
    * @generated from field: flyteidl2.common.ProjectIdentifier project = 1;
    */
-  project?: ProjectIdentifier | undefined;
+  project?: ProjectIdentifier;
 
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTaskInput training_task = 2;
    */
-  trainingTask?: TrainingTaskInput | undefined;
+  trainingTask?: TrainingTaskInput;
 
   /**
    * @generated from field: string creator = 3;
    */
   creator: string;
+
+  /**
+   * @generated from field: string training_task_id = 4;
+   */
+  trainingTaskId: string;
 };
 
 /**
@@ -222,7 +261,7 @@ export type CreateTrainingTaskRequest = Message<"flyteidl2.trainingtask.CreateTr
  * Use `create(CreateTrainingTaskRequestSchema)` to create a new message.
  */
 export const CreateTrainingTaskRequestSchema: GenMessage<CreateTrainingTaskRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 5);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 7);
 
 /**
  * @generated from message flyteidl2.trainingtask.CreateTrainingTaskResponse
@@ -231,7 +270,7 @@ export type CreateTrainingTaskResponse = Message<"flyteidl2.trainingtask.CreateT
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTask training_task = 1;
    */
-  trainingTask?: TrainingTask | undefined;
+  trainingTask?: TrainingTask;
 };
 
 /**
@@ -239,7 +278,7 @@ export type CreateTrainingTaskResponse = Message<"flyteidl2.trainingtask.CreateT
  * Use `create(CreateTrainingTaskResponseSchema)` to create a new message.
  */
 export const CreateTrainingTaskResponseSchema: GenMessage<CreateTrainingTaskResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 6);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 8);
 
 /**
  * @generated from message flyteidl2.trainingtask.UpdateTrainingTaskRequest
@@ -248,12 +287,12 @@ export type UpdateTrainingTaskRequest = Message<"flyteidl2.trainingtask.UpdateTr
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTaskIdentifier id = 1;
    */
-  id?: TrainingTaskIdentifier | undefined;
+  id?: TrainingTaskIdentifier;
 
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTaskInput training_task = 2;
    */
-  trainingTask?: TrainingTaskInput | undefined;
+  trainingTask?: TrainingTaskInput;
 };
 
 /**
@@ -261,7 +300,7 @@ export type UpdateTrainingTaskRequest = Message<"flyteidl2.trainingtask.UpdateTr
  * Use `create(UpdateTrainingTaskRequestSchema)` to create a new message.
  */
 export const UpdateTrainingTaskRequestSchema: GenMessage<UpdateTrainingTaskRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 7);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 9);
 
 /**
  * @generated from message flyteidl2.trainingtask.UpdateTrainingTaskResponse
@@ -270,7 +309,7 @@ export type UpdateTrainingTaskResponse = Message<"flyteidl2.trainingtask.UpdateT
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTask training_task = 1;
    */
-  trainingTask?: TrainingTask | undefined;
+  trainingTask?: TrainingTask;
 };
 
 /**
@@ -278,7 +317,7 @@ export type UpdateTrainingTaskResponse = Message<"flyteidl2.trainingtask.UpdateT
  * Use `create(UpdateTrainingTaskResponseSchema)` to create a new message.
  */
 export const UpdateTrainingTaskResponseSchema: GenMessage<UpdateTrainingTaskResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 8);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 10);
 
 /**
  * @generated from message flyteidl2.trainingtask.DeleteTrainingTaskRequest
@@ -287,7 +326,7 @@ export type DeleteTrainingTaskRequest = Message<"flyteidl2.trainingtask.DeleteTr
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTaskIdentifier id = 1;
    */
-  id?: TrainingTaskIdentifier | undefined;
+  id?: TrainingTaskIdentifier;
 };
 
 /**
@@ -295,7 +334,7 @@ export type DeleteTrainingTaskRequest = Message<"flyteidl2.trainingtask.DeleteTr
  * Use `create(DeleteTrainingTaskRequestSchema)` to create a new message.
  */
 export const DeleteTrainingTaskRequestSchema: GenMessage<DeleteTrainingTaskRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 9);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 11);
 
 /**
  * @generated from message flyteidl2.trainingtask.DeleteTrainingTaskResponse
@@ -308,7 +347,7 @@ export type DeleteTrainingTaskResponse = Message<"flyteidl2.trainingtask.DeleteT
  * Use `create(DeleteTrainingTaskResponseSchema)` to create a new message.
  */
 export const DeleteTrainingTaskResponseSchema: GenMessage<DeleteTrainingTaskResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 10);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 12);
 
 /**
  * @generated from message flyteidl2.trainingtask.StartTrainingTaskRequest
@@ -317,7 +356,7 @@ export type StartTrainingTaskRequest = Message<"flyteidl2.trainingtask.StartTrai
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTaskIdentifier id = 1;
    */
-  id?: TrainingTaskIdentifier | undefined;
+  id?: TrainingTaskIdentifier;
 };
 
 /**
@@ -325,7 +364,7 @@ export type StartTrainingTaskRequest = Message<"flyteidl2.trainingtask.StartTrai
  * Use `create(StartTrainingTaskRequestSchema)` to create a new message.
  */
 export const StartTrainingTaskRequestSchema: GenMessage<StartTrainingTaskRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 11);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 13);
 
 /**
  * @generated from message flyteidl2.trainingtask.StartTrainingTaskResponse
@@ -334,7 +373,7 @@ export type StartTrainingTaskResponse = Message<"flyteidl2.trainingtask.StartTra
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTask training_task = 1;
    */
-  trainingTask?: TrainingTask | undefined;
+  trainingTask?: TrainingTask;
 
   /**
    * @generated from field: string run_name = 2;
@@ -347,7 +386,7 @@ export type StartTrainingTaskResponse = Message<"flyteidl2.trainingtask.StartTra
  * Use `create(StartTrainingTaskResponseSchema)` to create a new message.
  */
 export const StartTrainingTaskResponseSchema: GenMessage<StartTrainingTaskResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 12);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 14);
 
 /**
  * @generated from message flyteidl2.trainingtask.StopTrainingTaskRequest
@@ -356,7 +395,7 @@ export type StopTrainingTaskRequest = Message<"flyteidl2.trainingtask.StopTraini
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTaskIdentifier id = 1;
    */
-  id?: TrainingTaskIdentifier | undefined;
+  id?: TrainingTaskIdentifier;
 
   /**
    * @generated from field: string reason = 2;
@@ -369,7 +408,7 @@ export type StopTrainingTaskRequest = Message<"flyteidl2.trainingtask.StopTraini
  * Use `create(StopTrainingTaskRequestSchema)` to create a new message.
  */
 export const StopTrainingTaskRequestSchema: GenMessage<StopTrainingTaskRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 13);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 15);
 
 /**
  * @generated from message flyteidl2.trainingtask.StopTrainingTaskResponse
@@ -378,7 +417,7 @@ export type StopTrainingTaskResponse = Message<"flyteidl2.trainingtask.StopTrain
   /**
    * @generated from field: flyteidl2.trainingtask.TrainingTask training_task = 1;
    */
-  trainingTask?: TrainingTask | undefined;
+  trainingTask?: TrainingTask;
 };
 
 /**
@@ -386,7 +425,7 @@ export type StopTrainingTaskResponse = Message<"flyteidl2.trainingtask.StopTrain
  * Use `create(StopTrainingTaskResponseSchema)` to create a new message.
  */
 export const StopTrainingTaskResponseSchema: GenMessage<StopTrainingTaskResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 14);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 16);
 
 /**
  * @generated from message flyteidl2.trainingtask.ListResourceSpecsRequest
@@ -399,7 +438,7 @@ export type ListResourceSpecsRequest = Message<"flyteidl2.trainingtask.ListResou
  * Use `create(ListResourceSpecsRequestSchema)` to create a new message.
  */
 export const ListResourceSpecsRequestSchema: GenMessage<ListResourceSpecsRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 15);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 17);
 
 /**
  * @generated from message flyteidl2.trainingtask.ListResourceSpecsResponse
@@ -416,7 +455,7 @@ export type ListResourceSpecsResponse = Message<"flyteidl2.trainingtask.ListReso
  * Use `create(ListResourceSpecsResponseSchema)` to create a new message.
  */
 export const ListResourceSpecsResponseSchema: GenMessage<ListResourceSpecsResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 16);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 18);
 
 /**
  * @generated from message flyteidl2.trainingtask.ListOfficialImagesRequest
@@ -429,7 +468,7 @@ export type ListOfficialImagesRequest = Message<"flyteidl2.trainingtask.ListOffi
  * Use `create(ListOfficialImagesRequestSchema)` to create a new message.
  */
 export const ListOfficialImagesRequestSchema: GenMessage<ListOfficialImagesRequest> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 17);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 19);
 
 /**
  * @generated from message flyteidl2.trainingtask.ListOfficialImagesResponse
@@ -446,7 +485,7 @@ export type ListOfficialImagesResponse = Message<"flyteidl2.trainingtask.ListOff
  * Use `create(ListOfficialImagesResponseSchema)` to create a new message.
  */
 export const ListOfficialImagesResponseSchema: GenMessage<ListOfficialImagesResponse> = /*@__PURE__*/
-  messageDesc(file_flyteidl2_trainingtask_training_task_service, 18);
+  messageDesc(file_flyteidl2_trainingtask_training_task_service, 20);
 
 /**
  * @generated from service flyteidl2.trainingtask.TrainingTaskService
@@ -467,6 +506,14 @@ export const TrainingTaskService: GenService<{
     methodKind: "unary";
     input: typeof GetTrainingTaskRequestSchema;
     output: typeof GetTrainingTaskResponseSchema;
+  },
+  /**
+   * @generated from rpc flyteidl2.trainingtask.TrainingTaskService.GetTrainingTaskById
+   */
+  getTrainingTaskById: {
+    methodKind: "unary";
+    input: typeof GetTrainingTaskByIdRequestSchema;
+    output: typeof GetTrainingTaskByIdResponseSchema;
   },
   /**
    * @generated from rpc flyteidl2.trainingtask.TrainingTaskService.CreateTrainingTask

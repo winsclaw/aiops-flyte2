@@ -5,8 +5,6 @@
 import {
   AioneInstanceRecord,
   AioneInstanceRecordStatus,
-  AioneTaskRecord,
-  buildAioneTaskConfigMapName,
   buildAioneInstanceConfigMapName,
 } from "./helpers";
 import { requestKubernetes } from "@/server/kubernetes/client";
@@ -35,14 +33,6 @@ export async function readAioneInstanceRecord(
   return readAioneRecord<AioneInstanceRecord>(context, name);
 }
 
-export async function readAioneTaskRecord(
-  context: KubernetesRequestContext,
-  sourceTaskId: string,
-) {
-  const name = buildAioneTaskConfigMapName(sourceTaskId);
-  return readAioneRecord<AioneTaskRecord>(context, name);
-}
-
 async function readAioneRecord<T>(
   context: KubernetesRequestContext,
   name: string,
@@ -69,19 +59,11 @@ export async function writeAioneInstanceRecord(
   return writeAioneRecord(context, name, buildInstanceLabels(record), record);
 }
 
-export async function writeAioneTaskRecord(
-  context: KubernetesRequestContext,
-  record: AioneTaskRecord,
-) {
-  const name = buildAioneTaskConfigMapName(record.sourceTaskId);
-  return writeAioneRecord(context, name, buildTaskLabels(record), record);
-}
-
 async function writeAioneRecord(
   context: KubernetesRequestContext,
   name: string,
   labels: Record<string, string>,
-  record: AioneInstanceRecord | AioneTaskRecord,
+  record: AioneInstanceRecord,
 ) {
   const body = JSON.stringify(
     buildConfigMap(context.namespace, name, labels, record),
@@ -135,7 +117,7 @@ function buildConfigMap(
   namespace: string,
   name: string,
   labels: Record<string, string>,
-  record: AioneInstanceRecord | AioneTaskRecord,
+  record: AioneInstanceRecord,
 ) {
   return {
     apiVersion: "v1",
@@ -155,18 +137,6 @@ function buildInstanceLabels(record: AioneInstanceRecord) {
   return {
     "app.kubernetes.io/name": "aione-external-instance",
     "flyte.org/source-instance": safeLabelValue(record.sourceInstanceId),
-    "flyte.org/latest-run-name": safeLabelValue(record.latestRunName),
-    "flyte.org/project": safeLabelValue(record.project),
-    "flyte.org/domain": safeLabelValue(record.domain),
-    "flyte.org/org": safeLabelValue(record.org),
-  };
-}
-
-function buildTaskLabels(record: AioneTaskRecord) {
-  return {
-    "app.kubernetes.io/name": "aione-external-task",
-    "flyte.org/source-task": safeLabelValue(record.sourceTaskId),
-    "flyte.org/training-task": safeLabelValue(record.trainingTaskId),
     "flyte.org/latest-run-name": safeLabelValue(record.latestRunName),
     "flyte.org/project": safeLabelValue(record.project),
     "flyte.org/domain": safeLabelValue(record.domain),

@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 const getRunDetailsMock = vi.hoisted(() => vi.fn());
+const getTrainingTaskByIdMock = vi.hoisted(() => vi.fn());
 const getKubernetesClientConfigMock = vi.hoisted(() => vi.fn());
 const requestKubernetesMock = vi.hoisted(() => vi.fn());
 const readAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
@@ -13,9 +15,15 @@ vi.mock("@connectrpc/connect", async () => {
   );
   return {
     ...actual,
-    createClient: vi.fn(() => ({
-      getRunDetails: getRunDetailsMock,
-    })),
+    createClient: vi.fn((service: { typeName?: string }) =>
+      service.typeName === "flyteidl2.trainingtask.TrainingTaskService"
+        ? {
+            getTrainingTaskById: getTrainingTaskByIdMock,
+          }
+        : {
+            getRunDetails: getRunDetailsMock,
+          },
+    ),
   };
 });
 
@@ -68,16 +76,28 @@ describe("aione external typed log route", () => {
       updatedAt: "2026-06-22T00:00:00.000Z",
     });
     readAioneTaskRecordMock.mockResolvedValue({
-      sourceTaskId: "task-contract-1",
-      sourceOrg: "external-system",
-      org: "aione",
-      project: "aione",
-      domain: "development",
-      trainingTaskId: "tt-internal-1",
+      sourceTaskId: "legacy-task",
+      sourceOrg: "legacy-system",
+      org: "legacy-org",
+      project: "legacy-project",
+      domain: "legacy-domain",
+      trainingTaskId: "tt-legacy",
       latestRunName: "task-contract-1-run",
       status: "RUNNING",
       lastError: "",
       updatedAt: "2026-06-24T00:00:00.000Z",
+    });
+    getTrainingTaskByIdMock.mockResolvedValue({
+      trainingTask: {
+        id: {
+          org: "aione",
+          project: "aione",
+          domain: "development",
+          id: "task-contract-1",
+        },
+        name: "外部训练任务",
+        latestRunName: "task-contract-1-run",
+      },
     });
     getRunDetailsMock.mockResolvedValue({
       details: {
@@ -180,10 +200,10 @@ describe("aione external typed log route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(readAioneTaskRecordMock).toHaveBeenCalledWith(
-      expect.any(Object),
-      "task-contract-1",
+    expect(getTrainingTaskByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "task-contract-1" }),
     );
+    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
     expect(body.data).toEqual({
       total: 4,
       logs: ["line 1", "line 2", "line 3", "line 4"],
@@ -254,6 +274,28 @@ describe("aione external typed log route", () => {
     expect(body).toEqual({
       status: 400,
       message: "page must be a positive integer",
+    });
+  });
+
+  it("returns 409 when the task id is ambiguous", async () => {
+    getTrainingTaskByIdMock.mockRejectedValue(
+      new ConnectError("task id is ambiguous", Code.FailedPrecondition),
+    );
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      new NextRequest("http://localhost/v2/api/aione/task/task-contract-1/log", {
+        method: "GET",
+        headers: { authorization: "Bearer external-key" },
+      }),
+      { params: Promise.resolve({ type: "task", id: "task-contract-1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toEqual({
+      status: 409,
+      message: "task id is ambiguous",
     });
   });
 

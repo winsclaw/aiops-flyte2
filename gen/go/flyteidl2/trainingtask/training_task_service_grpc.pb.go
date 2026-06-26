@@ -19,15 +19,16 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	TrainingTaskService_ListTrainingTasks_FullMethodName  = "/flyteidl2.trainingtask.TrainingTaskService/ListTrainingTasks"
-	TrainingTaskService_GetTrainingTask_FullMethodName    = "/flyteidl2.trainingtask.TrainingTaskService/GetTrainingTask"
-	TrainingTaskService_CreateTrainingTask_FullMethodName = "/flyteidl2.trainingtask.TrainingTaskService/CreateTrainingTask"
-	TrainingTaskService_UpdateTrainingTask_FullMethodName = "/flyteidl2.trainingtask.TrainingTaskService/UpdateTrainingTask"
-	TrainingTaskService_DeleteTrainingTask_FullMethodName = "/flyteidl2.trainingtask.TrainingTaskService/DeleteTrainingTask"
-	TrainingTaskService_StartTrainingTask_FullMethodName  = "/flyteidl2.trainingtask.TrainingTaskService/StartTrainingTask"
-	TrainingTaskService_StopTrainingTask_FullMethodName   = "/flyteidl2.trainingtask.TrainingTaskService/StopTrainingTask"
-	TrainingTaskService_ListResourceSpecs_FullMethodName  = "/flyteidl2.trainingtask.TrainingTaskService/ListResourceSpecs"
-	TrainingTaskService_ListOfficialImages_FullMethodName = "/flyteidl2.trainingtask.TrainingTaskService/ListOfficialImages"
+	TrainingTaskService_ListTrainingTasks_FullMethodName   = "/flyteidl2.trainingtask.TrainingTaskService/ListTrainingTasks"
+	TrainingTaskService_GetTrainingTask_FullMethodName     = "/flyteidl2.trainingtask.TrainingTaskService/GetTrainingTask"
+	TrainingTaskService_GetTrainingTaskById_FullMethodName = "/flyteidl2.trainingtask.TrainingTaskService/GetTrainingTaskById"
+	TrainingTaskService_CreateTrainingTask_FullMethodName  = "/flyteidl2.trainingtask.TrainingTaskService/CreateTrainingTask"
+	TrainingTaskService_UpdateTrainingTask_FullMethodName  = "/flyteidl2.trainingtask.TrainingTaskService/UpdateTrainingTask"
+	TrainingTaskService_DeleteTrainingTask_FullMethodName  = "/flyteidl2.trainingtask.TrainingTaskService/DeleteTrainingTask"
+	TrainingTaskService_StartTrainingTask_FullMethodName   = "/flyteidl2.trainingtask.TrainingTaskService/StartTrainingTask"
+	TrainingTaskService_StopTrainingTask_FullMethodName    = "/flyteidl2.trainingtask.TrainingTaskService/StopTrainingTask"
+	TrainingTaskService_ListResourceSpecs_FullMethodName   = "/flyteidl2.trainingtask.TrainingTaskService/ListResourceSpecs"
+	TrainingTaskService_ListOfficialImages_FullMethodName  = "/flyteidl2.trainingtask.TrainingTaskService/ListOfficialImages"
 )
 
 // TrainingTaskServiceClient is the client API for TrainingTaskService service.
@@ -36,6 +37,7 @@ const (
 type TrainingTaskServiceClient interface {
 	ListTrainingTasks(ctx context.Context, in *ListTrainingTasksRequest, opts ...grpc.CallOption) (*ListTrainingTasksResponse, error)
 	GetTrainingTask(ctx context.Context, in *GetTrainingTaskRequest, opts ...grpc.CallOption) (*GetTrainingTaskResponse, error)
+	GetTrainingTaskById(ctx context.Context, in *GetTrainingTaskByIdRequest, opts ...grpc.CallOption) (*GetTrainingTaskByIdResponse, error)
 	CreateTrainingTask(ctx context.Context, in *CreateTrainingTaskRequest, opts ...grpc.CallOption) (*CreateTrainingTaskResponse, error)
 	UpdateTrainingTask(ctx context.Context, in *UpdateTrainingTaskRequest, opts ...grpc.CallOption) (*UpdateTrainingTaskResponse, error)
 	DeleteTrainingTask(ctx context.Context, in *DeleteTrainingTaskRequest, opts ...grpc.CallOption) (*DeleteTrainingTaskResponse, error)
@@ -65,6 +67,15 @@ func (c *trainingTaskServiceClient) ListTrainingTasks(ctx context.Context, in *L
 func (c *trainingTaskServiceClient) GetTrainingTask(ctx context.Context, in *GetTrainingTaskRequest, opts ...grpc.CallOption) (*GetTrainingTaskResponse, error) {
 	out := new(GetTrainingTaskResponse)
 	err := c.cc.Invoke(ctx, TrainingTaskService_GetTrainingTask_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *trainingTaskServiceClient) GetTrainingTaskById(ctx context.Context, in *GetTrainingTaskByIdRequest, opts ...grpc.CallOption) (*GetTrainingTaskByIdResponse, error) {
+	out := new(GetTrainingTaskByIdResponse)
+	err := c.cc.Invoke(ctx, TrainingTaskService_GetTrainingTaskById_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +151,7 @@ func (c *trainingTaskServiceClient) ListOfficialImages(ctx context.Context, in *
 type TrainingTaskServiceServer interface {
 	ListTrainingTasks(context.Context, *ListTrainingTasksRequest) (*ListTrainingTasksResponse, error)
 	GetTrainingTask(context.Context, *GetTrainingTaskRequest) (*GetTrainingTaskResponse, error)
+	GetTrainingTaskById(context.Context, *GetTrainingTaskByIdRequest) (*GetTrainingTaskByIdResponse, error)
 	CreateTrainingTask(context.Context, *CreateTrainingTaskRequest) (*CreateTrainingTaskResponse, error)
 	UpdateTrainingTask(context.Context, *UpdateTrainingTaskRequest) (*UpdateTrainingTaskResponse, error)
 	DeleteTrainingTask(context.Context, *DeleteTrainingTaskRequest) (*DeleteTrainingTaskResponse, error)
@@ -158,6 +170,9 @@ func (UnimplementedTrainingTaskServiceServer) ListTrainingTasks(context.Context,
 }
 func (UnimplementedTrainingTaskServiceServer) GetTrainingTask(context.Context, *GetTrainingTaskRequest) (*GetTrainingTaskResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTrainingTask not implemented")
+}
+func (UnimplementedTrainingTaskServiceServer) GetTrainingTaskById(context.Context, *GetTrainingTaskByIdRequest) (*GetTrainingTaskByIdResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTrainingTaskById not implemented")
 }
 func (UnimplementedTrainingTaskServiceServer) CreateTrainingTask(context.Context, *CreateTrainingTaskRequest) (*CreateTrainingTaskResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTrainingTask not implemented")
@@ -224,6 +239,24 @@ func _TrainingTaskService_GetTrainingTask_Handler(srv interface{}, ctx context.C
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TrainingTaskServiceServer).GetTrainingTask(ctx, req.(*GetTrainingTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TrainingTaskService_GetTrainingTaskById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTrainingTaskByIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TrainingTaskServiceServer).GetTrainingTaskById(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TrainingTaskService_GetTrainingTaskById_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TrainingTaskServiceServer).GetTrainingTaskById(ctx, req.(*GetTrainingTaskByIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -368,6 +401,10 @@ var TrainingTaskService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTrainingTask",
 			Handler:    _TrainingTaskService_GetTrainingTask_Handler,
+		},
+		{
+			MethodName: "GetTrainingTaskById",
+			Handler:    _TrainingTaskService_GetTrainingTaskById_Handler,
 		},
 		{
 			MethodName: "CreateTrainingTask",

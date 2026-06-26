@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -51,7 +52,7 @@ func (s *TrainingTaskService) ListOfficialImages(context.Context, *connect.Reque
 func (s *TrainingTaskService) CreateTrainingTask(ctx context.Context, req *connect.Request[trainingtaskpb.CreateTrainingTaskRequest]) (*connect.Response[trainingtaskpb.CreateTrainingTaskResponse], error) {
 	input := req.Msg.GetTrainingTask()
 	project := req.Msg.GetProject()
-	model, err := buildTrainingTaskModel(project, input, req.Msg.GetCreator(), "")
+	model, err := buildTrainingTaskModel(project, input, req.Msg.GetCreator(), strings.TrimSpace(req.Msg.GetTrainingTaskId()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -66,6 +67,24 @@ func (s *TrainingTaskService) CreateTrainingTask(ctx context.Context, req *conne
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&trainingtaskpb.CreateTrainingTaskResponse{TrainingTask: s.trainingTaskModelToProto(ctx, created)}), nil
+}
+
+func (s *TrainingTaskService) GetTrainingTaskById(ctx context.Context, req *connect.Request[trainingtaskpb.GetTrainingTaskByIdRequest]) (*connect.Response[trainingtaskpb.GetTrainingTaskByIdResponse], error) {
+	if s.repo == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("repository is required"))
+	}
+	id := strings.TrimSpace(req.Msg.GetId())
+	if id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("id is required"))
+	}
+	model, err := s.repo.TrainingTaskRepo().GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, interfaces.ErrTrainingTaskIDAmbiguous) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&trainingtaskpb.GetTrainingTaskByIdResponse{TrainingTask: s.trainingTaskModelToProto(ctx, model)}), nil
 }
 
 func (s *TrainingTaskService) GetTrainingTask(ctx context.Context, req *connect.Request[trainingtaskpb.GetTrainingTaskRequest]) (*connect.Response[trainingtaskpb.GetTrainingTaskResponse], error) {

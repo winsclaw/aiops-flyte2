@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { ActionPhase } from "@/gen/flyteidl2/common/phase_pb";
 
 const getRunDetailsMock = vi.hoisted(() => vi.fn());
+const getTrainingTaskByIdMock = vi.hoisted(() => vi.fn());
 const getKubernetesClientConfigMock = vi.hoisted(() => vi.fn());
 const readAioneInstanceRecordMock = vi.hoisted(() => vi.fn());
 const readAioneTaskRecordMock = vi.hoisted(() => vi.fn());
@@ -13,9 +15,15 @@ vi.mock("@connectrpc/connect", async () => {
   );
   return {
     ...actual,
-    createClient: vi.fn(() => ({
-      getRunDetails: getRunDetailsMock,
-    })),
+    createClient: vi.fn((service: { typeName?: string }) =>
+      service.typeName === "flyteidl2.trainingtask.TrainingTaskService"
+        ? {
+            getTrainingTaskById: getTrainingTaskByIdMock,
+          }
+        : {
+            getRunDetails: getRunDetailsMock,
+          },
+    ),
   };
 });
 
@@ -54,16 +62,28 @@ describe("aione external typed status route", () => {
       updatedAt: "2026-06-22T00:00:00.000Z",
     });
     readAioneTaskRecordMock.mockResolvedValue({
-      sourceTaskId: "task-contract-1",
-      sourceOrg: "external-system",
-      org: "aione",
-      project: "aione",
-      domain: "development",
-      trainingTaskId: "tt-internal-1",
+      sourceTaskId: "legacy-task",
+      sourceOrg: "legacy-system",
+      org: "legacy-org",
+      project: "legacy-project",
+      domain: "legacy-domain",
+      trainingTaskId: "tt-legacy",
       latestRunName: "task-contract-1-run",
       status: "RUNNING",
       lastError: "",
       updatedAt: "2026-06-24T00:00:00.000Z",
+    });
+    getTrainingTaskByIdMock.mockResolvedValue({
+      trainingTask: {
+        id: {
+          org: "aione",
+          project: "aione",
+          domain: "development",
+          id: "task-contract-1",
+        },
+        name: "外部训练任务",
+        latestRunName: "task-contract-1-run",
+      },
     });
     getRunDetailsMock.mockResolvedValue({
       details: {
@@ -149,10 +169,10 @@ describe("aione external typed status route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(readAioneTaskRecordMock).toHaveBeenCalledWith(
-      expect.any(Object),
-      "task-contract-1",
+    expect(getTrainingTaskByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "task-contract-1" }),
     );
+    expect(readAioneTaskRecordMock).not.toHaveBeenCalled();
     expect(getRunDetailsMock).toHaveBeenCalledWith({
       runId: {
         org: "aione",
@@ -169,8 +189,10 @@ describe("aione external typed status route", () => {
     });
   });
 
-  it("returns a 404 envelope when a task external id has no record", async () => {
-    readAioneTaskRecordMock.mockResolvedValue(null);
+  it("returns a 404 envelope when a task external id has no training task", async () => {
+    getTrainingTaskByIdMock.mockRejectedValue(
+      new ConnectError("training task not found", Code.NotFound),
+    );
 
     const { GET } = await import("./route");
     const response = await GET(
@@ -185,7 +207,32 @@ describe("aione external typed status route", () => {
     expect(response.status).toBe(404);
     expect(body).toEqual({
       status: 404,
-      message: "task record not found",
+      message: "training task not found",
+    });
+  });
+
+  it("returns a 409 envelope when a task id is ambiguous", async () => {
+    getTrainingTaskByIdMock.mockRejectedValue(
+      new ConnectError("task id is ambiguous", Code.FailedPrecondition),
+    );
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      new NextRequest(
+        "http://localhost/v2/api/aione/task/task-contract-1/status",
+        {
+          method: "GET",
+          headers: { authorization: "Bearer external-key" },
+        },
+      ),
+      { params: Promise.resolve({ type: "task", id: "task-contract-1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toEqual({
+      status: 409,
+      message: "task id is ambiguous",
     });
   });
 

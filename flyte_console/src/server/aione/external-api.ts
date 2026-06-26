@@ -19,6 +19,7 @@ import type {
 import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
 import {
   ImageType,
+  type TrainingTask,
   type TrainingTaskIdentifier,
   TrainingTaskIdentifierSchema,
 } from "@/gen/flyteidl2/trainingtask/training_task_definition_pb";
@@ -33,6 +34,7 @@ import {
 } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_service_pb";
 import {
   CreateTrainingTaskRequestSchema,
+  GetTrainingTaskByIdRequestSchema,
   StartTrainingTaskRequestSchema,
   StopTrainingTaskRequestSchema,
   TrainingTaskInputSchema,
@@ -58,7 +60,6 @@ import {
 import { statusError } from "@/server/http/response";
 import {
   AIONE_RUNTIME_NAMESPACE,
-  AioneTaskRecord,
   CodeRepositoryWithToken,
   DEFAULT_AIONE_INTERNAL_ORG,
   DEFAULT_AIONE_STORAGE_CLASS,
@@ -75,9 +76,7 @@ import {
   isAioneInstanceActive,
   nextAioneInstanceGeneration,
   readAioneInstanceRecord,
-  readAioneTaskRecord,
   writeAioneInstanceRecord,
-  writeAioneTaskRecord,
 } from "@/server/aione/state";
 
 export type AioneExternalType = "instance" | "task";
@@ -430,22 +429,21 @@ async function createInstanceRun(payload: unknown) {
 
 async function createTrainingTaskRun(payload: unknown) {
   const values = buildExternalTrainingTaskValues(payload);
-  const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
-    AIONE_RUNTIME_NAMESPACE,
-  );
-  const kubeContext = { apiOrigin, namespace, token, ca };
-  const existingRecord = await readAioneTaskRecord(
-    kubeContext,
-    values.sourceId,
-  );
-  if (existingRecord) {
-    if (await hasActiveLatestRun(existingRecord)) {
+  const client = createTrainingTaskClient();
+  const existingTask = await findTrainingTaskById(client, values.sourceId);
+  if (existingTask) {
+    if (await hasActiveLatestRun(existingTask)) {
       throw statusError("task is already running", 409);
     }
-    return startExistingTrainingTask(kubeContext, existingRecord, values.name);
+    return startExistingTrainingTask({
+      client,
+      task: existingTask,
+      sourceOrg: values.sourceOrg,
+      sourceId: values.sourceId,
+      fallbackTaskName: values.name,
+    });
   }
 
-  const client = createTrainingTaskClient();
   const created = await client.createTrainingTask(
     create(CreateTrainingTaskRequestSchema, {
       project: create(ProjectIdentifierSchema, {
@@ -468,6 +466,7 @@ async function createTrainingTaskRun(payload: unknown) {
         bandwidth: values.bandwidth,
       }),
       creator: values.sourceOrg || "external-api",
+      trainingTaskId: values.sourceId,
     }),
   );
   const taskID = created.trainingTask?.id;
@@ -475,79 +474,50 @@ async function createTrainingTaskRun(payload: unknown) {
     throw statusError("failed to create training task", 502);
   }
 
-  const startingRecord: AioneTaskRecord = {
-    sourceTaskId: values.sourceId,
-    sourceOrg: values.sourceOrg,
-    org: taskID.org,
-    project: taskID.project,
-    domain: taskID.domain,
-    trainingTaskId: taskID.id,
-    latestRunName: "",
-    status: "STARTING",
-    lastError: "",
-    updatedAt: new Date().toISOString(),
-  };
-  await writeAioneTaskRecord(kubeContext, startingRecord);
-
-  try {
-    const started = await client.startTrainingTask(
-      create(StartTrainingTaskRequestSchema, { id: taskID }),
-    );
-    const task = started.trainingTask ?? created.trainingTask;
-    const runName = started.runName || task?.latestRunName;
-    if (!runName) {
-      throw statusError("failed to start training task", 502);
-    }
-    await writeAioneTaskRecord(kubeContext, {
-      ...startingRecord,
-      latestRunName: runName,
-      status: "RUNNING",
-      updatedAt: new Date().toISOString(),
-    });
-    return buildAioneCreateTaskResponse({
-      sourceOrg: values.sourceOrg,
-      sourceId: values.sourceId,
-      taskID,
-      taskName: task?.name || values.name,
-      runName,
-    });
-  } catch (error) {
-    await writeAioneTaskRecord(kubeContext, {
-      ...startingRecord,
-      status: "FAILED",
-      lastError: error instanceof Error ? error.message : String(error),
-      updatedAt: new Date().toISOString(),
-    });
-    throw error;
-  }
-}
-
-async function startExistingTrainingTask(
-  kubeContext: Parameters<typeof writeAioneTaskRecord>[0],
-  record: AioneTaskRecord,
-  fallbackTaskName: string,
-) {
-  const taskID = createTrainingTaskIdentifier(record);
-  const started = await createTrainingTaskClient().startTrainingTask(
+  const started = await client.startTrainingTask(
     create(StartTrainingTaskRequestSchema, { id: taskID }),
   );
-  const task = started.trainingTask;
+  const task = started.trainingTask ?? created.trainingTask;
   const runName = started.runName || task?.latestRunName;
   if (!runName) {
     throw statusError("failed to start training task", 502);
   }
-  await writeAioneTaskRecord(kubeContext, {
-    ...record,
-    latestRunName: runName,
-    status: "RUNNING",
-    lastError: "",
-    updatedAt: new Date().toISOString(),
-  });
   return buildAioneCreateTaskResponse({
-    sourceOrg: record.sourceOrg,
-    sourceId: record.sourceTaskId,
+    sourceOrg: values.sourceOrg,
+    sourceId: values.sourceId,
     taskID,
-    taskName: task?.name || fallbackTaskName,
+    taskName: task?.name || values.name,
+    runName,
+  });
+}
+
+async function startExistingTrainingTask({
+  client,
+  task,
+  sourceOrg,
+  sourceId,
+  fallbackTaskName,
+}: {
+  client: ReturnType<typeof createTrainingTaskClient>;
+  task: TrainingTask;
+  sourceOrg: string;
+  sourceId: string;
+  fallbackTaskName: string;
+}) {
+  const taskID = requireTrainingTaskIdentifier(task);
+  const started = await client.startTrainingTask(
+    create(StartTrainingTaskRequestSchema, { id: taskID }),
+  );
+  const startedTask = started.trainingTask ?? task;
+  const runName = started.runName || startedTask.latestRunName;
+  if (!runName) {
+    throw statusError("failed to start training task", 502);
+  }
+  return buildAioneCreateTaskResponse({
+    sourceOrg,
+    sourceId,
+    taskID,
+    taskName: startedTask.name || fallbackTaskName,
     runName,
   });
 }
@@ -608,30 +578,14 @@ async function stopTrainingTaskRun(sourceTaskId: string) {
   if (!sourceId) {
     throw statusError("id is required", 400);
   }
-  const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
-    AIONE_RUNTIME_NAMESPACE,
-  );
-  const kubeContext = { apiOrigin, namespace, token, ca };
-  const record = await readAioneTaskRecord(kubeContext, sourceId);
-  if (!record) {
-    throw statusError("task record not found", 404);
-  }
-  await writeAioneTaskRecord(kubeContext, {
-    ...record,
-    status: "STOPPING",
-    updatedAt: new Date().toISOString(),
-  });
-  await createTrainingTaskClient().stopTrainingTask(
+  const client = createTrainingTaskClient();
+  const task = await getTrainingTaskById(client, sourceId);
+  await client.stopTrainingTask(
     create(StopTrainingTaskRequestSchema, {
-      id: createTrainingTaskIdentifier(record),
+      id: requireTrainingTaskIdentifier(task),
       reason: "Stopped from AIONE external task API",
     }),
   );
-  await writeAioneTaskRecord(kubeContext, {
-    ...record,
-    status: "STOPPED",
-    updatedAt: new Date().toISOString(),
-  });
   return {};
 }
 
@@ -681,24 +635,22 @@ async function clearTaskRuntimeResources(sourceTaskId: string) {
     AIONE_RUNTIME_NAMESPACE,
   );
   const kubeContext = { apiOrigin, namespace, token, ca };
-  const record = await readAioneTaskRecord(kubeContext, sourceId);
-  if (!record) {
-    throw statusError("task record not found", 404);
-  }
-  if (!record.latestRunName) {
+  const task = await getTrainingTaskById(createTrainingTaskClient(), sourceId);
+  const taskID = requireTrainingTaskIdentifier(task);
+  if (!task.latestRunName) {
     throw statusError("task has no run", 404);
   }
   await assertLatestRunIsNotActive({
     type: "task",
-    org: record.org,
-    project: record.project,
-    domain: record.domain,
-    runName: record.latestRunName,
+    org: taskID.org,
+    project: taskID.project,
+    domain: taskID.domain,
+    runName: task.latestRunName,
   });
   const labelSelector = buildTaskLabelSelector({
-    project: record.project,
-    domain: record.domain,
-    runName: record.latestRunName,
+    project: taskID.project,
+    domain: taskID.domain,
+    runName: task.latestRunName,
   });
   const deleted = await deleteRuntimeCollections(
     kubeContext,
@@ -839,24 +791,16 @@ async function resolveTaskRunIdentifier(
   if (!sourceId) {
     throw statusError("id is required", 400);
   }
-  const { apiOrigin, namespace, token, ca } = await getKubernetesClientConfig(
-    AIONE_RUNTIME_NAMESPACE,
-  );
-  const record = await readAioneTaskRecord(
-    { apiOrigin, namespace, token, ca },
-    sourceId,
-  );
-  if (!record) {
-    throw statusError("task record not found", 404);
-  }
-  if (!record.latestRunName) {
+  const task = await getTrainingTaskById(createTrainingTaskClient(), sourceId);
+  const taskID = requireTrainingTaskIdentifier(task);
+  if (!task.latestRunName) {
     throw statusError("task has no run", 404);
   }
   return {
-    org: record.org,
-    project: record.project,
-    domain: record.domain,
-    name: record.latestRunName,
+    org: taskID.org,
+    project: taskID.project,
+    domain: taskID.domain,
+    name: task.latestRunName,
   };
 }
 
@@ -957,17 +901,18 @@ function emptyAioneLogPage() {
   return { total: 0, logs: [] };
 }
 
-async function hasActiveLatestRun(record: AioneTaskRecord) {
-  if (!record.latestRunName) {
+async function hasActiveLatestRun(task: TrainingTask) {
+  if (!task.latestRunName) {
     return false;
   }
+  const taskID = requireTrainingTaskIdentifier(task);
   try {
     const response = await createFlyteRunClient().getRunDetails({
       runId: {
-        org: record.org,
-        project: record.project,
-        domain: record.domain,
-        name: record.latestRunName,
+        org: taskID.org,
+        project: taskID.project,
+        domain: taskID.domain,
+        name: task.latestRunName,
       },
     });
     return isActiveActionPhase(response.details?.action?.status?.phase);
@@ -1503,13 +1448,60 @@ async function withNodePortAllocation<T>(fn: () => Promise<T>) {
   }
 }
 
-function createTrainingTaskIdentifier(record: AioneTaskRecord) {
-  return create(TrainingTaskIdentifierSchema, {
-    org: record.org,
-    project: record.project,
-    domain: record.domain,
-    id: record.trainingTaskId,
-  });
+async function findTrainingTaskById(
+  client: ReturnType<typeof createTrainingTaskClient>,
+  id: string,
+) {
+  try {
+    const response = await client.getTrainingTaskById(
+      create(GetTrainingTaskByIdRequestSchema, { id }),
+    );
+    return response.trainingTask?.id?.id ? response.trainingTask : null;
+  } catch (error) {
+    if (error instanceof ConnectError && error.code === Code.NotFound) {
+      return null;
+    }
+    if (
+      error instanceof ConnectError &&
+      error.code === Code.FailedPrecondition
+    ) {
+      throw statusError("task id is ambiguous", 409);
+    }
+    throw error;
+  }
+}
+
+async function getTrainingTaskById(
+  client: ReturnType<typeof createTrainingTaskClient>,
+  id: string,
+) {
+  try {
+    const response = await client.getTrainingTaskById(
+      create(GetTrainingTaskByIdRequestSchema, { id }),
+    );
+    const task = response.trainingTask;
+    if (!task?.id?.id) {
+      throw statusError("training task not found", 404);
+    }
+    return task;
+  } catch (error) {
+    if (error instanceof ConnectError) {
+      if (error.code === Code.NotFound) {
+        throw statusError("training task not found", 404);
+      }
+      if (error.code === Code.FailedPrecondition) {
+        throw statusError("task id is ambiguous", 409);
+      }
+    }
+    throw error;
+  }
+}
+
+function requireTrainingTaskIdentifier(task: TrainingTask) {
+  if (!task.id?.id) {
+    throw statusError("training task not found", 404);
+  }
+  return create(TrainingTaskIdentifierSchema, task.id);
 }
 
 function isAlreadyExists(error: unknown) {

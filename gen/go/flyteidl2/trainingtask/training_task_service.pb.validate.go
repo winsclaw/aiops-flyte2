@@ -143,6 +143,16 @@ func (m *TrainingTaskInput) validate(all bool) error {
 
 	}
 
+	// no validation rules for Cpu
+
+	// no validation rules for Memory
+
+	// no validation rules for GpuCount
+
+	// no validation rules for GpuModel
+
+	// no validation rules for Bandwidth
+
 	if len(errors) > 0 {
 		return TrainingTaskInputMultiError(errors)
 	}
@@ -785,6 +795,242 @@ var _ interface {
 	ErrorName() string
 } = GetTrainingTaskResponseValidationError{}
 
+// Validate checks the field values on GetTrainingTaskByIdRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetTrainingTaskByIdRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetTrainingTaskByIdRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetTrainingTaskByIdRequestMultiError, or nil if none found.
+func (m *GetTrainingTaskByIdRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetTrainingTaskByIdRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	if len(errors) > 0 {
+		return GetTrainingTaskByIdRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetTrainingTaskByIdRequestMultiError is an error wrapping multiple
+// validation errors returned by GetTrainingTaskByIdRequest.ValidateAll() if
+// the designated constraints aren't met.
+type GetTrainingTaskByIdRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetTrainingTaskByIdRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetTrainingTaskByIdRequestMultiError) AllErrors() []error { return m }
+
+// GetTrainingTaskByIdRequestValidationError is the validation error returned
+// by GetTrainingTaskByIdRequest.Validate if the designated constraints aren't met.
+type GetTrainingTaskByIdRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetTrainingTaskByIdRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetTrainingTaskByIdRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetTrainingTaskByIdRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetTrainingTaskByIdRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetTrainingTaskByIdRequestValidationError) ErrorName() string {
+	return "GetTrainingTaskByIdRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetTrainingTaskByIdRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetTrainingTaskByIdRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetTrainingTaskByIdRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetTrainingTaskByIdRequestValidationError{}
+
+// Validate checks the field values on GetTrainingTaskByIdResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetTrainingTaskByIdResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetTrainingTaskByIdResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetTrainingTaskByIdResponseMultiError, or nil if none found.
+func (m *GetTrainingTaskByIdResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetTrainingTaskByIdResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetTrainingTask()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, GetTrainingTaskByIdResponseValidationError{
+					field:  "TrainingTask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, GetTrainingTaskByIdResponseValidationError{
+					field:  "TrainingTask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetTrainingTask()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return GetTrainingTaskByIdResponseValidationError{
+				field:  "TrainingTask",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return GetTrainingTaskByIdResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetTrainingTaskByIdResponseMultiError is an error wrapping multiple
+// validation errors returned by GetTrainingTaskByIdResponse.ValidateAll() if
+// the designated constraints aren't met.
+type GetTrainingTaskByIdResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetTrainingTaskByIdResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetTrainingTaskByIdResponseMultiError) AllErrors() []error { return m }
+
+// GetTrainingTaskByIdResponseValidationError is the validation error returned
+// by GetTrainingTaskByIdResponse.Validate if the designated constraints
+// aren't met.
+type GetTrainingTaskByIdResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetTrainingTaskByIdResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetTrainingTaskByIdResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetTrainingTaskByIdResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetTrainingTaskByIdResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetTrainingTaskByIdResponseValidationError) ErrorName() string {
+	return "GetTrainingTaskByIdResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetTrainingTaskByIdResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetTrainingTaskByIdResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetTrainingTaskByIdResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetTrainingTaskByIdResponseValidationError{}
+
 // Validate checks the field values on CreateTrainingTaskRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -866,6 +1112,8 @@ func (m *CreateTrainingTaskRequest) validate(all bool) error {
 	}
 
 	// no validation rules for Creator
+
+	// no validation rules for TrainingTaskId
 
 	if len(errors) > 0 {
 		return CreateTrainingTaskRequestMultiError(errors)

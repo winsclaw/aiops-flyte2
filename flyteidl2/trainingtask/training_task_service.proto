@@ -17,6 +17,9 @@ service TrainingTaskService {
   rpc GetTrainingTask(GetTrainingTaskRequest) returns (GetTrainingTaskResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  rpc GetTrainingTaskById(GetTrainingTaskByIdRequest) returns (GetTrainingTaskByIdResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
   rpc CreateTrainingTask(CreateTrainingTaskRequest) returns (CreateTrainingTaskResponse) {}
   rpc UpdateTrainingTask(UpdateTrainingTaskRequest) returns (UpdateTrainingTaskResponse) {}
   rpc DeleteTrainingTask(DeleteTrainingTaskRequest) returns (DeleteTrainingTaskResponse) {}
@@ -68,10 +71,19 @@ message GetTrainingTaskResponse {
   TrainingTask training_task = 1;
 }
 
+message GetTrainingTaskByIdRequest {
+  string id = 1;
+}
+
+message GetTrainingTaskByIdResponse {
+  TrainingTask training_task = 1;
+}
+
 message CreateTrainingTaskRequest {
   common.ProjectIdentifier project = 1;
   TrainingTaskInput training_task = 2;
   string creator = 3;
+  string training_task_id = 4;
 }
 
 message CreateTrainingTaskResponse {

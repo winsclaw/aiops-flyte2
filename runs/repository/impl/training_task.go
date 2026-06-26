@@ -57,6 +57,25 @@ func (r *trainingTaskRepo) Get(ctx context.Context, key models.TrainingTaskKey) 
 	return &task, nil
 }
 
+func (r *trainingTaskRepo) GetByID(ctx context.Context, id string) (*models.TrainingTask, error) {
+	var tasks []models.TrainingTask
+	if err := sqlx.SelectContext(ctx, r.db, &tasks, `
+SELECT *
+FROM training_tasks
+WHERE id = $1
+ORDER BY created_at DESC
+LIMIT 2`, id); err != nil {
+		return nil, fmt.Errorf("failed to get training task by id %s: %w", id, err)
+	}
+	if len(tasks) == 0 {
+		return nil, fmt.Errorf("training task not found: %s", id)
+	}
+	if len(tasks) > 1 {
+		return nil, fmt.Errorf("%w: %s", interfaces.ErrTrainingTaskIDAmbiguous, id)
+	}
+	return &tasks[0], nil
+}
+
 func (r *trainingTaskRepo) Update(ctx context.Context, task *models.TrainingTask) error {
 	result, err := r.db.ExecContext(ctx, `
 UPDATE training_tasks SET
