@@ -1,8 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 import { create } from "@bufbuild/protobuf";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   TrainingTaskSchema,
@@ -61,6 +67,15 @@ vi.mock("@/hooks/useOrg", () => ({
 }));
 
 describe("TrainingTaskDetailPage", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  beforeEach(() => {
+    getTrainingTask.mockReset();
+    push.mockReset();
+  });
+
   it("shows the latest run link as run info in the top action area", async () => {
     getTrainingTask.mockResolvedValue({
       trainingTask: create(TrainingTaskSchema, {
@@ -85,5 +100,24 @@ describe("TrainingTaskDetailPage", () => {
       "/domain/development/project/flytesnacks/runs/abc123",
     );
     expect(screen.queryByRole("link", { name: "查看运行日志" })).toBeNull();
+  });
+
+  it("shows a back link and no attachment search inputs", async () => {
+    getTrainingTask.mockResolvedValue({
+      trainingTask: create(TrainingTaskSchema, {
+        name: "训练任务一",
+        status: TrainingTaskStatus.RUNNING,
+      }),
+    });
+
+    render(<TrainingTaskDetailPage />);
+
+    await screen.findByRole("heading", { name: "训练任务一" });
+
+    expect(screen.getByRole("link", { name: "返回" })).toHaveAttribute(
+      "href",
+      "/domain/development/project/flytesnacks/training-tasks",
+    );
+    expect(screen.queryAllByPlaceholderText("按关键词搜索")).toHaveLength(0);
   });
 });

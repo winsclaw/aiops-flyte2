@@ -128,6 +128,8 @@ export function TrainingTaskFormPage() {
   const editId = searchParams.get("edit");
   const isEdit = Boolean(editId);
   const listHref = `/domain/${params.domain}/project/${params.project}/training-tasks`;
+  const backHref =
+    isEdit && editId ? `${listHref}/${encodeURIComponent(editId)}` : listHref;
 
   const projectId = useMemo(
     () =>
@@ -302,10 +304,11 @@ export function TrainingTaskFormPage() {
           <div className="min-h-0 flex-1 overflow-auto px-8 py-6">
             <div className="mb-5 flex items-center gap-3">
               <Link
-                href={listHref}
-                className="inline-flex size-9 items-center justify-center border border-zinc-300 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200"
+                href={backHref}
+                className="inline-flex h-9 items-center justify-center gap-2 border border-zinc-300 px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200"
               >
-                <ArrowLeftIcon className="size-5" />
+                <ArrowLeftIcon className="size-4" />
+                返回
               </Link>
               <h1 className="text-xl font-semibold text-zinc-950 dark:text-white">
                 {isEdit ? "编辑任务" : "创建任务"}

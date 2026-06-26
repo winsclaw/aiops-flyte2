@@ -23,12 +23,12 @@ import { useOrg } from "@/hooks/useOrg";
 import { create } from "@bufbuild/protobuf";
 import {
   ArrowPathIcon,
+  ArrowLeftIcon,
   PencilSquareIcon,
   PlayIcon,
   StopIcon,
   TrashIcon,
 } from "@heroicons/react/20/solid";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -93,14 +93,6 @@ function InfoGrid({ items }: { items: Array<[string, React.ReactNode]> }) {
 function EmptyAttachmentSection({ title }: { title: string }) {
   return (
     <InfoSection title={`${title} (0)`}>
-      <div className="mb-4 flex max-w-xl items-center border border-zinc-400 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900">
-        <MagnifyingGlassIcon className="size-5 text-zinc-500" />
-        <input
-          className="h-10 flex-1 bg-transparent px-3 text-sm outline-none"
-          placeholder="按关键词搜索"
-          readOnly
-        />
-      </div>
       <table className="min-w-full text-left text-sm">
         <thead className="border-y border-zinc-100 text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
           <tr>
@@ -213,12 +205,21 @@ export function TrainingTaskDetailPage() {
           <Header showSearch={true} />
           <div className="min-h-0 flex-1 overflow-auto px-8 py-6">
             <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-semibold text-zinc-950 dark:text-white">
-                  {task?.name ?? "训练任务"}
-                </h1>
-                <div className="mt-1 text-sm text-zinc-500">
-                  刷新页面查看最新状态。
+              <div className="flex items-start gap-3">
+                <Link
+                  href={listHref}
+                  className="inline-flex h-9 items-center justify-center gap-2 border border-zinc-300 px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200"
+                >
+                  <ArrowLeftIcon className="size-4" />
+                  返回
+                </Link>
+                <div>
+                  <h1 className="text-2xl font-semibold text-zinc-950 dark:text-white">
+                    {task?.name ?? "训练任务"}
+                  </h1>
+                  <div className="mt-1 text-sm text-zinc-500">
+                    刷新页面查看最新状态。
+                  </div>
                 </div>
               </div>
               <div
