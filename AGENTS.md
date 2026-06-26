@@ -130,8 +130,18 @@ IMAGE_TAG="main-${COMMIT}"
 
 docker build -f Dockerfile -t "flyte-binary-v2:${IMAGE_TAG}" .
 docker save "flyte-binary-v2:${IMAGE_TAG}" | k3s ctr images import -
+k3s ctr images ls | grep "flyte-binary-v2:${IMAGE_TAG}"
 kubectl -n flyte set image deploy/flyte-binary flyte="flyte-binary-v2:${IMAGE_TAG}"
 kubectl -n flyte rollout status deploy/flyte-binary --timeout=10m
+```
+
+The k3s deployment uses local images with `imagePullPolicy: Never`. After every backend or frontend Docker build, import the image into k3s containerd and verify the exact tag with `k3s ctr images ls` before waiting on rollout. If a pod reports `ErrImageNeverPull`, first re-check and re-import the exact image tag into k3s containerd; the image existing in Docker alone is not enough.
+
+If a new pod is stuck before init containers with `FailedCreatePodSandBox` for `rancher/mirrored-pause:3.6`, import the existing Docker pause image into k3s containerd:
+
+```bash
+docker save rancher/mirrored-pause:3.6 docker.fzyun.io/rancher/mirrored-pause:3.6 | k3s ctr images import -
+k3s ctr images ls | grep 'rancher/mirrored-pause.*3.6'
 ```
 
 Backend verification:
