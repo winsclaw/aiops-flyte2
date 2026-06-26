@@ -167,6 +167,23 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.authorizedKey).toBe("ssh-rsa BBBB user@example");
   });
 
+  it("rounds fractional external timeouts up to an integer hour", () => {
+    const mapped = buildAioneInstanceValues({
+      payload: {
+        ...basePayload,
+        timeout: 0.1,
+      },
+      nodePort: 31000,
+      codeServerNodePort: 31001,
+      internalOrg: "aione",
+      defaultStorageClass: "bj1-ebs",
+      defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+      runNameSuffix: "r1",
+    });
+
+    expect(mapped.values.maxHours).toBe(1);
+  });
+
   it("rejects payloads without any SSH public key source", () => {
     expect(() =>
       buildAioneInstanceValues({

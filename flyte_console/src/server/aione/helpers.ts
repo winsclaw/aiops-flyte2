@@ -225,7 +225,7 @@ export function buildAioneInstanceValues({
     codeServerHost,
     codeServerUrl,
     codeServerWorkspaceUrl,
-    maxHours: positiveNumber(payload.timeout, 24, "timeout"),
+    maxHours: positiveIntegerNumber(payload.timeout, 24, "timeout"),
     imagePullSecretName,
     codeRepositorySecretName,
     gpuNodeLabelKey: payload.resourceDefinition?.gpu_key?.trim() || "",
@@ -461,6 +461,14 @@ function positiveNumber(
     throw new Error(`${field} must be a positive number`);
   }
   return resolved;
+}
+
+function positiveIntegerNumber(
+  value: number | undefined,
+  fallback: number,
+  field: string,
+) {
+  return Math.ceil(positiveNumber(value, fallback, field));
 }
 
 function firstNonEmpty(values: (string | undefined)[]) {
