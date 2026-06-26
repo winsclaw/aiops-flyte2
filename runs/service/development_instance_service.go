@@ -195,8 +195,27 @@ func (s *DevelopmentInstanceService) StartDevelopmentInstance(ctx context.Contex
 		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("development instance %s already has an active run", instance.ID))
 	}
 
-	generation := instance.Generation + 1
-	runName := buildDevelopmentInstanceRunName(instance.ID, generation)
+	generation, runName, err := nextDevelopmentInstanceRunName(instance.Generation, instance.ID, func(candidateGeneration uint32, candidateRunName string) (bool, error) {
+		_, err := s.repo.ActionRepo().GetAction(ctx, &common.ActionIdentifier{
+			Run: &common.RunIdentifier{
+				Org:     instance.Org,
+				Project: instance.Project,
+				Domain:  instance.Domain,
+				Name:    candidateRunName,
+			},
+			Name: RootActionName,
+		})
+		if err == nil {
+			return true, nil
+		}
+		if strings.Contains(err.Error(), "action not found") {
+			return false, nil
+		}
+		return false, err
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	instance.Generation = generation
 	instance.LatestRunName = runName
 	instance.Status = models.DevelopmentInstanceStatusStarting
@@ -626,6 +645,22 @@ func developmentInstanceActionPhaseIsTerminal(phase common.ActionPhase) bool {
 
 func buildDevelopmentInstanceRunName(instanceID string, generation uint32) string {
 	return buildRunNameWithSuffix(instanceID, fmt.Sprintf("r%d", maxUint32(1, generation)), 30)
+}
+
+func nextDevelopmentInstanceRunName(currentGeneration uint32, instanceID string, exists func(uint32, string) (bool, error)) (uint32, string, error) {
+	generation := currentGeneration + 1
+	for attempts := 0; attempts < 1000; attempts++ {
+		runName := buildDevelopmentInstanceRunName(instanceID, generation)
+		found, err := exists(generation, runName)
+		if err != nil {
+			return 0, "", err
+		}
+		if !found {
+			return generation, runName, nil
+		}
+		generation++
+	}
+	return 0, "", fmt.Errorf("failed to allocate unique development instance run name for %s", instanceID)
 }
 
 func buildRunNameWithSuffix(baseName string, suffix string, limit int) string {

@@ -75,3 +75,13 @@ func TestBuildDevelopmentInstanceRunNameUsesStableInstanceIDAndGeneration(t *tes
 	require.Equal(t, "external-instance-1-r2", buildDevelopmentInstanceRunName("external-instance-1", 2))
 	require.Equal(t, "very-long-instanc-8c22f452-r12", buildDevelopmentInstanceRunName("very-long-instance-id-that-needs-truncation", 12))
 }
+
+func TestNextDevelopmentInstanceRunNameSkipsExistingFlyteRuns(t *testing.T) {
+	generation, runName, err := nextDevelopmentInstanceRunName(0, "aione-instance", func(_ uint32, candidate string) (bool, error) {
+		return candidate == "aione-instance-r1", nil
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, uint32(2), generation)
+	require.Equal(t, "aione-instance-r2", runName)
+}
