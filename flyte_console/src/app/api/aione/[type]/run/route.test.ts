@@ -132,6 +132,14 @@ describe("aione external typed run route", () => {
       developmentInstance: {
         id: { id: "ins-contract-1" },
         latestRunName: "ins-contract-1-r1",
+        access: {
+          sshUser: "dev",
+          nodePort: 31000,
+          codeServerNodePort: 31001,
+          codeServerUrl: "https://ins-contract-1-r1-code.ops.fzyun.io",
+          codeServerWorkspaceUrl:
+            "https://ins-contract-1-r1-code.ops.fzyun.io/?folder=/workspace",
+        },
       },
     });
     ensureCloudStorageMock.mockResolvedValue({
@@ -228,7 +236,7 @@ describe("aione external typed run route", () => {
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
     expect(body.data.id).toBe("ins-contract-1");
     expect(body.data.info.codeServer.workspaceUrl).toBe(
-      "https://ins-contract-1-code.ops.fzyun.io/?folder=/workspace",
+      "https://ins-contract-1-r1-code.ops.fzyun.io/?folder=/workspace",
     );
   });
 

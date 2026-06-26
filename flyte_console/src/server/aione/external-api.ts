@@ -29,6 +29,7 @@ import {
 import { CodeRepositoryMountSchema } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
 import {
   DevelopmentInstance,
+  type DevelopmentInstanceAccessInfo,
   DevelopmentInstanceCodeRepositoryDetailSchema,
   DevelopmentInstanceIdentifierSchema,
   ImageType as DevelopmentInstanceImageType,
@@ -75,6 +76,7 @@ import {
 import { statusError } from "@/server/http/response";
 import {
   AIONE_RUNTIME_NAMESPACE,
+  type AioneInstanceAccessInfo,
   CodeRepositoryWithToken,
   DEFAULT_AIONE_INTERNAL_ORG,
   DEFAULT_AIONE_STORAGE_CLASS,
@@ -431,6 +433,10 @@ async function createInstanceRun(payload: unknown) {
         publicHost: process.env.EXTERNAL_API_PUBLIC_HOST,
         codeServerHost: mapped.values.codeServerHost,
       });
+      applyStartedDevelopmentInstanceAccessInfo(
+        info,
+        started.developmentInstance?.access,
+      );
       return buildAioneCreateInstanceResponse({
         internalOrg,
         project: mapped.values.project,
@@ -1081,6 +1087,61 @@ function createDevelopmentInstanceClient() {
       baseUrl: getFlyteApiOrigin(),
     }),
   );
+}
+
+function applyStartedDevelopmentInstanceAccessInfo(
+  info: AioneInstanceAccessInfo,
+  access?: DevelopmentInstanceAccessInfo,
+) {
+  if (!access) {
+    return;
+  }
+
+  const sshPort = Number(access.nodePort || 0);
+  if (sshPort > 0) {
+    info.ssh.port = sshPort;
+    info.ssh.command = `ssh -p ${sshPort} ${info.ssh.user}@${info.ssh.host}`;
+  }
+
+  const codeServerURL = access.codeServerUrl.trim();
+  const codeServerWorkspaceURL = access.codeServerWorkspaceUrl.trim();
+  if (codeServerURL) {
+    info.codeServer.url = codeServerURL;
+    info.codeServer.workspaceUrl =
+      codeServerWorkspaceURL || `${codeServerURL}/?folder=/workspace`;
+    const parsed = parseURL(codeServerURL);
+    if (parsed) {
+      info.codeServer.host = parsed.host;
+      info.codeServer.port = urlPort(parsed, info.codeServer.port);
+    }
+    return;
+  }
+
+  const codeServerNodePort = Number(access.codeServerNodePort || 0);
+  if (codeServerNodePort > 0) {
+    info.codeServer.port = codeServerNodePort;
+  }
+}
+
+function parseURL(value: string) {
+  try {
+    return new URL(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function urlPort(url: URL, fallback: number) {
+  if (url.port) {
+    return Number(url.port);
+  }
+  if (url.protocol === "https:") {
+    return 443;
+  }
+  if (url.protocol === "http:") {
+    return 80;
+  }
+  return fallback;
 }
 
 function createCloudStorageClient() {
