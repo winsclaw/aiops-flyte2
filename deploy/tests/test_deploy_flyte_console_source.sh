@@ -37,6 +37,7 @@ assert_contains "REMOTE_DIR='/opt/aiops-flyte2'"
 assert_contains "CONSOLE_URL='http://172.19.65.230:30081/v2/projects'"
 assert_contains 'git pull --ff-only origin main'
 assert_contains 'ensure_buildkit_k3s'
+assert_contains 'wait_for_buildkit'
 assert_contains 'NERDCTL=(sudo env HTTP_PROXY="${HTTP_PROXY:-}"'
 assert_contains '/usr/local/bin/nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io)'
 assert_contains '"${NERDCTL[@]}" build "${build_proxy_args[@]}" -f flyte_console/Dockerfile -t "flyte-console-source:${COMMIT}" -t flyte-console-extracted:latest flyte_console'

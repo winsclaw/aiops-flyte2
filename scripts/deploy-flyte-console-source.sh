@@ -74,6 +74,17 @@ install_nerdctl_full() {
   rm -f "$archive"
 }
 
+wait_for_buildkit() {
+  local attempt
+  for attempt in {1..30}; do
+    if sudo /usr/local/bin/buildctl --addr unix:///run/buildkit/buildkitd.sock debug workers >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  sudo /usr/local/bin/buildctl --addr unix:///run/buildkit/buildkitd.sock debug workers >/dev/null
+}
+
 ensure_buildkit_k3s() {
   if [[ ! -x /usr/local/bin/nerdctl || ! -x /usr/local/bin/buildctl || ! -x /usr/local/bin/buildkitd ]]; then
     sudo apt-get update
@@ -113,7 +124,7 @@ EOF
   sudo systemctl daemon-reload
   sudo systemctl enable --now buildkit-k3s.service
   sudo systemctl restart buildkit-k3s.service
-  sudo /usr/local/bin/buildctl --addr unix:///run/buildkit/buildkitd.sock debug workers >/dev/null
+  wait_for_buildkit
 }
 
 cd "$REMOTE_DIR"
