@@ -142,7 +142,7 @@ func (s *DevelopmentInstanceService) ListDevelopmentInstanceRuns(ctx context.Con
 	}
 	items := make([]*developmentinstancepb.DevelopmentInstanceRun, 0, len(result.Items))
 	for _, item := range result.Items {
-		items = append(items, developmentInstanceRunModelToProto(item))
+		items = append(items, s.developmentInstanceRunModelToProto(ctx, item))
 	}
 	token := ""
 	if len(items) == int(limit) && offset+limit < result.Total {
@@ -523,11 +523,11 @@ func developmentInstanceModelToProto(model *models.DevelopmentInstance) *develop
 	}
 }
 
-func developmentInstanceRunModelToProto(model *models.DevelopmentInstanceRun) *developmentinstancepb.DevelopmentInstanceRun {
+func (s *DevelopmentInstanceService) developmentInstanceRunModelToProto(ctx context.Context, model *models.DevelopmentInstanceRun) *developmentinstancepb.DevelopmentInstanceRun {
 	if model == nil {
 		return nil
 	}
-	return &developmentinstancepb.DevelopmentInstanceRun{
+	proto := &developmentinstancepb.DevelopmentInstanceRun{
 		InstanceId:         model.InstanceID,
 		Org:                model.Org,
 		Project:            model.Project,
@@ -542,6 +542,27 @@ func developmentInstanceRunModelToProto(model *models.DevelopmentInstanceRun) *d
 		CreatedAt:          timestampFromTime(model.CreatedAt),
 		UpdatedAt:          timestampFromTime(model.UpdatedAt),
 	}
+	actionRepo := s.repo.ActionRepo()
+	if actionRepo == nil {
+		return proto
+	}
+	action, err := actionRepo.GetAction(ctx, &common.ActionIdentifier{
+		Run: &common.RunIdentifier{
+			Org:     model.Org,
+			Project: model.Project,
+			Domain:  model.Domain,
+			Name:    model.RunName,
+		},
+		Name: RootActionName,
+	})
+	if err != nil || action == nil {
+		return proto
+	}
+	proto.Status = developmentInstanceStatusFromActionPhase(common.ActionPhase(action.Phase))
+	if action.EndedAt.Valid {
+		proto.EndedAt = timestamppb.New(action.EndedAt.Time)
+	}
+	return proto
 }
 
 func developmentInstanceAccessInfoToProto(model *models.DevelopmentInstance) *developmentinstancepb.DevelopmentInstanceAccessInfo {
