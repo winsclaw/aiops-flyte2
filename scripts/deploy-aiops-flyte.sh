@@ -9,6 +9,7 @@ IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-flyte-binary-v2}"
 IMAGE_TAG_PREFIX="${IMAGE_TAG_PREFIX:-main-}"
 IMAGE_TAG_KEEP="${IMAGE_TAG_KEEP:-3}"
 IMAGE_TAG="${IMAGE_TAG:-${IMAGE_TAG_PREFIX}$(git rev-parse --short HEAD)}"
+NERDCTL_VERSION="${NERDCTL_VERSION:-2.3.3}"
 PROXY_URL="${PROXY_URL:-}"
 DRY_RUN="${DRY_RUN:-0}"
 
@@ -17,7 +18,7 @@ shell_quote() {
 }
 
 remote_env() {
-  printf "REMOTE_HOST=%s REMOTE_DIR=%s NAMESPACE=%s RELEASE=%s IMAGE_REPOSITORY=%s IMAGE_TAG=%s IMAGE_TAG_PREFIX=%s IMAGE_TAG_KEEP=%s PROXY_URL=%s" \
+  printf "REMOTE_HOST=%s REMOTE_DIR=%s NAMESPACE=%s RELEASE=%s IMAGE_REPOSITORY=%s IMAGE_TAG=%s IMAGE_TAG_PREFIX=%s IMAGE_TAG_KEEP=%s NERDCTL_VERSION=%s PROXY_URL=%s" \
     "$(shell_quote "$REMOTE_HOST")" \
     "$(shell_quote "$REMOTE_DIR")" \
     "$(shell_quote "$NAMESPACE")" \
@@ -26,6 +27,7 @@ remote_env() {
     "$(shell_quote "$IMAGE_TAG")" \
     "$(shell_quote "$IMAGE_TAG_PREFIX")" \
     "$(shell_quote "$IMAGE_TAG_KEEP")" \
+    "$(shell_quote "$NERDCTL_VERSION")" \
     "$(shell_quote "$PROXY_URL")"
 }
 
@@ -81,27 +83,87 @@ if ! command -v helm >/dev/null 2>&1; then
   /tmp/get_helm.sh
 fi
 
-if ! command -v docker >/dev/null 2>&1 || ! docker buildx version >/dev/null 2>&1; then
-  sudo apt-get update
-  sudo apt-get install -y ca-certificates curl gnupg docker.io docker-buildx
-  sudo usermod -aG docker "$USER" || true
-fi
+install_nerdctl_full() {
+  local version="${NERDCTL_VERSION:-2.3.3}"
+  local arch
+  case "$(uname -m)" in
+    x86_64|amd64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      printf 'unsupported architecture for nerdctl-full install: %s\n' "$(uname -m)" >&2
+      return 1
+      ;;
+  esac
 
-if [[ -n "${PROXY_URL:-}" ]]; then
-  sudo mkdir -p /etc/systemd/system/docker.service.d
-  sudo tee /etc/systemd/system/docker.service.d/http-proxy.conf >/dev/null <<EOF
+  local archive="/tmp/nerdctl-full-${version}-linux-${arch}.tar.gz"
+  local url="https://github.com/containerd/nerdctl/releases/download/v${version}/nerdctl-full-${version}-linux-${arch}.tar.gz"
+  curl -fL --retry 3 --retry-delay 2 -o "$archive" "$url"
+  sudo tar -xzf "$archive" -C /usr/local \
+    bin/nerdctl \
+    bin/buildctl \
+    bin/buildkitd \
+    bin/buildkit-cni-bridge \
+    bin/buildkit-cni-firewall \
+    bin/buildkit-cni-host-local \
+    bin/buildkit-cni-loopback \
+    bin/buildkit-cni-portmap \
+    libexec/cni/bridge \
+    libexec/cni/firewall \
+    libexec/cni/host-local \
+    libexec/cni/loopback \
+    libexec/cni/portmap
+  sudo chmod +x /usr/local/bin/nerdctl /usr/local/bin/buildctl /usr/local/bin/buildkitd
+  sudo chmod +x /usr/local/libexec/cni/bridge /usr/local/libexec/cni/firewall /usr/local/libexec/cni/host-local /usr/local/libexec/cni/loopback /usr/local/libexec/cni/portmap
+  rm -f "$archive"
+}
+
+ensure_buildkit_k3s() {
+  if [[ ! -x /usr/local/bin/nerdctl || ! -x /usr/local/bin/buildctl || ! -x /usr/local/bin/buildkitd ]]; then
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl
+    install_nerdctl_full
+  fi
+
+  sudo tee /etc/systemd/system/buildkit-k3s.service >/dev/null <<'EOF'
+[Unit]
+Description=BuildKit daemon for k3s containerd
+After=k3s.service
+Requires=k3s.service
+
+[Service]
+Type=simple
+ExecStartPre=/bin/mkdir -p /run/buildkit
+ExecStart=/usr/local/bin/buildkitd --addr unix:///run/buildkit/buildkitd.sock --oci-worker=false --containerd-worker=true --containerd-worker-addr=/run/k3s/containerd/containerd.sock --containerd-worker-snapshotter=overlayfs --containerd-worker-net=host
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  if [[ -n "${PROXY_URL:-}" ]]; then
+    sudo mkdir -p /etc/systemd/system/buildkit-k3s.service.d
+    sudo tee /etc/systemd/system/buildkit-k3s.service.d/proxy.conf >/dev/null <<EOF
 [Service]
 Environment="HTTP_PROXY=$PROXY_URL"
 Environment="HTTPS_PROXY=$PROXY_URL"
 Environment="NO_PROXY=$NO_PROXY"
 EOF
-  sudo systemctl daemon-reload
-  sudo systemctl restart docker
-fi
+  else
+    sudo rm -rf /etc/systemd/system/buildkit-k3s.service.d
+  fi
 
-sudo systemctl enable --now docker || true
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now buildkit-k3s.service
+  sudo systemctl restart buildkit-k3s.service
+  sudo /usr/local/bin/buildctl --addr unix:///run/buildkit/buildkitd.sock debug workers >/dev/null
+}
+
+ensure_buildkit_k3s
 
 cd "$REMOTE_DIR"
+export BUILDKIT_HOST="${BUILDKIT_HOST:-unix:///run/buildkit/buildkitd.sock}"
+NERDCTL=(sudo env HTTP_PROXY="${HTTP_PROXY:-}" HTTPS_PROXY="${HTTPS_PROXY:-}" http_proxy="${http_proxy:-}" https_proxy="${https_proxy:-}" NO_PROXY="${NO_PROXY:-}" no_proxy="${no_proxy:-}" /usr/local/bin/nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io)
 build_proxy_args=()
 if [[ -n "${PROXY_URL:-}" ]]; then
   build_proxy_args+=(
@@ -113,11 +175,7 @@ if [[ -n "${PROXY_URL:-}" ]]; then
     --build-arg no_proxy="$NO_PROXY"
   )
 fi
-sudo env DOCKER_BUILDKIT=1 docker build "${build_proxy_args[@]}" -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .
-tmp_image="/tmp/${IMAGE_REPOSITORY}-${IMAGE_TAG}.tar"
-sudo docker save "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -o "$tmp_image"
-sudo k3s ctr images import "$tmp_image"
-sudo rm -f "$tmp_image"
+"${NERDCTL[@]}" build "${build_proxy_args[@]}" -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .
 
 prune_old_release_images() {
   if [[ "$IMAGE_TAG" != "$IMAGE_TAG_PREFIX"* ]]; then
@@ -132,30 +190,21 @@ prune_old_release_images() {
   local keep_file
   keep_file="$(mktemp)"
   {
-    sudo docker image ls "$IMAGE_REPOSITORY" --format '{{.Repository}}:{{.Tag}}' \
-      | awk -v prefix="${IMAGE_REPOSITORY}:${IMAGE_TAG_PREFIX}" 'index($0, prefix) == 1 {print}' \
-      | while IFS= read -r image; do
-          created="$(sudo docker image inspect --format '{{.Created}}' "$image" 2>/dev/null || true)"
-          tag="${image#${IMAGE_REPOSITORY}:}"
-          if [[ -n "$created" && -n "$tag" ]]; then
-            printf '%s %s\n' "$created" "$tag"
-          fi
-        done
-    printf '9999-12-31T23:59:59Z %s\n' "$IMAGE_TAG"
-  } | sort \
-    | awk '{rows[$2] = $0} END {for (tag in rows) print rows[tag]}' \
-    | sort \
+    "${NERDCTL[@]}" images --format '{{.Repository}}:{{.Tag}}|{{.CreatedAt}}' \
+      | awk -F '|' -v repository="${IMAGE_REPOSITORY}" -v tag_prefix="${IMAGE_TAG_PREFIX}" '
+        {
+          repo_tag = $1
+          tag = substr(repo_tag, length(repository) + 2)
+          if (repo_tag == repository ":" tag && index(tag, tag_prefix) == 1 && $2 != "") {
+            printf "%s\t%s\n", $2, tag
+          }
+        }'
+    printf '9999-12-31T23:59:59Z|%s\n' "$IMAGE_TAG"
+  } | sort -t '|' -k1,1 \
+    | awk -F '|' '{rows[$2] = $0} END {for (tag in rows) print rows[tag]}' \
+    | sort -t '|' -k1,1 \
     | tail -n "$IMAGE_TAG_KEEP" \
-    | awk '{print $2}' > "$keep_file"
-
-  sudo docker image ls "$IMAGE_REPOSITORY" --format '{{.Repository}}:{{.Tag}}' \
-    | awk -v prefix="${IMAGE_REPOSITORY}:${IMAGE_TAG_PREFIX}" 'index($0, prefix) == 1 {print}' \
-    | while IFS= read -r image; do
-        tag="${image#${IMAGE_REPOSITORY}:}"
-        if ! grep -Fxq "$tag" "$keep_file"; then
-          sudo docker image rm "$image" || true
-        fi
-      done
+    | awk -F '|' '{print $2}' > "$keep_file"
 
   sudo k3s ctr images ls -q \
     | while IFS= read -r image; do
@@ -172,26 +221,20 @@ prune_old_release_images() {
   rm -f "$keep_file"
 }
 
-import_docker_image() {
+pull_containerd_image() {
   local image="$1"
-  local safe_name
-  safe_name="$(printf '%s' "$image" | tr '/:' '__')"
-  local image_tar="/tmp/${safe_name}.tar"
-  sudo docker pull "$image"
-  sudo docker save "$image" -o "$image_tar"
-  sudo k3s ctr images import "$image_tar"
-  sudo rm -f "$image_tar"
+  "${NERDCTL[@]}" pull "$image"
 }
 
-import_docker_image rancher/mirrored-pause:3.6
-import_docker_image rancher/mirrored-coredns-coredns:1.14.3
-import_docker_image rancher/local-path-provisioner:v0.0.36
-import_docker_image rancher/mirrored-library-busybox:1.37.0
-import_docker_image rancher/mirrored-library-traefik:3.6.13
-import_docker_image postgres:17
-import_docker_image ghcr.io/unionai-oss/flyteconsole-v2:latest
-import_docker_image rustfs/rustfs:1.0.0-alpha.94
-import_docker_image busybox:stable
+pull_containerd_image rancher/mirrored-pause:3.6
+pull_containerd_image rancher/mirrored-coredns-coredns:1.14.3
+pull_containerd_image rancher/local-path-provisioner:v0.0.36
+pull_containerd_image rancher/mirrored-library-busybox:1.37.0
+pull_containerd_image rancher/mirrored-library-traefik:3.6.13
+pull_containerd_image postgres:17
+pull_containerd_image ghcr.io/unionai-oss/flyteconsole-v2:latest
+pull_containerd_image rustfs/rustfs:1.0.0-alpha.94
+pull_containerd_image busybox:stable
 
 sudo k3s kubectl -n kube-system delete pod -l k8s-app=kube-dns --ignore-not-found || true
 sudo k3s kubectl -n kube-system delete pod -l app=local-path-provisioner --ignore-not-found || true

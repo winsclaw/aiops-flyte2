@@ -25,6 +25,15 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local needle="$1"
+  if [[ "$output" == *"$needle"* ]]; then
+    printf 'expected dry-run output not to contain: %s\n' "$needle" >&2
+    printf '%s\n' "$output" >&2
+    exit 1
+  fi
+}
+
 assert_contains 'git archive --format=tar HEAD -o'
 assert_contains 'scp'
 assert_contains 'aione-flyte2'
@@ -32,26 +41,29 @@ assert_contains 'REMOTE_ARCHIVE='
 assert_contains 'tar -xf "$REMOTE_ARCHIVE"'
 assert_contains "PROXY_URL='http://172.19.210.24:7890'"
 assert_contains 'export HTTP_PROXY="$PROXY_URL"'
-assert_contains 'docker.service.d'
 assert_contains '--build-arg HTTP_PROXY="$PROXY_URL"'
 assert_contains 'curl -sfL https://get.k3s.io'
 assert_contains 'get_helm.sh'
-assert_contains 'docker-buildx'
-assert_contains 'sudo env DOCKER_BUILDKIT=1 docker build'
+assert_contains 'ensure_buildkit_k3s'
+assert_contains 'NERDCTL=(sudo env HTTP_PROXY="${HTTP_PROXY:-}"'
+assert_contains '/usr/local/bin/nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io)'
+assert_contains '"${NERDCTL[@]}" build "${build_proxy_args[@]}" -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .'
 assert_contains "IMAGE_REPOSITORY='flyte-binary-v2'"
 assert_contains "IMAGE_TAG='main-${short_head}'"
 assert_contains "IMAGE_TAG_PREFIX='main-'"
 assert_contains "IMAGE_TAG_KEEP='3'"
-assert_contains 'k3s ctr images import'
+assert_contains 'pull_containerd_image rancher/mirrored-coredns-coredns:1.14.3'
 assert_contains 'prune_old_release_images'
-assert_contains 'sudo docker image rm'
 assert_contains 'sudo k3s ctr images rm'
-assert_contains 'import_docker_image rancher/mirrored-coredns-coredns:1.14.3'
-assert_contains 'import_docker_image rancher/mirrored-library-busybox:1.37.0'
-assert_contains 'import_docker_image rancher/mirrored-library-traefik:3.6.13'
+assert_not_contains 'docker save'
+assert_not_contains 'k3s ctr images import'
+assert_not_contains 'sudo env DOCKER_BUILDKIT=1 docker build'
+assert_not_contains 'docker-buildx'
+assert_contains 'pull_containerd_image rancher/mirrored-library-busybox:1.37.0'
+assert_contains 'pull_containerd_image rancher/mirrored-library-traefik:3.6.13'
 assert_contains 'kubectl -n kube-system rollout status deploy/traefik'
 assert_contains 'chown -R 10001:10001 /var/lib/flyte/storage/rustfs'
-assert_contains 'import_docker_image postgres:17'
+assert_contains 'pull_containerd_image postgres:17'
 assert_contains 'CREATE DATABASE runs'
 assert_contains 'kubectl -n "$NAMESPACE" rollout status deploy/postgresql'
 assert_contains 'helm upgrade --install "$RELEASE" charts/flyte-devbox'

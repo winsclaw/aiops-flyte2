@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REMOTE_HOST="${REMOTE_HOST:-aione-flyte2}"
+REMOTE_DIR="${REMOTE_DIR:-/opt/aiops-flyte2}"
+NAMESPACE="${NAMESPACE:-flyte}"
+CONSOLE_URL="${CONSOLE_URL:-http://172.19.65.230:30081/v2/projects}"
+NERDCTL_VERSION="${NERDCTL_VERSION:-2.3.3}"
+PROXY_URL="${PROXY_URL:-}"
+DRY_RUN="${DRY_RUN:-0}"
+
+shell_quote() {
+  printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+remote_env() {
+  printf "REMOTE_DIR=%s NAMESPACE=%s CONSOLE_URL=%s NERDCTL_VERSION=%s PROXY_URL=%s" \
+    "$(shell_quote "$REMOTE_DIR")" \
+    "$(shell_quote "$NAMESPACE")" \
+    "$(shell_quote "$CONSOLE_URL")" \
+    "$(shell_quote "$NERDCTL_VERSION")" \
+    "$(shell_quote "$PROXY_URL")"
+}
+
+if command -v ssh.exe >/dev/null 2>&1; then
+  SSH_BIN=ssh.exe
+else
+  SSH_BIN=ssh
+fi
+
+remote_script="$(cat <<'REMOTE_SCRIPT'
+set -euo pipefail
+
+if [[ -n "${PROXY_URL:-}" ]]; then
+  export HTTP_PROXY="$PROXY_URL"
+  export HTTPS_PROXY="$PROXY_URL"
+  export http_proxy="$PROXY_URL"
+  export https_proxy="$PROXY_URL"
+  export NO_PROXY="${NO_PROXY:-127.0.0.1,localhost,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local}"
+  export no_proxy="$NO_PROXY"
+fi
+
+install_nerdctl_full() {
+  local version="${NERDCTL_VERSION:-2.3.3}"
+  local arch
+  case "$(uname -m)" in
+    x86_64|amd64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      printf 'unsupported architecture for nerdctl-full install: %s\n' "$(uname -m)" >&2
+      return 1
+      ;;
+  esac
+
+  local archive="/tmp/nerdctl-full-${version}-linux-${arch}.tar.gz"
+  local url="https://github.com/containerd/nerdctl/releases/download/v${version}/nerdctl-full-${version}-linux-${arch}.tar.gz"
+  curl -fL --retry 3 --retry-delay 2 -o "$archive" "$url"
+  sudo tar -xzf "$archive" -C /usr/local \
+    bin/nerdctl \
+    bin/buildctl \
+    bin/buildkitd \
+    bin/buildkit-cni-bridge \
+    bin/buildkit-cni-firewall \
+    bin/buildkit-cni-host-local \
+    bin/buildkit-cni-loopback \
+    bin/buildkit-cni-portmap \
+    libexec/cni/bridge \
+    libexec/cni/firewall \
+    libexec/cni/host-local \
+    libexec/cni/loopback \
+    libexec/cni/portmap
+  sudo chmod +x /usr/local/bin/nerdctl /usr/local/bin/buildctl /usr/local/bin/buildkitd
+  sudo chmod +x /usr/local/libexec/cni/bridge /usr/local/libexec/cni/firewall /usr/local/libexec/cni/host-local /usr/local/libexec/cni/loopback /usr/local/libexec/cni/portmap
+  rm -f "$archive"
+}
+
+ensure_buildkit_k3s() {
+  if [[ ! -x /usr/local/bin/nerdctl || ! -x /usr/local/bin/buildctl || ! -x /usr/local/bin/buildkitd ]]; then
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl
+    install_nerdctl_full
+  fi
+
+  sudo tee /etc/systemd/system/buildkit-k3s.service >/dev/null <<'EOF'
+[Unit]
+Description=BuildKit daemon for k3s containerd
+After=k3s.service
+Requires=k3s.service
+
+[Service]
+Type=simple
+ExecStartPre=/bin/mkdir -p /run/buildkit
+ExecStart=/usr/local/bin/buildkitd --addr unix:///run/buildkit/buildkitd.sock --oci-worker=false --containerd-worker=true --containerd-worker-addr=/run/k3s/containerd/containerd.sock --containerd-worker-snapshotter=overlayfs --containerd-worker-net=host
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  if [[ -n "${PROXY_URL:-}" ]]; then
+    sudo mkdir -p /etc/systemd/system/buildkit-k3s.service.d
+    sudo tee /etc/systemd/system/buildkit-k3s.service.d/proxy.conf >/dev/null <<EOF
+[Service]
+Environment="HTTP_PROXY=$PROXY_URL"
+Environment="HTTPS_PROXY=$PROXY_URL"
+Environment="NO_PROXY=$NO_PROXY"
+EOF
+  else
+    sudo rm -rf /etc/systemd/system/buildkit-k3s.service.d
+  fi
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now buildkit-k3s.service
+  sudo systemctl restart buildkit-k3s.service
+  sudo /usr/local/bin/buildctl --addr unix:///run/buildkit/buildkitd.sock debug workers >/dev/null
+}
+
+cd "$REMOTE_DIR"
+git pull --ff-only origin main
+COMMIT="$(git rev-parse --short HEAD)"
+ensure_buildkit_k3s
+
+export BUILDKIT_HOST="${BUILDKIT_HOST:-unix:///run/buildkit/buildkitd.sock}"
+NERDCTL=(sudo env HTTP_PROXY="${HTTP_PROXY:-}" HTTPS_PROXY="${HTTPS_PROXY:-}" http_proxy="${http_proxy:-}" https_proxy="${https_proxy:-}" NO_PROXY="${NO_PROXY:-}" no_proxy="${no_proxy:-}" /usr/local/bin/nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io)
+build_proxy_args=()
+if [[ -n "${PROXY_URL:-}" ]]; then
+  build_proxy_args+=(
+    --build-arg HTTP_PROXY="$PROXY_URL"
+    --build-arg HTTPS_PROXY="$PROXY_URL"
+    --build-arg http_proxy="$PROXY_URL"
+    --build-arg https_proxy="$PROXY_URL"
+    --build-arg NO_PROXY="$NO_PROXY"
+    --build-arg no_proxy="$NO_PROXY"
+  )
+fi
+
+"${NERDCTL[@]}" build "${build_proxy_args[@]}" -f flyte_console/Dockerfile -t "flyte-console-source:${COMMIT}" -t flyte-console-extracted:latest flyte_console
+sudo k3s ctr -n k8s.io images ls | grep -E "flyte-console-source:${COMMIT}|flyte-console-extracted:latest"
+
+kubectl apply -f deploy/ui/flyte-console-extracted.yaml
+kubectl -n "$NAMESPACE" rollout restart deploy/flyte-console-extracted
+kubectl -n "$NAMESPACE" rollout status deploy/flyte-console-extracted --timeout=180s
+kubectl -n "$NAMESPACE" get pod -l app=flyte-console-extracted -o wide
+kubectl -n "$NAMESPACE" logs deploy/flyte-console-extracted --tail=80
+curl -I "$CONSOLE_URL"
+REMOTE_SCRIPT
+)"
+
+ssh_env="$(remote_env)"
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  printf '%s %s %s bash -s\n' "$SSH_BIN" "$REMOTE_HOST" "$ssh_env"
+  printf '%s\n' "$remote_script"
+  exit 0
+fi
+
+"$SSH_BIN" "$REMOTE_HOST" "$ssh_env bash -s" <<<"$remote_script"

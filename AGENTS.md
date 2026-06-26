@@ -55,6 +55,7 @@ go test ./executor/pkg/plugin/k8s -count=1
 go test ./flyteplugins/aione/sshworkspace -count=1
 bash deploy/tests/test_flyte_api_scripts.sh
 bash deploy/tests/test_deploy_aiops_flyte.sh
+bash deploy/tests/test_deploy_flyte_console_source.sh
 ```
 
 Frontend production build:
@@ -116,7 +117,17 @@ Namespace: flyte
 Ingress:   http://172.19.65.230:30080
 ```
 
-By default, `scripts/deploy-aiops-flyte.sh` generates `IMAGE_TAG=main-$(git rev-parse --short HEAD)`. It deploys both `flyte-binary` and the Flyte co-pilot image setting with that same tag. It keeps only the latest three backend release images matching `flyte-binary-v2:main-*` in Docker and k3s containerd. Override `IMAGE_TAG` only for an explicit one-off deployment.
+By default, `scripts/deploy-aiops-flyte.sh` generates `IMAGE_TAG=main-$(git rev-parse --short HEAD)`. It deploys both `flyte-binary` and the Flyte co-pilot image setting with that same tag. It keeps only the latest three backend release images matching `flyte-binary-v2:main-*` in k3s containerd. Override `IMAGE_TAG` only for an explicit one-off deployment.
+
+The deployment scripts use nerdctl and BuildKit directly against k3s containerd:
+
+```text
+Containerd socket: /run/k3s/containerd/containerd.sock
+Containerd ns:     k8s.io
+BuildKit service:  buildkit-k3s.service
+```
+
+If `/usr/local/bin/nerdctl`, `/usr/local/bin/buildctl`, or `/usr/local/bin/buildkitd` is missing, the deployment scripts install the pinned `nerdctl-full` bundle before building.
 
 For incremental backend-only rebuilds after k3s and Helm are already installed:
 
@@ -128,19 +139,22 @@ git pull --ff-only origin main
 COMMIT="$(git rev-parse --short HEAD)"
 IMAGE_TAG="main-${COMMIT}"
 
-docker build -f Dockerfile -t "flyte-binary-v2:${IMAGE_TAG}" .
-docker save "flyte-binary-v2:${IMAGE_TAG}" | k3s ctr images import -
+export BUILDKIT_HOST=unix:///run/buildkit/buildkitd.sock
+nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io build \
+  -f Dockerfile \
+  -t "flyte-binary-v2:${IMAGE_TAG}" \
+  .
 k3s ctr images ls | grep "flyte-binary-v2:${IMAGE_TAG}"
 kubectl -n flyte set image deploy/flyte-binary flyte="flyte-binary-v2:${IMAGE_TAG}"
 kubectl -n flyte rollout status deploy/flyte-binary --timeout=10m
 ```
 
-The k3s deployment uses local images with `imagePullPolicy: Never`. After every backend or frontend Docker build, import the image into k3s containerd and verify the exact tag with `k3s ctr images ls` before waiting on rollout. If a pod reports `ErrImageNeverPull`, first re-check and re-import the exact image tag into k3s containerd; the image existing in Docker alone is not enough.
+The k3s deployment uses local images with `imagePullPolicy: Never`. Build backend and source-built frontend images with nerdctl directly into the k3s `k8s.io` containerd namespace, then verify the exact tag with `k3s ctr images ls` before waiting on rollout. If a pod reports `ErrImageNeverPull`, first re-check that the exact tag exists in `k3s ctr -n k8s.io images ls`; an image existing only in Docker is not enough.
 
-If a new pod is stuck before init containers with `FailedCreatePodSandBox` for `rancher/mirrored-pause:3.6`, import the existing Docker pause image into k3s containerd:
+If a new pod is stuck before init containers with `FailedCreatePodSandBox` for `rancher/mirrored-pause:3.6`, pull the pause image directly into k3s containerd:
 
 ```bash
-docker save rancher/mirrored-pause:3.6 docker.fzyun.io/rancher/mirrored-pause:3.6 | k3s ctr images import -
+nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io pull rancher/mirrored-pause:3.6
 k3s ctr images ls | grep 'rancher/mirrored-pause.*3.6'
 ```
 
@@ -180,26 +194,11 @@ docker.fzyun.io/node:23.11.1-alpine3.22
 
 The Dockerfile builds from source, runs `pnpm run build:prod`, copies `.next/standalone`, `.next/static`, generated `public`, and `proxy-server.js`, then serves through `node proxy-server.js` on port `8080`.
 
-Remote frontend build:
+Deploy the source-built frontend from the local workspace after committing and pushing:
 
 ```bash
-ssh aione-flyte2
-cd /opt/aiops-flyte2
-git pull --ff-only origin main
-
-COMMIT="$(git rev-parse --short HEAD)"
-docker build \
-  -f flyte_console/Dockerfile \
-  -t "flyte-console-source:${COMMIT}" \
-  -t flyte-console-extracted:latest \
-  flyte_console
-```
-
-Import the frontend image into k3s containerd:
-
-```bash
-docker save "flyte-console-source:${COMMIT}" flyte-console-extracted:latest | k3s ctr images import -
-k3s ctr images ls | grep -E 'flyte-console-(source|extracted)'
+cd /mnt/d/flyte-work
+bash scripts/deploy-flyte-console-source.sh
 ```
 
 Create or update the frontend Kubernetes resources:
