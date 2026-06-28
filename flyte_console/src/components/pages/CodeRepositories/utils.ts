@@ -9,19 +9,37 @@ export type CodeRepositoryRow = {
   mountPath: string;
   token: string;
   deleted?: boolean;
+  dirty?: boolean;
+  editing?: boolean;
 };
+
+export function isBlankNewCodeRepositoryRow(row: CodeRepositoryRow) {
+  return (
+    !row.id &&
+    !row.repoUrl.trim() &&
+    row.branch.trim() === "main" &&
+    !row.mountPath.trim() &&
+    !row.token.trim()
+  );
+}
+
+export function getVisibleCodeRepositoryRows(rows: CodeRepositoryRow[]) {
+  return rows.filter((row) => !row.deleted);
+}
+
+export function getCodeRepositoryRowChanges(rows: CodeRepositoryRow[]) {
+  return {
+    deletedRows: rows.filter((row) => row.id && row.deleted),
+    updatedRows: rows.filter((row) => row.id && row.dirty && !row.deleted),
+    createdRows: rows.filter(
+      (row) => !row.id && !row.deleted && !isBlankNewCodeRepositoryRow(row),
+    ),
+  };
+}
 
 export function validateCodeRepositoryRows(rows: CodeRepositoryRow[]) {
   const activeRows = rows.filter(
-    (row) =>
-      !row.deleted &&
-      !(
-        !row.id &&
-        !row.repoUrl.trim() &&
-        row.branch.trim() === "main" &&
-        !row.mountPath.trim() &&
-        !row.token.trim()
-      ),
+    (row) => !row.deleted && !isBlankNewCodeRepositoryRow(row),
   );
   const mountPaths = new Set<string>();
   for (const row of activeRows) {
