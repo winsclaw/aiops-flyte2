@@ -21,6 +21,7 @@ import (
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow/workflowconnect"
 	aionecloudstorage "github.com/flyteorg/flyte/v2/runs/aione/cloudstorage"
 	aionecoderepository "github.com/flyteorg/flyte/v2/runs/aione/coderepository"
+	aionedataset "github.com/flyteorg/flyte/v2/runs/aione/dataset"
 	"github.com/flyteorg/flyte/v2/runs/config"
 	"github.com/flyteorg/flyte/v2/runs/migrations"
 	"github.com/flyteorg/flyte/v2/runs/repository"
@@ -120,6 +121,7 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 
 	aionecloudstorage.Setup(ctx, sc, repo.CloudStorageRepo(), otelInterceptor)
 	aionecoderepository.Setup(ctx, sc, repo.CodeRepositoryRepo(), otelInterceptor)
+	aionedataset.Setup(ctx, sc, repo.DatasetRepo(), repo.CloudStorageRepo(), otelInterceptor)
 
 	identitySvc := service.NewIdentityService()
 	identityPath, identityHandler := authconnect.NewIdentityServiceHandler(identitySvc, connect.WithInterceptors(otelInterceptor))
