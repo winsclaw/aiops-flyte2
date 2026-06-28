@@ -448,7 +448,7 @@ func buildDevelopmentInstanceModel(project *common.ProjectIdentifier, input *dev
 		CodeRepositorySecretName: strings.TrimSpace(input.GetCodeRepositorySecretName()),
 		GPUNodeLabelKey:          strings.TrimSpace(input.GetGpuNodeLabelKey()),
 		BaseImageMountPath:       strings.TrimSpace(input.GetBaseImageMountPath()),
-		SSHUser:                  defaultString(strings.TrimSpace(input.GetSshUser()), "dev"),
+		SSHUser:                  defaultString(strings.TrimSpace(input.GetSshUser()), "flytekit"),
 		AuthorizedKeysJSON:       authorizedKeysJSON,
 		WorkspacePVCName:         id + "-workspace",
 		Status:                   models.DevelopmentInstanceStatusNotStarted,

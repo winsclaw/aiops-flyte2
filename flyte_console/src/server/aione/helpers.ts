@@ -212,7 +212,7 @@ export function buildAioneInstanceValues({
     imageType: "custom",
     officialImageId: "",
     image,
-    sshUser: "dev",
+    sshUser: "flytekit",
     authorizedKey,
     cpu: payload.resourceDefinition?.cpu?.trim() || "2",
     memory: payload.resourceDefinition?.memory?.trim() || "4Gi",

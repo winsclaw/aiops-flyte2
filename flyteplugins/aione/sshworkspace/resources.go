@@ -483,6 +483,7 @@ func sanitizeLabelValue(value string) string {
 }
 
 func workspaceEntrypoint(sshUser string) string {
+	codeServerUser := DefaultWorkspaceSSHUser
 	return fmt.Sprintf(`set -eu
 if ! command -v /usr/sbin/sshd >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
@@ -494,9 +495,19 @@ fi
 if ! id %[1]s >/dev/null 2>&1; then
   useradd -m -s /bin/bash %[1]s
 fi
-mkdir -p /home/%[1]s/.ssh /workspace /run/sshd
+if ! id %[2]s >/dev/null 2>&1; then
+  useradd -m -s /bin/bash %[2]s
+fi
+if command -v usermod >/dev/null 2>&1 && [ -x /bin/bash ]; then
+  usermod -s /bin/bash %[1]s || true
+  usermod -s /bin/bash %[2]s || true
+fi
+mkdir -p /home/%[1]s/.ssh /home/%[2]s/.local/share/code-server /workspace /run/sshd
 cp /flyte-ssh/authorized_keys /home/%[1]s/.ssh/authorized_keys
-chown -R %[1]s:%[1]s /home/%[1]s /workspace
+chown -R %[1]s:%[1]s /home/%[1]s
+chown -R %[2]s:%[2]s /home/%[2]s
+chown -R %[2]s:%[1]s /workspace
+chmod -R u+rwX,g+rwX /workspace
 chmod 700 /home/%[1]s/.ssh
 chmod 600 /home/%[1]s/.ssh/authorized_keys
 printf 'PasswordAuthentication no\nPermitRootLogin no\nPubkeyAuthentication yes\n' > /etc/ssh/sshd_config.d/flyte-workspace.conf
@@ -510,7 +521,7 @@ elif [ -f /opt/code-server-4.19.0-linux-amd64.tar.gz ]; then
   CODE_SERVER_BIN="/opt/code-server-4.19.0-linux-amd64/bin/code-server"
 fi
 if [ -n "$CODE_SERVER_BIN" ] && [ -x "$CODE_SERVER_BIN" ]; then
-  su - %[1]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /workspace" &
+  su - %[2]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /workspace" &
 else
   if ! command -v python3 >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
     export DEBIAN_FRONTEND=noninteractive
@@ -524,5 +535,5 @@ else
   fi
 fi
 exec /usr/sbin/sshd -D -e
-`, sshUser)
+`, sshUser, codeServerUser)
 }

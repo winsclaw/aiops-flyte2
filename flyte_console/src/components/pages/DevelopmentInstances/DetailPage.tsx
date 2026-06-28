@@ -182,7 +182,7 @@ export function DevelopmentInstanceDetailPage() {
                     label="SSH"
                     value={
                       instance?.access?.nodePort
-                        ? `ssh -p ${instance.access.nodePort} ${instance.access.sshUser || "dev"}@172.19.65.230`
+                        ? `ssh -p ${instance.access.nodePort} ${instance.access.sshUser || "flytekit"}@172.19.65.230`
                         : ""
                     }
                   />

@@ -351,6 +351,37 @@ describe("development instance helpers", () => {
     expect(instance?.sourceInstanceId).toBe("legacy-devbox");
   });
 
+  it("defaults formatted run SSH commands to flytekit", () => {
+    const run = create(RunSchema, {
+      action: create(ActionSchema, {
+        id: {
+          run: create(RunIdentifierSchema, {
+            org: "testorg",
+            project: "flytesnacks",
+            domain: "development",
+            name: "devbox-flytekit",
+          }),
+        },
+      }),
+    });
+    const actionDetails = create(ActionDetailsSchema, {
+      spec: {
+        case: "task",
+        value: {
+          taskTemplate: create(TaskTemplateSchema, {
+            custom: {
+              nodePort: 31000,
+            },
+          }),
+        },
+      },
+    });
+
+    const instance = formatDevelopmentInstance(run, actionDetails);
+
+    expect(instance?.sshCommand).toBe("ssh -p 31000 flytekit@172.19.65.230");
+  });
+
   it("generates the next restart run suffix for the same source instance", () => {
     const sourceInstanceId = "ins-4a458z341d7k5o-5fef0df9";
 

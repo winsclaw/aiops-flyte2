@@ -527,7 +527,8 @@ export function formatDevelopmentInstance(
     typeof custom.codeServerUrl === "string" && custom.codeServerUrl.trim()
       ? custom.codeServerUrl.trim()
       : "";
-  const sshUser = typeof custom.sshUser === "string" ? custom.sshUser : "dev";
+  const sshUser =
+    typeof custom.sshUser === "string" ? custom.sshUser : "flytekit";
   const cpu = typeof custom.cpu === "string" ? custom.cpu : "";
   const memory = typeof custom.memory === "string" ? custom.memory : "";
   const gpuCount =

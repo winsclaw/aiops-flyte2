@@ -68,6 +68,7 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.project).toBe("aione");
     expect(mapped.values.domain).toBe("development");
     expect(mapped.values.maxHours).toBe(1);
+    expect(mapped.values.sshUser).toBe("flytekit");
     expect(mapped.values.image).toBe(
       "docker.fzyun.io/founder/aione.ide:1.0.0.60",
     );

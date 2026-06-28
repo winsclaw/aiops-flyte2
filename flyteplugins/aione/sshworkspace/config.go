@@ -14,7 +14,7 @@ import (
 const (
 	TaskType                = "ssh_workspace"
 	DefaultWorkspaceImage   = "docker.fzyun.io/founder/aione.ide:1.0.0.60"
-	DefaultWorkspaceSSHUser = "dev"
+	DefaultWorkspaceSSHUser = "flytekit"
 )
 
 type WorkspaceConfig struct {

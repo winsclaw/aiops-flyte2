@@ -82,7 +82,7 @@ export function DevelopmentInstanceCreatePage() {
     DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
   );
   const [image, setImage] = useState(DEFAULT_CUSTOM_DEVELOPMENT_INSTANCE_IMAGE);
-  const [sshUser, setSshUser] = useState("dev");
+  const [sshUser, setSshUser] = useState("flytekit");
   const [authorizedKey, setAuthorizedKey] = useState("");
   const [cpu, setCpu] = useState("2");
   const [memory, setMemory] = useState("4Gi");

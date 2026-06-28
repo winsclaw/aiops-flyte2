@@ -68,7 +68,7 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 		"imageType":                instance.ImageType,
 		"officialImageId":          instance.OfficialImageID,
 		"imageName":                instance.ImageName,
-		"sshUser":                  defaultString(instance.SSHUser, "dev"),
+		"sshUser":                  defaultString(instance.SSHUser, "flytekit"),
 		"authorizedKeys":           authorizedKeyValues,
 		"cpu":                      instance.CPU,
 		"memory":                   instance.Memory,

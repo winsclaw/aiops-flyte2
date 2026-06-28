@@ -32,7 +32,7 @@ fi
 
 RUN_ID="${1:-${RUN_ID:-}}"
 NAMESPACE="${NAMESPACE:-flyte}"
-SSH_USER="${SSH_USER:-dev}"
+SSH_USER="${SSH_USER:-flytekit}"
 
 if [[ -z "$RUN_ID" ]]; then
   printf 'usage: %s org/project/domain/name\n' "$0" >&2

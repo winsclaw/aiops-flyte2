@@ -84,7 +84,6 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 
 func TestParseConfigDefaultsToOfficialIDEImage(t *testing.T) {
 	tmpl := taskTemplateWithCustom(t, map[string]any{
-		"sshUser":        "dev",
 		"authorizedKeys": []any{"ssh-rsa AAAA user@example"},
 	})
 
@@ -92,6 +91,7 @@ func TestParseConfigDefaultsToOfficialIDEImage(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "docker.fzyun.io/founder/aione.ide:1.0.0.60", cfg.Image)
+	assert.Equal(t, "flytekit", cfg.SSHUser)
 }
 
 func TestParseConfigRejectsMissingAuthorizedKeys(t *testing.T) {
@@ -173,6 +173,8 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Contains(t, container.Args[0], "/usr/sbin/sshd -D -e")
 	assert.Contains(t, container.Args[0], "code-server")
 	assert.Contains(t, container.Args[0], "useradd")
+	assert.Contains(t, container.Args[0], "su - flytekit -c")
+	assert.NotContains(t, container.Args[0], "su - dev -c")
 	assert.Equal(t, "value", envValue(container.Env, "EXAMPLE"))
 	gpuLimit := container.Resources.Limits[corev1.ResourceName("nvidia.com/gpu")]
 	assert.Equal(t, "1", gpuLimit.String())
