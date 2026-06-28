@@ -71,6 +71,37 @@ func TestBuildDevelopmentInstanceSpecUsesSSHWorkspacePluginAndDisplayShortName(t
 	require.Equal(t, float64(31001), custom["codeServerNodePort"].GetNumberValue())
 }
 
+func TestBuildDevelopmentInstanceSpecLetsPluginOwnCodeRepositorySecret(t *testing.T) {
+	spec, err := BuildDevelopmentInstanceSpec(&models.DevelopmentInstance{
+		DevelopmentInstanceKey:   models.DevelopmentInstanceKey{ID: "aione-instance"},
+		Org:                      "aione",
+		Project:                  "aione",
+		Domain:                   "development",
+		Name:                     "开发实例一",
+		ImageURI:                 "docker.fzyun.io/founder/aione.ide:1.0.0.60",
+		SSHUser:                  "dev",
+		CPU:                      "2",
+		Memory:                   "4Gi",
+		WorkspaceSize:            "20Gi",
+		MaxHours:                 1,
+		WorkspacePVCName:         "aione-instance-workspace",
+		NodePort:                 31000,
+		CodeServerNodePort:       31001,
+		CodeRepositorySecretName: "aione-aione-instance-code",
+		CodeRepositoryMounts: []models.DevelopmentInstanceCodeRepoMount{{
+			CodeRepositoryID: "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
+			RepoURL:          "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
+			Branch:           "master",
+			MountPath:        "/data/js-sample",
+		}},
+	})
+
+	require.NoError(t, err)
+	custom := spec.GetTaskTemplate().GetCustom().GetFields()
+	require.Equal(t, "", custom["codeRepositorySecretName"].GetStringValue())
+	require.Len(t, custom["codeRepositories"].GetListValue().GetValues(), 1)
+}
+
 func TestBuildDevelopmentInstanceRunNameUsesStableInstanceIDAndGeneration(t *testing.T) {
 	require.Equal(t, "external-instance-1-r2", buildDevelopmentInstanceRunName("external-instance-1", 2))
 	require.Equal(t, "very-long-instanc-8c22f452-r12", buildDevelopmentInstanceRunName("very-long-instance-id-that-needs-truncation", 12))

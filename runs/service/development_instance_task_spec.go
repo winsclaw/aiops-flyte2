@@ -85,7 +85,7 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 		"owner":                    instance.Owner,
 		"maxHours":                 instance.MaxHours,
 		"imagePullSecretName":      instance.ImagePullSecretName,
-		"codeRepositorySecretName": instance.CodeRepositorySecretName,
+		"codeRepositorySecretName": "",
 		"gpuNodeLabelKey":          instance.GPUNodeLabelKey,
 		"sourceOrg":                instance.Org,
 		"sourceInstanceId":         instance.ID,
