@@ -8,4 +8,5 @@ type Repository interface {
 	DevelopmentInstanceRepo() DevelopmentInstanceRepo
 	CloudStorageRepo() CloudStorageRepo
 	CodeRepositoryRepo() CodeRepositoryRepo
+	DatasetRepo() DatasetRepo
 }

@@ -19,6 +19,7 @@ type repository struct {
 	developmentRepo    interfaces.DevelopmentInstanceRepo
 	cloudStorageRepo   interfaces.CloudStorageRepo
 	codeRepositoryRepo interfaces.CodeRepositoryRepo
+	datasetRepo        interfaces.DatasetRepo
 }
 
 // NewRepository creates a new Repository instance
@@ -35,6 +36,7 @@ func NewRepository(db *sqlx.DB, dbConfig database.DbConfig) (interfaces.Reposito
 		developmentRepo:    impl.NewDevelopmentInstanceRepo(db),
 		cloudStorageRepo:   impl.NewCloudStorageRepo(db),
 		codeRepositoryRepo: impl.NewCodeRepositoryRepo(db),
+		datasetRepo:        impl.NewDatasetRepo(db),
 	}, nil
 }
 
@@ -71,4 +73,9 @@ func (r *repository) CloudStorageRepo() interfaces.CloudStorageRepo {
 // CodeRepositoryRepo returns the Aione code repository repository.
 func (r *repository) CodeRepositoryRepo() interfaces.CodeRepositoryRepo {
 	return r.codeRepositoryRepo
+}
+
+// DatasetRepo returns the Aione dataset repository.
+func (r *repository) DatasetRepo() interfaces.DatasetRepo {
+	return r.datasetRepo
 }
