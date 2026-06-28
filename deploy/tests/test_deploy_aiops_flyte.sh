@@ -80,4 +80,14 @@ assert_contains 'Ingress access:'
 assert_contains 'Web UI: http://%s:%s/v2'
 assert_contains 'API endpoint: http://%s:%s'
 
+dockerfile="$(cat "$ROOT_DIR/Dockerfile")"
+if [[ "$dockerfile" != *'FROM --platform=${BUILDPLATFORM} docker.fzyun.io/library/golang:1.26.3-bookworm AS flytebuilder'* ]]; then
+  printf 'expected backend Dockerfile to use the docker.fzyun.io golang base image\n' >&2
+  exit 1
+fi
+if [[ "$dockerfile" != *'FROM docker.fzyun.io/library/debian:bookworm-slim'* ]]; then
+  printf 'expected backend Dockerfile to use the docker.fzyun.io debian base image\n' >&2
+  exit 1
+fi
+
 printf 'PASS tests/test_deploy_aiops_flyte.sh\n'

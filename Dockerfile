@@ -1,6 +1,6 @@
 # Todo(alex): We should add UI into the image when UI is done
 
-FROM --platform=${BUILDPLATFORM} golang:1.26.3-bookworm AS flytebuilder
+FROM --platform=${BUILDPLATFORM} docker.fzyun.io/library/golang:1.26.3-bookworm AS flytebuilder
 
 ARG TARGETARCH
 ENV GOARCH="${TARGETARCH}"
@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/r
     go build -v -o dist/flyte-copilot ./flytecopilot
 
 
-FROM debian:bookworm-slim
+FROM docker.fzyun.io/library/debian:bookworm-slim
 
 ARG FLYTE_VERSION
 ENV FLYTE_VERSION="${FLYTE_VERSION}"
