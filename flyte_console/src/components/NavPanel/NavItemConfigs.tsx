@@ -12,6 +12,7 @@ import {
   CodeBracketIcon,
   CircleStackIcon,
   ComputerDesktopIcon,
+  FolderOpenIcon,
   ShareIcon,
 } from "@heroicons/react/24/outline";
 import { AppsIcon } from "../icons/AppsIcon";
@@ -71,6 +72,14 @@ export const TrainingTasksLink: NavLinkType = {
   type: "link",
 };
 
+export const DatasetsLink: NavLinkType = {
+  displayText: getUiText("datasets"),
+  makeHref: ({ project, domain }) =>
+    `/domain/${domain}/project/${project}/datasets`,
+  icon: <FolderOpenIcon className="size-4 min-w-4" />,
+  type: "link",
+};
+
 export const CloudStorageLink: NavLinkType = {
   displayText: getUiText("cloudStorage"),
   makeHref: ({ project, domain }) =>
@@ -116,6 +125,7 @@ export const useDefaultItems = () => {
     RunsLink,
     DevelopmentInstancesLink,
     TrainingTasksLink,
+    DatasetsLink,
     CodeRepositoriesLink,
     CloudStorageLink,
     TriggersLink,

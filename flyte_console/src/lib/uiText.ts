@@ -20,6 +20,7 @@ export const uiText = {
   copyRunName: "复制运行名称",
   copyRunUrl: "复制运行链接",
   copyToClipboard: "复制到剪贴板",
+  datasets: "数据集",
   developmentInstances: "开发实例",
   documentation: "文档",
   duration: "耗时",
@@ -73,6 +74,7 @@ const dataLabelMap: Record<string, string> = {
   projects: uiText.projects,
   runs: uiText.runs,
   triggers: uiText.triggers,
+  datasets: uiText.datasets,
   cloudStorages: uiText.cloudStorage,
   codeRepositories: uiText.codeRepositories,
 };

@@ -12,6 +12,7 @@ describe("default navigation items", () => {
       getUiText("runs"),
       getUiText("developmentInstances"),
       getUiText("trainingTasks"),
+      getUiText("datasets"),
       getUiText("codeRepositories"),
       getUiText("cloudStorage"),
       getUiText("triggers"),
