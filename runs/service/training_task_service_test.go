@@ -192,16 +192,16 @@ func TestListResourceSpecsIncludesSmallCPUAndT4Specs(t *testing.T) {
 	require.Equal(t, "NVIDIA T4", t4Spec.GetGpuModel())
 }
 
-func TestListOfficialImagesUsesFlyteRuntimeImage(t *testing.T) {
+func TestListOfficialImagesUsesTensorFlowRuntimeImage(t *testing.T) {
 	svc := NewTrainingTaskService(nil, nil)
 
 	response, err := svc.ListOfficialImages(context.Background(), connect.NewRequest(&trainingtaskpb.ListOfficialImagesRequest{}))
 
 	require.NoError(t, err)
 	require.Len(t, response.Msg.GetOfficialImages(), 1)
-	require.Equal(t, "flyte-py311-v251", response.Msg.GetOfficialImages()[0].GetId())
-	require.Equal(t, "Flyte Python 3.11 v2.5.1", response.Msg.GetOfficialImages()[0].GetName())
-	require.Equal(t, "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1", response.Msg.GetOfficialImages()[0].GetImageUri())
+	require.Equal(t, "tensorflow-latest", response.Msg.GetOfficialImages()[0].GetId())
+	require.Equal(t, "TensorFlow latest", response.Msg.GetOfficialImages()[0].GetName())
+	require.Equal(t, "docker.fzyun.io/tensorflow/tensorflow:latest", response.Msg.GetOfficialImages()[0].GetImageUri())
 }
 
 func TestListTrainingTasksUsesLatestRunFailureStatusAndMessage(t *testing.T) {
@@ -462,7 +462,7 @@ func TestBuildTrainingTaskModelIncludesCodeRepositoryMounts(t *testing.T) {
 			Command:         "echo hello",
 			MaxRuntimeHours: 1,
 			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_OFFICIAL,
-			OfficialImageId: "flyte-py311-v251",
+			OfficialImageId: "tensorflow-latest",
 			CodeRepositoryMounts: []*coderepositorypb.CodeRepositoryMount{
 				{CodeRepositoryId: "repo-1", MountPath: "/workspace/aione"},
 			},
@@ -526,7 +526,7 @@ func TestTrainingTaskServiceCreatesWithExplicitID(t *testing.T) {
 			Command:         "python train.py",
 			MaxRuntimeHours: 1,
 			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_OFFICIAL,
-			OfficialImageId: "flyte-py311-v251",
+			OfficialImageId: "tensorflow-latest",
 		},
 	}))
 
@@ -550,7 +550,7 @@ func TestTrainingTaskServiceGeneratesIDWhenExplicitIDIsMissing(t *testing.T) {
 			Command:         "echo hello",
 			MaxRuntimeHours: 1,
 			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_OFFICIAL,
-			OfficialImageId: "flyte-py311-v251",
+			OfficialImageId: "tensorflow-latest",
 		},
 	}))
 
@@ -588,7 +588,7 @@ func TestTrainingTaskServiceRejectsMissingCommand(t *testing.T) {
 			Command:         "",
 			MaxRuntimeHours: 1,
 			ImageType:       trainingtaskpb.ImageType_IMAGE_TYPE_OFFICIAL,
-			OfficialImageId: "flyte-py311-v251",
+			OfficialImageId: "tensorflow-latest",
 		},
 	}))
 

@@ -57,9 +57,9 @@ describe("training task helpers", () => {
     });
   });
 
-  it("uses the Flyte runtime image for custom image defaults", () => {
+  it("uses the TensorFlow runtime image for image defaults", () => {
     expect(DEFAULT_CUSTOM_IMAGE).toBe(
-      "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1",
+      "docker.fzyun.io/tensorflow/tensorflow:latest",
     );
   });
 

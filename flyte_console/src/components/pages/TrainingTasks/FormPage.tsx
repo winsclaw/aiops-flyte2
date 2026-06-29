@@ -549,7 +549,7 @@ export function TrainingTaskFormPage() {
                           : [
                               {
                                 id: DEFAULT_OFFICIAL_IMAGE_ID,
-                                name: "Flyte Python 3.11 v2.5.1",
+                                name: "TensorFlow latest",
                                 imageUri: DEFAULT_CUSTOM_IMAGE,
                               },
                             ]

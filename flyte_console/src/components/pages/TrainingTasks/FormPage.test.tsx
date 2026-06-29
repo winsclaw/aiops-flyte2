@@ -106,4 +106,14 @@ describe("TrainingTaskFormPage", () => {
       "/domain/development/project/flytesnacks/training-tasks/train-task",
     );
   });
+
+  it("shows the TensorFlow image as the fallback official image", async () => {
+    render(<TrainingTaskFormPage />);
+
+    expect(
+      await screen.findByRole("option", {
+        name: "TensorFlow latest - docker.fzyun.io/tensorflow/tensorflow:latest",
+      }),
+    ).toBeInTheDocument();
+  });
 });

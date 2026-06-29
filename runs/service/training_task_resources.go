@@ -23,7 +23,7 @@ var trainingTaskResourceSpecs = []*trainingtaskpb.ResourceSpec{
 }
 
 var trainingTaskOfficialImages = []*trainingtaskpb.OfficialImage{
-	{Id: "flyte-py311-v251", Name: "Flyte Python 3.11 v2.5.1", ImageUri: "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1"},
+	{Id: "tensorflow-latest", Name: "TensorFlow latest", ImageUri: "docker.fzyun.io/tensorflow/tensorflow:latest"},
 }
 
 func trainingTaskResourceSpecByID(id string) (*trainingtaskpb.ResourceSpec, error) {
