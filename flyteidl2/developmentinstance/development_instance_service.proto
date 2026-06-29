@@ -54,6 +54,7 @@ message DevelopmentInstanceInput {
   string gpu_node_label_key = 22;
   string base_image_mount_path = 23;
   repeated DevelopmentInstanceCodeRepositoryDetail code_repository_details = 24;
+  bool enable_ssh = 25;
 }
 
 message ListDevelopmentInstancesRequest {
@@ -106,9 +107,11 @@ message CreateDevelopmentInstanceResponse {
 }
 
 message StartDevelopmentInstanceRequest {
+  reserved 3;
+  reserved "code_server_node_port";
+
   DevelopmentInstanceIdentifier id = 1;
   uint32 node_port = 2;
-  uint32 code_server_node_port = 3;
 }
 
 message StartDevelopmentInstanceResponse {

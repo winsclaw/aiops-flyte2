@@ -141,9 +141,16 @@ export async function createAioneExternalRun(
   type: AioneExternalType,
   payload: unknown,
 ) {
-  return type === "task"
-    ? createTrainingTaskRun(payload)
-    : withNodePortAllocation(async () => createInstanceRun(payload));
+  if (type === "task") {
+    return createTrainingTaskRun(payload);
+  }
+  const enableSsh =
+    typeof payload === "object" &&
+    payload !== null &&
+    (payload as { enableSsh?: unknown }).enableSsh === true;
+  return enableSsh
+    ? withNodePortAllocation(async () => createInstanceRun(payload))
+    : createInstanceRun(payload);
 }
 
 export async function stopAioneExternalRun(
@@ -241,7 +248,6 @@ export async function listAioneInstanceRuns(sourceInstanceId: string) {
       generation: run.generation,
       status: run.status,
       nodePort: run.nodePort,
-      codeServerNodePort: run.codeServerNodePort,
       startedAt: run.startedAt?.seconds
         ? new Date(Number(run.startedAt.seconds) * 1000).toISOString()
         : "",
@@ -324,7 +330,6 @@ async function createInstanceRun(payload: unknown) {
       typeof buildAioneInstanceValues
     >[0]["payload"],
     nodePort: 0,
-    codeServerNodePort: 0,
     internalOrg,
     defaultStorageClass,
     defaultAuthorizedKey,
@@ -343,19 +348,21 @@ async function createInstanceRun(payload: unknown) {
   const generation = Number(existingInstance?.generation ?? 0) + 1;
 
   let lastError: unknown;
-  for (let attempt = 0; attempt < NODE_PORT_RETRIES; attempt += 1) {
-    const [nodePort, codeServerNodePort] = await allocateNodePorts({
-      apiOrigin,
-      namespace,
-      token,
-      ca,
-    });
+  const maxAttempts = baseMapped.values.enableSsh ? NODE_PORT_RETRIES : 1;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const nodePort = baseMapped.values.enableSsh
+      ? await allocateNodePort({
+          apiOrigin,
+          namespace,
+          token,
+          ca,
+        })
+      : 0;
     const mapped = buildAioneInstanceValues({
       payload: payload as Parameters<
         typeof buildAioneInstanceValues
       >[0]["payload"],
       nodePort,
-      codeServerNodePort,
       internalOrg,
       defaultStorageClass,
       defaultAuthorizedKey,
@@ -406,8 +413,7 @@ async function createInstanceRun(payload: unknown) {
       const started = await developmentClient.startDevelopmentInstance(
         create(StartDevelopmentInstanceRequestSchema, {
           id: create(DevelopmentInstanceIdentifierSchema, { id: instanceID }),
-          nodePort,
-          codeServerNodePort,
+          nodePort: mapped.values.enableSsh ? nodePort : 0,
         }),
       );
       const runName = started.runName || mapped.runName;
@@ -422,14 +428,13 @@ async function createInstanceRun(payload: unknown) {
       const info = buildAioneInstanceAccessInfo({
         runName,
         sourceName: mapped.values.sourceName ?? "",
+        enableSsh: mapped.values.enableSsh,
         sshUser: mapped.values.sshUser,
         nodePort,
-        codeServerNodePort,
         cpu: mapped.values.cpu,
         memory: mapped.values.memory,
         gpuCount: mapped.values.gpuCount,
         workspaceSize: mapped.values.workspaceSize,
-        publicScheme: process.env.EXTERNAL_API_PUBLIC_SCHEME,
         publicHost: process.env.EXTERNAL_API_PUBLIC_HOST,
         codeServerHost: mapped.values.codeServerHost,
       });
@@ -437,6 +442,17 @@ async function createInstanceRun(payload: unknown) {
         info,
         started.developmentInstance?.access,
       );
+      const codeServerStatus = await readStartedCodeServerStatus({
+        org: internalOrg,
+        runName,
+        project: mapped.values.project,
+        domain: mapped.values.domain,
+        apiOrigin,
+        namespace,
+        token,
+        ca,
+      });
+      applyCodeServerStatus(info, codeServerStatus);
       return buildAioneCreateInstanceResponse({
         internalOrg,
         project: mapped.values.project,
@@ -1098,7 +1114,7 @@ function applyStartedDevelopmentInstanceAccessInfo(
   }
 
   const sshPort = Number(access.nodePort || 0);
-  if (sshPort > 0) {
+  if (sshPort > 0 && info.ssh) {
     info.ssh.port = sshPort;
     info.ssh.command = `ssh -p ${sshPort} ${info.ssh.user}@${info.ssh.host}`;
   }
@@ -1116,11 +1132,226 @@ function applyStartedDevelopmentInstanceAccessInfo(
     }
     return;
   }
+}
 
-  const codeServerNodePort = Number(access.codeServerNodePort || 0);
-  if (codeServerNodePort > 0) {
-    info.codeServer.port = codeServerNodePort;
+type CodeServerRuntimeStatus = {
+  available: boolean;
+  reason?: string;
+  message?: string;
+};
+
+function applyCodeServerStatus(
+  info: AioneInstanceAccessInfo,
+  status: CodeServerRuntimeStatus,
+) {
+  info.codeServer.available = status.available;
+  info.codeServer.reason = status.reason;
+  info.codeServer.message = status.message;
+}
+
+async function readStartedCodeServerStatus({
+  org,
+  project,
+  domain,
+  runName,
+  apiOrigin,
+  namespace,
+  token,
+  ca,
+}: {
+  org: string;
+  project: string;
+  domain: string;
+  runName: string;
+  apiOrigin: string;
+  namespace: string;
+  token: string;
+  ca: string;
+}): Promise<CodeServerRuntimeStatus> {
+  const fromLogContext = await readCodeServerStatusFromRunDetails({
+    org,
+    project,
+    domain,
+    runName,
+  });
+  if (fromLogContext) {
+    return fromLogContext;
   }
+  const fromPods = await readCodeServerStatusFromPods({
+    org,
+    project,
+    domain,
+    runName,
+    apiOrigin,
+    namespace,
+    token,
+    ca,
+  });
+  return fromPods ?? { available: true };
+}
+
+async function readCodeServerStatusFromRunDetails({
+  org,
+  project,
+  domain,
+  runName,
+}: {
+  org: string;
+  project: string;
+  domain: string;
+  runName: string;
+}) {
+  try {
+    const response = await createFlyteRunClient().getRunDetails({
+      runId: { org, project, domain, name: runName },
+    });
+    const logContext = getLatestAttemptLogContext(
+      response.details?.action?.attempts ?? [],
+    );
+    if (!logContext) {
+      return undefined;
+    }
+    const pod = getPrimaryPodLogContext(logContext);
+    const containerName = pod ? getPrimaryContainerName(pod) : "";
+    if (!pod?.podName || !containerName) {
+      return undefined;
+    }
+    return parseCodeServerStatus(
+      await readKubernetesPodLog({ pod, containerName }),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+async function readCodeServerStatusFromPods({
+  org,
+  project,
+  domain,
+  runName,
+  apiOrigin,
+  namespace,
+  token,
+  ca,
+}: {
+  org: string;
+  project: string;
+  domain: string;
+  runName: string;
+  apiOrigin: string;
+  namespace: string;
+  token: string;
+  ca: string;
+}) {
+  try {
+    const pods = await listKubernetesResources<KubernetesPodList>({
+      apiOrigin,
+      namespace,
+      token,
+      ca,
+      apiPath: "/api/v1",
+      kind: "pods",
+      labelSelector: buildWorkspaceLabelSelector({
+        org,
+        project,
+        domain,
+        runName,
+      }),
+    });
+    for (const pod of pods.items) {
+      const phase = pod.status?.phase ?? "";
+      if (phase === "Succeeded" || phase === "Failed") {
+        continue;
+      }
+      const podName = pod.metadata?.name ?? "";
+      if (!podName) {
+        continue;
+      }
+      const containerName =
+        pod.spec?.containers?.find((container) => container.name === "ssh")
+          ?.name ||
+        pod.spec?.containers?.find((container) => container.name)?.name ||
+        "ssh";
+      const status = parseCodeServerStatus(
+        await readKubernetesPodLogByName({
+          apiOrigin,
+          namespace,
+          token,
+          ca,
+          podName,
+          containerName,
+        }),
+      );
+      if (status) {
+        return status;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+async function readKubernetesPodLogByName({
+  apiOrigin,
+  namespace,
+  token,
+  ca,
+  podName,
+  containerName,
+}: {
+  apiOrigin: string;
+  namespace: string;
+  token: string;
+  ca: string;
+  podName: string;
+  containerName: string;
+}) {
+  const searchParams = new URLSearchParams({
+    container: containerName,
+    timestamps: "false",
+  });
+  const response = await requestKubernetes({
+    url: `${apiOrigin}/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(podName)}/log?${searchParams.toString()}`,
+    token,
+    ca,
+  });
+  if (response.status === 404) {
+    return [];
+  }
+  if (!response.ok) {
+    throw statusError(response.text || "failed to read pod logs", 502);
+  }
+  return splitLogLines(response.text);
+}
+
+function parseCodeServerStatus(lines: string[]) {
+  const prefix = "AIONE_CODE_SERVER_STATUS ";
+  for (const line of lines) {
+    const index = line.indexOf(prefix);
+    if (index < 0) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(line.slice(index + prefix.length)) as {
+        available?: unknown;
+        reason?: unknown;
+        message?: unknown;
+      };
+      if (typeof parsed.available !== "boolean") {
+        continue;
+      }
+      return {
+        available: parsed.available,
+        reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+        message:
+          typeof parsed.message === "string" ? parsed.message : undefined,
+      };
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
 }
 
 function parseURL(value: string) {
@@ -1168,8 +1399,11 @@ function buildDevelopmentInstanceInput(values: DevelopmentInstanceFormValues) {
     officialImageId: values.officialImageId,
     imageName: values.image,
     imageUri: values.image,
+    enableSsh: values.enableSsh,
     sshUser: values.sshUser,
-    authorizedKeys: [values.authorizedKey].filter((key) => key.trim()),
+    authorizedKeys: values.enableSsh
+      ? [values.authorizedKey].filter((key) => key.trim())
+      : [],
     cpu: values.cpu,
     memory: values.memory,
     gpuCount: values.gpuCount ?? 0,
@@ -1342,7 +1576,7 @@ async function assertPVCsAreUnused({
   }
 }
 
-async function allocateNodePorts({
+async function allocateNodePort({
   apiOrigin,
   namespace,
   token,
@@ -1365,12 +1599,7 @@ async function allocateNodePorts({
     );
   }
   const usedPorts = extractNodePorts(response.json<KubernetesServiceList>());
-  const nodePort = getNextNodePort(usedPorts, getAioneNodePortRange());
-  const codeServerNodePort = getNextNodePort(
-    [...usedPorts, nodePort],
-    getAioneNodePortRange(),
-  );
-  return [nodePort, codeServerNodePort] as const;
+  return getNextNodePort(usedPorts, getAioneNodePortRange());
 }
 
 async function ensureExternalSecrets({
@@ -1733,6 +1962,9 @@ type KubernetesPodList = {
       phase?: string;
     };
     spec?: {
+      containers?: Array<{
+        name?: string;
+      }>;
       volumes?: Array<{
         persistentVolumeClaim?: {
           claimName?: string;

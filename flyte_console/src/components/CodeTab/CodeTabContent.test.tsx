@@ -17,7 +17,8 @@ const taskTemplate = {
   custom: {
     image: "flyte-ssh-workspace-code-server:4.19.0",
     sshUser: "dev",
-    codeServerNodePort: 31080,
+    codeServerWorkspaceUrl:
+      "https://run-abc-code.ops.fzyun.io/?folder=/workspace",
   },
 };
 
@@ -26,13 +27,13 @@ describe("CodeTabContent", () => {
     cleanup();
   });
 
-  it("embeds the development instance code-server when a code server NodePort is available", () => {
+  it("embeds the development instance code-server when a workspace URL is available", () => {
     render(<CodeTabContent taskTemplate={taskTemplate} />);
 
     const frame = screen.getByTitle("code-server");
     expect(frame).toHaveAttribute(
       "src",
-      "http://localhost:31080/?folder=/workspace",
+      "https://run-abc-code.ops.fzyun.io/?folder=/workspace",
     );
     expect(screen.queryByText(/Task configuration/)).not.toBeInTheDocument();
     expect(
@@ -40,7 +41,7 @@ describe("CodeTabContent", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("prefers the code-server workspace URL from task custom when available", () => {
+  it("uses the code-server workspace URL from task custom", () => {
     render(
       <CodeTabContent
         taskTemplate={{

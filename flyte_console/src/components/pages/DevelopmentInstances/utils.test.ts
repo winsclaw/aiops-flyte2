@@ -86,6 +86,7 @@ describe("development instance helpers", () => {
       imageType: "custom",
       officialImageId: DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
       image: "ubuntu:22.04",
+      enableSsh: true,
       sshUser: "dev",
       authorizedKey: "ssh-rsa AAAA user@example",
       cpu: "2",
@@ -95,7 +96,6 @@ describe("development instance helpers", () => {
       gpuCount: 1,
       gpuModel: "NVIDIA T4",
       nodePort: 31022,
-      codeServerNodePort: 31023,
       maxHours: 24,
       cloudStorageMounts: [
         {
@@ -136,7 +136,6 @@ describe("development instance helpers", () => {
       gpuModel: "NVIDIA T4",
       serviceType: "NodePort",
       nodePort: 31022,
-      codeServerNodePort: 31023,
       codeServerHost: "devbox-a-code.ops.fzyun.io",
       codeServerUrl: "https://devbox-a-code.ops.fzyun.io",
       codeServerWorkspaceUrl:
@@ -185,6 +184,7 @@ describe("development instance helpers", () => {
       imageType: "official",
       officialImageId: DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
       image: "",
+      enableSsh: false,
       sshUser: "dev",
       authorizedKey: "ssh-rsa AAAA user@example",
       cpu: "2",
@@ -193,7 +193,6 @@ describe("development instance helpers", () => {
       workspacePVCName: `${sourceInstanceId}-workspace`,
       gpuCount: 0,
       nodePort: 31022,
-      codeServerNodePort: 31023,
       maxHours: 24,
     });
 
@@ -234,6 +233,7 @@ describe("development instance helpers", () => {
       imageType: "official",
       officialImageId: "",
       image: "",
+      enableSsh: false,
       sshUser: "dev",
       authorizedKey: "ssh-rsa AAAA user@example",
       cpu: "2",
@@ -241,7 +241,6 @@ describe("development instance helpers", () => {
       workspaceSize: "20Gi",
       gpuCount: 0,
       nodePort: 31022,
-      codeServerNodePort: 31023,
       maxHours: 24,
     });
 

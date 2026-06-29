@@ -28,23 +28,23 @@ INSERT INTO development_instances (
 	resource_display, cpu, memory, gpu_count, gpu_model, bandwidth, workspace_size, max_hours,
 	image_type, official_image_id, image_name, image_uri,
 	image_pull_secret_name, code_repository_secret_name, gpu_node_label_key, base_image_mount_path,
-	ssh_user, authorized_keys_json,
-	workspace_pvc_name, latest_run_name, status, generation, node_port, code_server_node_port,
+	enable_ssh, ssh_user, authorized_keys_json,
+	workspace_pvc_name, latest_run_name, status, generation, node_port,
 	code_server_url, code_server_workspace_url, cloud_storage_mounts_json, code_repository_mounts_json
 ) VALUES (
 	$1, $2, $3, $4, $5, $6, $7, $8,
 	$9, $10, $11, $12, $13, $14, $15, $16,
 	$17, $18, $19, $20, $21, $22,
 	$23, $24, $25, $26,
-	$27, $28, $29, $30, $31, $32,
-	$33, $34, $35, $36
+	$27, $28, $29, $30, $31,
+	$32, $33, $34, $35, $36
 )`,
 		instance.ID, instance.Org, instance.Project, instance.Domain, instance.Name, instance.Description, instance.Owner, instance.SourceSystem,
 		instance.ResourceDisplay, instance.CPU, instance.Memory, instance.GPUCount, instance.GPUModel, instance.Bandwidth, instance.WorkspaceSize, instance.MaxHours,
 		instance.ImageType, instance.OfficialImageID, instance.ImageName, instance.ImageURI,
 		instance.ImagePullSecretName, instance.CodeRepositorySecretName, instance.GPUNodeLabelKey, instance.BaseImageMountPath,
-		instance.SSHUser, instance.AuthorizedKeysJSON,
-		instance.WorkspacePVCName, instance.LatestRunName, defaultDevelopmentInstanceStatus(instance.Status), instance.Generation, instance.NodePort, instance.CodeServerNodePort,
+		instance.EnableSSH, instance.SSHUser, instance.AuthorizedKeysJSON,
+		instance.WorkspacePVCName, instance.LatestRunName, defaultDevelopmentInstanceStatus(instance.Status), instance.Generation, instance.NodePort,
 		instance.CodeServerURL, instance.CodeServerWorkspaceURL, defaultJSON(instance.CloudStorageMountsJSON), defaultJSON(instance.CodeRepositoryMountsJSON))
 	if err != nil {
 		return fmt.Errorf("failed to create development instance %s: %w", instance.ID, err)
@@ -94,14 +94,14 @@ UPDATE development_instances SET
 	code_repository_secret_name = $22,
 	gpu_node_label_key = $23,
 	base_image_mount_path = $24,
-	ssh_user = $25,
-	authorized_keys_json = $26,
-	workspace_pvc_name = $27,
-	latest_run_name = $28,
-	status = $29,
-	generation = $30,
-	node_port = $31,
-	code_server_node_port = $32,
+	enable_ssh = $25,
+	ssh_user = $26,
+	authorized_keys_json = $27,
+	workspace_pvc_name = $28,
+	latest_run_name = $29,
+	status = $30,
+	generation = $31,
+	node_port = $32,
 	code_server_url = $33,
 	code_server_workspace_url = $34,
 	cloud_storage_mounts_json = $35,
@@ -112,8 +112,8 @@ WHERE id = $1 AND deleted_at IS NULL`,
 		instance.ResourceDisplay, instance.CPU, instance.Memory, instance.GPUCount, instance.GPUModel, instance.Bandwidth, instance.WorkspaceSize, instance.MaxHours,
 		instance.ImageType, instance.OfficialImageID, instance.ImageName, instance.ImageURI,
 		instance.ImagePullSecretName, instance.CodeRepositorySecretName, instance.GPUNodeLabelKey, instance.BaseImageMountPath,
-		instance.SSHUser, instance.AuthorizedKeysJSON,
-		instance.WorkspacePVCName, instance.LatestRunName, defaultDevelopmentInstanceStatus(instance.Status), instance.Generation, instance.NodePort, instance.CodeServerNodePort,
+		instance.EnableSSH, instance.SSHUser, instance.AuthorizedKeysJSON,
+		instance.WorkspacePVCName, instance.LatestRunName, defaultDevelopmentInstanceStatus(instance.Status), instance.Generation, instance.NodePort,
 		instance.CodeServerURL, instance.CodeServerWorkspaceURL, defaultJSON(instance.CloudStorageMountsJSON), defaultJSON(instance.CodeRepositoryMountsJSON))
 	if err != nil {
 		return fmt.Errorf("failed to update development instance %s: %w", instance.ID, err)
@@ -176,13 +176,13 @@ func (r *developmentInstanceRepo) AppendRun(ctx context.Context, run *models.Dev
 	_, err := r.db.ExecContext(ctx, `
 INSERT INTO development_instance_runs (
 	instance_id, org, project, domain, run_name, generation, status,
-	node_port, code_server_node_port, started_at, ended_at
+	node_port, started_at, ended_at
 ) VALUES (
 	$1, $2, $3, $4, $5, $6, $7,
-	$8, $9, $10, $11
+	$8, $9, $10
 )`,
 		run.InstanceID, run.Org, run.Project, run.Domain, run.RunName, run.Generation, defaultDevelopmentInstanceStatus(run.Status),
-		run.NodePort, run.CodeServerNodePort, run.StartedAt, run.EndedAt)
+		run.NodePort, run.StartedAt, run.EndedAt)
 	if err != nil {
 		return fmt.Errorf("failed to append development instance run %s/%s: %w", run.InstanceID, run.RunName, err)
 	}
@@ -194,12 +194,11 @@ func (r *developmentInstanceRepo) UpdateRun(ctx context.Context, run *models.Dev
 UPDATE development_instance_runs SET
 	status = $3,
 	node_port = $4,
-	code_server_node_port = $5,
-	started_at = $6,
-	ended_at = $7,
+	started_at = $5,
+	ended_at = $6,
 	updated_at = NOW()
 WHERE instance_id = $1 AND run_name = $2`,
-		run.InstanceID, run.RunName, defaultDevelopmentInstanceStatus(run.Status), run.NodePort, run.CodeServerNodePort, run.StartedAt, run.EndedAt)
+		run.InstanceID, run.RunName, defaultDevelopmentInstanceStatus(run.Status), run.NodePort, run.StartedAt, run.EndedAt)
 	if err != nil {
 		return fmt.Errorf("failed to update development instance run %s/%s: %w", run.InstanceID, run.RunName, err)
 	}

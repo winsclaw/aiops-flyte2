@@ -283,8 +283,6 @@ func (m *DevelopmentInstanceAccessInfo) validate(all bool) error {
 
 	// no validation rules for NodePort
 
-	// no validation rules for CodeServerNodePort
-
 	// no validation rules for CodeServerUrl
 
 	// no validation rules for CodeServerWorkspaceUrl
@@ -793,6 +791,8 @@ func (m *DevelopmentInstance) validate(all bool) error {
 
 	}
 
+	// no validation rules for EnableSsh
+
 	if len(errors) > 0 {
 		return DevelopmentInstanceMultiError(errors)
 	}
@@ -910,8 +910,6 @@ func (m *DevelopmentInstanceRun) validate(all bool) error {
 	// no validation rules for Status
 
 	// no validation rules for NodePort
-
-	// no validation rules for CodeServerNodePort
 
 	if all {
 		switch v := interface{}(m.GetStartedAt()).(type) {

@@ -2212,6 +2212,52 @@ func (_c *Repository_CodeRepositoryRepo_Call) RunAndReturn(run func() interfaces
 	return _c
 }
 
+// DatasetRepo provides a mock function for the type Repository
+func (_mock *Repository) DatasetRepo() interfaces.DatasetRepo {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for DatasetRepo")
+	}
+
+	var r0 interfaces.DatasetRepo
+	if returnFunc, ok := ret.Get(0).(func() interfaces.DatasetRepo); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(interfaces.DatasetRepo)
+		}
+	}
+	return r0
+}
+
+// Repository_DatasetRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DatasetRepo'
+type Repository_DatasetRepo_Call struct {
+	*mock.Call
+}
+
+// DatasetRepo is a helper method to define mock.On call
+func (_e *Repository_Expecter) DatasetRepo() *Repository_DatasetRepo_Call {
+	return &Repository_DatasetRepo_Call{Call: _e.mock.On("DatasetRepo")}
+}
+
+func (_c *Repository_DatasetRepo_Call) Run(run func()) *Repository_DatasetRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Repository_DatasetRepo_Call) Return(datasetRepo interfaces.DatasetRepo) *Repository_DatasetRepo_Call {
+	_c.Call.Return(datasetRepo)
+	return _c
+}
+
+func (_c *Repository_DatasetRepo_Call) RunAndReturn(run func() interfaces.DatasetRepo) *Repository_DatasetRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // TaskRepo provides a mock function for the type Repository
 func (_mock *Repository) TaskRepo() interfaces.TaskRepo {
 	ret := _mock.Called()

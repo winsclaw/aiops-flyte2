@@ -128,6 +128,7 @@ export type DevelopmentInstanceFormValues = {
   imageType: DevelopmentInstanceImageType;
   officialImageId: string;
   image: string;
+  enableSsh: boolean;
   sshUser: string;
   authorizedKey: string;
   cpu: string;
@@ -137,7 +138,6 @@ export type DevelopmentInstanceFormValues = {
   workspaceSize: string;
   workspacePVCName?: string;
   nodePort: number;
-  codeServerNodePort: number;
   codeServerHost?: string;
   codeServerUrl?: string;
   codeServerWorkspaceUrl?: string;
@@ -178,8 +178,8 @@ export type DevelopmentInstance = {
   sourceInstanceId: string;
   sshCommand?: string;
   nodePort?: number;
-  codeServerNodePort?: number;
   codeServerUrl?: string;
+  enableSsh: boolean;
   image?: string;
   custom?: Record<string, unknown>;
   run: Run;
@@ -351,17 +351,13 @@ export function buildCreateDevelopmentInstanceRequest(
     imageType: values.imageType,
     officialImageId: officialImage?.id ?? "",
     imageName: officialImage?.name ?? image,
-    sshUser: values.sshUser.trim(),
-    authorizedKeys: [values.authorizedKey.trim()],
+    enableSsh: values.enableSsh,
     cpu: values.cpu.trim(),
     memory: values.memory.trim(),
     gpuCount: values.gpuCount ?? 0,
     gpuModel: values.gpuModel?.trim() ?? "",
     workspaceSize: values.workspaceSize.trim(),
     workspacePVCName: values.workspacePVCName?.trim() ?? "",
-    serviceType: "NodePort",
-    nodePort: values.nodePort,
-    codeServerNodePort: values.codeServerNodePort,
     codeServerHost,
     codeServerUrl,
     codeServerWorkspaceUrl,
@@ -379,6 +375,14 @@ export function buildCreateDevelopmentInstanceRequest(
     cloudStorageMounts,
     codeRepositories: values.codeRepositories ?? [],
   };
+  if (values.enableSsh) {
+    Object.assign(custom, {
+      sshUser: values.sshUser.trim(),
+      authorizedKeys: [values.authorizedKey.trim()],
+      serviceType: "NodePort",
+      nodePort: values.nodePort,
+    });
+  }
 
   return create(CreateRunRequestSchema, {
     id: {
@@ -514,10 +518,8 @@ export function formatDevelopmentInstance(
   const custom = getTaskCustom(run, actionDetails);
   const nodePort =
     typeof custom.nodePort === "number" ? Number(custom.nodePort) : undefined;
-  const codeServerNodePort =
-    typeof custom.codeServerNodePort === "number"
-      ? Number(custom.codeServerNodePort)
-      : undefined;
+  const enableSsh =
+    typeof custom.enableSsh === "boolean" ? custom.enableSsh : Boolean(nodePort);
   const codeServerWorkspaceUrl =
     typeof custom.codeServerWorkspaceUrl === "string" &&
     custom.codeServerWorkspaceUrl.trim()
@@ -572,13 +574,9 @@ export function formatDevelopmentInstance(
       ? `ssh -p ${nodePort} ${sshUser}@172.19.65.230`
       : undefined,
     nodePort,
-    codeServerNodePort,
     codeServerUrl:
-      codeServerWorkspaceUrl ||
-      codeServerUrl ||
-      (codeServerNodePort
-        ? `http://172.19.65.230:${codeServerNodePort}/?folder=/workspace`
-        : undefined),
+      codeServerWorkspaceUrl || codeServerUrl || undefined,
+    enableSsh,
     image: typeof custom.image === "string" ? custom.image : undefined,
     custom,
     run,
@@ -598,7 +596,7 @@ export function getUsedNodePorts(runs: Run[]) {
   return runs
     .flatMap((run) => {
       const instance = formatDevelopmentInstance(run);
-      return [instance?.nodePort, instance?.codeServerNodePort];
+      return [instance?.nodePort];
     })
     .filter((port): port is number => typeof port === "number");
 }

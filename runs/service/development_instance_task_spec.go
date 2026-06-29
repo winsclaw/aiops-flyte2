@@ -68,17 +68,13 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 		"imageType":                instance.ImageType,
 		"officialImageId":          instance.OfficialImageID,
 		"imageName":                instance.ImageName,
-		"sshUser":                  defaultString(instance.SSHUser, "flytekit"),
-		"authorizedKeys":           authorizedKeyValues,
+		"enableSsh":                instance.EnableSSH,
 		"cpu":                      instance.CPU,
 		"memory":                   instance.Memory,
 		"gpuCount":                 instance.GPUCount,
 		"gpuModel":                 instance.GPUModel,
 		"workspaceSize":            instance.WorkspaceSize,
 		"workspacePVCName":         instance.WorkspacePVCName,
-		"serviceType":              "NodePort",
-		"nodePort":                 instance.NodePort,
-		"codeServerNodePort":       instance.CodeServerNodePort,
 		"codeServerUrl":            instance.CodeServerURL,
 		"codeServerWorkspaceUrl":   instance.CodeServerWorkspaceURL,
 		"description":              instance.Description,
@@ -92,6 +88,14 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 		"sourceName":               instance.Name,
 		"sourceSystem":             instance.SourceSystem,
 		"baseImageMountPath":       instance.BaseImageMountPath,
+	}
+	if instance.EnableSSH {
+		customPayload["sshUser"] = defaultString(instance.SSHUser, "flytekit")
+		customPayload["authorizedKeys"] = authorizedKeyValues
+		customPayload["serviceType"] = "NodePort"
+		if instance.NodePort > 0 {
+			customPayload["nodePort"] = instance.NodePort
+		}
 	}
 	if len(cloudStorageMounts) > 0 {
 		customPayload["cloudStorageMounts"] = cloudStorageMounts

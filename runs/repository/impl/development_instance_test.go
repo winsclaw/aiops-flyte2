@@ -64,16 +64,15 @@ func TestDevelopmentInstanceRepoRunHistory(t *testing.T) {
 
 	started := time.Now().UTC().Truncate(time.Microsecond)
 	run := &models.DevelopmentInstanceRun{
-		InstanceID:         key.ID,
-		Org:                "testorg",
-		Project:            "flytesnacks",
-		Domain:             "development",
-		RunName:            "ins-runs-1-r1",
-		Generation:         1,
-		Status:             models.DevelopmentInstanceStatusStarting,
-		NodePort:           31000,
-		CodeServerNodePort: 31001,
-		StartedAt:          &started,
+		InstanceID: key.ID,
+		Org:        "testorg",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		RunName:    "ins-runs-1-r1",
+		Generation: 1,
+		Status:     models.DevelopmentInstanceStatusStarting,
+		NodePort:   31000,
+		StartedAt:  &started,
 	}
 	require.NoError(t, repo.AppendRun(ctx, run))
 
@@ -121,6 +120,7 @@ func developmentInstanceModelForRepoTest(id, name string) *models.DevelopmentIns
 		ImageName:              "Flyte Python 3.11 v2.5.1",
 		ImageURI:               "ghcr.fzyun.io/flyteorg/flyte:py3.11-v2.5.1",
 		SSHUser:                "dev",
+		EnableSSH:              false,
 		AuthorizedKeysJSON:     "[]",
 		WorkspacePVCName:       id + "-workspace",
 		Status:                 models.DevelopmentInstanceStatusNotStarted,

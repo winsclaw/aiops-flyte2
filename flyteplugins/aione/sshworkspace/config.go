@@ -20,6 +20,7 @@ const (
 type WorkspaceConfig struct {
 	Image                    string
 	ImagePullSecretName      string
+	EnableSSH                bool
 	SSHUser                  string
 	AuthorizedKeys           []string
 	CPU                      string
@@ -31,7 +32,6 @@ type WorkspaceConfig struct {
 	WorkspacePVCName         string
 	ServiceType              corev1.ServiceType
 	NodePort                 *int32
-	CodeServerNodePort       *int32
 	CodeServerHost           string
 	Environment              map[string]string
 	CloudStorageMounts       []CloudStorageMount
@@ -62,6 +62,7 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 	cfg := WorkspaceConfig{
 		Image:               stringValue(values, "image", DefaultWorkspaceImage),
 		ImagePullSecretName: stringValue(values, "imagePullSecretName", ""),
+		EnableSSH:           boolValue(values, "enableSsh", false),
 		SSHUser:             stringValue(values, "sshUser", DefaultWorkspaceSSHUser),
 		CPU:                 stringValue(values, "cpu", ""),
 		Memory:              stringValue(values, "memory", ""),
@@ -97,7 +98,7 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 		return WorkspaceConfig{}, err
 	}
 	cfg.AuthorizedKeys = authorizedKeys
-	if len(cfg.AuthorizedKeys) == 0 {
+	if cfg.EnableSSH && len(cfg.AuthorizedKeys) == 0 {
 		return WorkspaceConfig{}, fmt.Errorf("authorizedKeys must include at least one SSH public key")
 	}
 
@@ -117,20 +118,8 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 		cfg.NodePort = &nodePort
 	}
 
-	if nodePort, ok, err := int32Value(values, "codeServerNodePort"); err != nil {
-		return WorkspaceConfig{}, err
-	} else if ok {
-		if nodePort < 30000 || nodePort > 32767 {
-			return WorkspaceConfig{}, fmt.Errorf("codeServerNodePort must be between 30000 and 32767")
-		}
-		cfg.CodeServerNodePort = &nodePort
-	}
-
 	if cfg.NodePort != nil && cfg.ServiceType != corev1.ServiceTypeNodePort {
 		return WorkspaceConfig{}, fmt.Errorf("nodePort is only valid when serviceType is NodePort")
-	}
-	if cfg.CodeServerNodePort != nil && cfg.ServiceType != corev1.ServiceTypeNodePort {
-		return WorkspaceConfig{}, fmt.Errorf("codeServerNodePort is only valid when serviceType is NodePort")
 	}
 
 	if env, ok := values["environment"].(map[string]any); ok {
@@ -158,6 +147,21 @@ func stringValue(values map[string]any, key, fallback string) string {
 		return strings.TrimSpace(fmt.Sprint(raw))
 	}
 	return fallback
+}
+
+func boolValue(values map[string]any, key string, fallback bool) bool {
+	raw, ok := values[key]
+	if !ok {
+		return fallback
+	}
+	switch value := raw.(type) {
+	case bool:
+		return value
+	case string:
+		return strings.EqualFold(strings.TrimSpace(value), "true")
+	default:
+		return fallback
+	}
 }
 
 func stringSliceValue(custom *structpb.Struct, key string) ([]string, error) {

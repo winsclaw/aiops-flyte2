@@ -227,16 +227,15 @@ export function DevelopmentInstancesListPage() {
     setIsOperating(true);
     setOperationMessage("");
     try {
-      const usedPorts = await loadUsedNodePorts();
-      const nodePort = getNextNodePort(usedPorts);
-      const codeServerNodePort = getNextNodePort([...usedPorts, nodePort]);
+      const nodePort = target.enableSsh
+        ? getNextNodePort(await loadUsedNodePorts())
+        : 0;
       await client.startDevelopmentInstance(
         create(StartDevelopmentInstanceRequestSchema, {
           id: create(DevelopmentInstanceIdentifierSchema, {
             id: instanceId(target),
           }),
           nodePort,
-          codeServerNodePort,
         }),
       );
       setOperationMessage("已提交启动请求");

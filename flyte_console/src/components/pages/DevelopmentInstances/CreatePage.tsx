@@ -82,6 +82,7 @@ export function DevelopmentInstanceCreatePage() {
     DEFAULT_DEVELOPMENT_INSTANCE_OFFICIAL_IMAGE_ID,
   );
   const [image, setImage] = useState(DEFAULT_CUSTOM_DEVELOPMENT_INSTANCE_IMAGE);
+  const [enableSsh, setEnableSsh] = useState(false);
   const [sshUser, setSshUser] = useState("flytekit");
   const [authorizedKey, setAuthorizedKey] = useState("");
   const [cpu, setCpu] = useState("2");
@@ -197,23 +198,15 @@ export function DevelopmentInstanceCreatePage() {
   }, []);
 
   const autoNodePort = useMemo(() => {
+    if (!enableSsh) {
+      return 0;
+    }
     try {
       return getNextNodePort(usedNodePorts);
     } catch {
       return 0;
     }
-  }, [usedNodePorts]);
-  const autoCodeServerNodePort = useMemo(() => {
-    try {
-      return getNextNodePort(
-        [...usedNodePorts, autoNodePort].filter(
-          (port): port is number => Boolean(port),
-        ),
-      );
-    } catch {
-      return 0;
-    }
-  }, [autoNodePort, usedNodePorts]);
+  }, [enableSsh, usedNodePorts]);
   const listHref = `/domain/${params.domain}/project/${params.project}/development-instances`;
 
   const onSubmit = async (event: FormEvent) => {
@@ -228,7 +221,7 @@ export function DevelopmentInstanceCreatePage() {
       setError("请输入名称");
       return;
     }
-    if (!authorizedKey.trim()) {
+    if (enableSsh && !authorizedKey.trim()) {
       setError("请输入 SSH 公钥");
       return;
     }
@@ -236,7 +229,7 @@ export function DevelopmentInstanceCreatePage() {
       setError("请输入自定义镜像地址");
       return;
     }
-    if (!autoNodePort || !autoCodeServerNodePort) {
+    if (enableSsh && !autoNodePort) {
       setError("没有可用 NodePort");
       return;
     }
@@ -307,8 +300,9 @@ export function DevelopmentInstanceCreatePage() {
                     (item) => item.id === officialImageId,
                   )?.imageUri || ""
                 : image,
+            enableSsh,
             sshUser,
-            authorizedKeys: [authorizedKey],
+            authorizedKeys: enableSsh ? [authorizedKey] : [],
             cpu,
             memory,
             gpuCount,
@@ -347,8 +341,7 @@ export function DevelopmentInstanceCreatePage() {
       await developmentInstanceClient.startDevelopmentInstance(
         create(StartDevelopmentInstanceRequestSchema, {
           id: create(DevelopmentInstanceIdentifierSchema, { id: instanceId }),
-          nodePort: autoNodePort,
-          codeServerNodePort: autoCodeServerNodePort,
+          nodePort: enableSsh ? autoNodePort : 0,
         }),
       );
       await Promise.all(
@@ -620,39 +613,45 @@ export function DevelopmentInstanceCreatePage() {
                       </span>
                     </label>
                   )}
-                  <label className={labelClass}>
-                    SSH 用户
+                  <label className="flex items-center gap-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                     <input
-                      className={fieldClass}
-                      value={sshUser}
-                      onChange={(event) => setSshUser(event.target.value)}
+                      type="checkbox"
+                      checked={enableSsh}
+                      onChange={(event) => setEnableSsh(event.target.checked)}
                     />
+                    开启 SSH
                   </label>
-                  <label className={labelClass}>
-                    SSH 公钥
-                    <textarea
-                      className={`${fieldClass} min-h-24 font-mono`}
-                      value={authorizedKey}
-                      onChange={(event) => setAuthorizedKey(event.target.value)}
-                      placeholder="ssh-rsa 或 ssh-ed25519 ..."
-                    />
-                  </label>
-                  <label className={labelClass}>
-                    NodePort
-                    <input
-                      className={`${fieldClass} bg-zinc-50 dark:bg-zinc-900`}
-                      value={autoNodePort || "无可用端口"}
-                      readOnly
-                    />
-                  </label>
-                  <label className={labelClass}>
-                    Code Server NodePort
-                    <input
-                      className={`${fieldClass} bg-zinc-50 dark:bg-zinc-900`}
-                      value={autoCodeServerNodePort || "无可用端口"}
-                      readOnly
-                    />
-                  </label>
+                  {enableSsh ? (
+                    <>
+                      <label className={labelClass}>
+                        SSH 用户
+                        <input
+                          className={fieldClass}
+                          value={sshUser}
+                          onChange={(event) => setSshUser(event.target.value)}
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        SSH 公钥
+                        <textarea
+                          className={`${fieldClass} min-h-24 font-mono`}
+                          value={authorizedKey}
+                          onChange={(event) =>
+                            setAuthorizedKey(event.target.value)
+                          }
+                          placeholder="ssh-rsa 或 ssh-ed25519 ..."
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        SSH NodePort
+                        <input
+                          className={`${fieldClass} bg-zinc-50 dark:bg-zinc-900`}
+                          value={autoNodePort || "无可用端口"}
+                          readOnly
+                        />
+                      </label>
+                    </>
+                  ) : null}
                 </div>
               </section>
 

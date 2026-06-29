@@ -30,27 +30,6 @@ export interface CodeTabContentProps {
 
 const codeServerFrameHeight = "calc(100vh - 230px)";
 
-function numericCustomValue(
-  custom: Record<string, unknown> | undefined,
-  key: string,
-) {
-  const value = custom?.[key];
-  if (typeof value === "number") return value;
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  return undefined;
-}
-
-function codeServerUrl(port: number) {
-  const protocol =
-    typeof window === "undefined" ? "http:" : window.location.protocol;
-  const hostname =
-    typeof window === "undefined" ? "localhost" : window.location.hostname;
-  return `${protocol}//${hostname}:${port}/?folder=/workspace`;
-}
-
 function stringCustomValue(
   custom: Record<string, unknown> | undefined,
   key: string,
@@ -64,14 +43,10 @@ export const CodeTabContent: React.FC<CodeTabContentProps> = ({
   taskTemplate,
 }) => {
   const custom = taskTemplate?.custom as Record<string, unknown> | undefined;
-  const codeServerNodePort = numericCustomValue(custom, "codeServerNodePort");
-  const codeServerWorkspaceUrl = stringCustomValue(
+  const iframeUrl = stringCustomValue(
     custom,
     "codeServerWorkspaceUrl",
   );
-  const iframeUrl =
-    codeServerWorkspaceUrl ??
-    (codeServerNodePort ? codeServerUrl(codeServerNodePort) : undefined);
 
   return (
     <div
@@ -93,8 +68,7 @@ export const CodeTabContent: React.FC<CodeTabContentProps> = ({
             code-server 未安装
           </h3>
           <p className="mt-2 text-sm text-(--system-gray-5)">
-            当前开发实例没有暴露 code-server 端口，请使用包含 code-server
-            的镜像重新创建实例。
+            当前开发实例镜像没有可用的 code-server，或实例尚未返回访问地址。
           </p>
         </div>
       )}

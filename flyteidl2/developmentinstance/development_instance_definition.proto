@@ -42,9 +42,11 @@ message DevelopmentInstanceResourceSpec {
 }
 
 message DevelopmentInstanceAccessInfo {
+  reserved 3;
+  reserved "code_server_node_port";
+
   string ssh_user = 1;
   uint32 node_port = 2;
-  uint32 code_server_node_port = 3;
   string code_server_url = 4;
   string code_server_workspace_url = 5;
   string workspace_pvc_name = 6;
@@ -85,9 +87,13 @@ message DevelopmentInstance {
   string gpu_node_label_key = 24;
   string base_image_mount_path = 25;
   repeated DevelopmentInstanceCodeRepositoryDetail code_repository_details = 26;
+  bool enable_ssh = 27;
 }
 
 message DevelopmentInstanceRun {
+  reserved 9;
+  reserved "code_server_node_port";
+
   string instance_id = 1 [(buf.validate.field).string.min_len = 1];
   string org = 2 [(buf.validate.field).string.min_len = 1];
   string project = 3 [(buf.validate.field).string.min_len = 1];
@@ -96,7 +102,6 @@ message DevelopmentInstanceRun {
   uint32 generation = 6;
   DevelopmentInstanceStatus status = 7;
   uint32 node_port = 8;
-  uint32 code_server_node_port = 9;
   google.protobuf.Timestamp started_at = 10;
   google.protobuf.Timestamp ended_at = 11;
   google.protobuf.Timestamp created_at = 12;

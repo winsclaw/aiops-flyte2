@@ -135,7 +135,6 @@ describe("aione external typed run route", () => {
         access: {
           sshUser: "dev",
           nodePort: 31000,
-          codeServerNodePort: 31001,
           codeServerUrl: "https://ins-contract-1-r1-code.ops.fzyun.io",
           codeServerWorkspaceUrl:
             "https://ins-contract-1-r1-code.ops.fzyun.io/?folder=/workspace",

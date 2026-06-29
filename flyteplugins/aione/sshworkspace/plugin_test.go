@@ -43,6 +43,14 @@ func TestPluginHandleCreatesWorkspaceResources(t *testing.T) {
 	var svc corev1.Service
 	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-ssh"}, &svc))
 	assert.Equal(t, corev1.ServiceTypeNodePort, svc.Spec.Type)
+	require.Len(t, svc.Spec.Ports, 1)
+	assert.Equal(t, int32(22), svc.Spec.Ports[0].Port)
+
+	var codeSvc corev1.Service
+	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-code"}, &codeSvc))
+	assert.Equal(t, corev1.ServiceTypeClusterIP, codeSvc.Spec.Type)
+	require.Len(t, codeSvc.Spec.Ports, 1)
+	assert.Equal(t, int32(8080), codeSvc.Spec.Ports[0].Port)
 }
 
 func TestPluginHandleReturnsRunningWhenStatefulSetReady(t *testing.T) {
@@ -68,7 +76,7 @@ func TestPluginHandleReturnsRunningWhenStatefulSetReady(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, pluginsCore.PhaseRunning, transition.Info().Phase())
 	assert.Equal(t, pluginsCore.DefaultPhaseVersion+1, transition.Info().Version())
-	assert.Contains(t, transition.Info().Reason(), "SSH workspace is ready")
+	assert.Contains(t, transition.Info().Reason(), "development workspace is ready")
 	assertWorkspaceLogContext(t, transition.Info().Info(), "run-abc-0")
 }
 
@@ -101,8 +109,9 @@ func TestPluginHandleInvalidConfigReturnsPermanentFailure(t *testing.T) {
 	k8sClient := newFakeClient(t)
 	plugin := NewPlugin(k8sClient, true)
 	tCtx := workspaceTaskContext(t, taskTemplateWithCustom(t, map[string]any{
-		"image":   "ubuntu:22.04",
-		"sshUser": "dev",
+		"image":     "ubuntu:22.04",
+		"enableSsh": true,
+		"sshUser":   "dev",
 	}), "run-abc")
 
 	transition, err := plugin.Handle(ctx, tCtx)
@@ -143,6 +152,8 @@ func TestPluginAbortDeletesWorkloadAndServiceButRetainsPVC(t *testing.T) {
 	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc"}, &sts))
 	var svc corev1.Service
 	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-ssh"}, &svc))
+	var codeSvc corev1.Service
+	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-code"}, &codeSvc))
 	var deletedIngress networkingv1.Ingress
 	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-ssh"}, &deletedIngress))
 	var pvc corev1.PersistentVolumeClaim
@@ -152,6 +163,7 @@ func TestPluginAbortDeletesWorkloadAndServiceButRetainsPVC(t *testing.T) {
 func validWorkspaceTemplate(t *testing.T) *core.TaskTemplate {
 	return taskTemplateWithCustom(t, map[string]any{
 		"image":          "ubuntu:22.04",
+		"enableSsh":      true,
 		"sshUser":        "dev",
 		"authorizedKeys": []any{"ssh-rsa AAAA user@example"},
 		"workspaceSize":  "20Gi",

@@ -199,6 +199,8 @@ func (m *DevelopmentInstanceInput) validate(all bool) error {
 
 	}
 
+	// no validation rules for EnableSsh
+
 	if len(errors) > 0 {
 		return DevelopmentInstanceInputMultiError(errors)
 	}
@@ -1747,8 +1749,6 @@ func (m *StartDevelopmentInstanceRequest) validate(all bool) error {
 	}
 
 	// no validation rules for NodePort
-
-	// no validation rules for CodeServerNodePort
 
 	if len(errors) > 0 {
 		return StartDevelopmentInstanceRequestMultiError(errors)

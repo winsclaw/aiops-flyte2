@@ -56,13 +56,13 @@ func (p *Plugin) Handle(ctx context.Context, tCtx pluginsCore.TaskExecutionConte
 		return pluginsCore.UnknownTransition, err
 	}
 	if created {
-		return pluginsCore.DoTransition(pluginsCore.PhaseInfoQueued(time.Now(), pluginsCore.DefaultPhaseVersion, "SSH workspace submitted to Kubernetes")), nil
+		return pluginsCore.DoTransition(pluginsCore.PhaseInfoQueued(time.Now(), pluginsCore.DefaultPhaseVersion, "development workspace submitted to Kubernetes")), nil
 	}
 
 	var sts appsv1.StatefulSet
 	if err := p.kubeClient.Get(ctx, client.ObjectKeyFromObject(resources.StatefulSet), &sts); err != nil {
 		if apierrors.IsNotFound(err) {
-			return pluginsCore.DoTransition(pluginsCore.PhaseInfoSystemRetryableFailure("WorkspaceMissing", "SSH workspace StatefulSet was deleted", nil)), nil
+			return pluginsCore.DoTransition(pluginsCore.PhaseInfoSystemRetryableFailure("WorkspaceMissing", "development workspace StatefulSet was deleted", nil)), nil
 		}
 		return pluginsCore.UnknownTransition, err
 	}
@@ -78,11 +78,11 @@ func (p *Plugin) Handle(ctx context.Context, tCtx pluginsCore.TaskExecutionConte
 			version++
 		}
 		info := pluginsCore.PhaseInfoRunning(version, taskInfo)
-		info.WithReason("SSH workspace is ready")
+		info.WithReason("development workspace is ready")
 		return pluginsCore.DoTransition(info), nil
 	}
 
-	return pluginsCore.DoTransition(pluginsCore.PhaseInfoInitializing(time.Now(), pluginsCore.DefaultPhaseVersion, "waiting for SSH workspace pod readiness", taskInfo)), nil
+	return pluginsCore.DoTransition(pluginsCore.PhaseInfoInitializing(time.Now(), pluginsCore.DefaultPhaseVersion, "waiting for development workspace pod readiness", taskInfo)), nil
 }
 
 func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContext) error {
@@ -103,10 +103,22 @@ func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContex
 	if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.StatefulSet)); err != nil {
 		return err
 	}
-	if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.Service)); err != nil {
+	if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.CodeServerService)); err != nil {
 		return err
 	}
-	if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.Secret)); err != nil {
+	if resources.SSHService != nil {
+		if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.SSHService)); err != nil {
+			return err
+		}
+	} else if err := p.deleteLegacyCombinedService(ctx, resources.StatefulSet.Namespace, kubernetesNameBase(identity.Name)+"-ssh"); err != nil {
+		return err
+	}
+	if resources.Secret != nil {
+		if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.Secret)); err != nil {
+			return err
+		}
+	}
+	if err := p.deleteLegacyCombinedService(ctx, resources.StatefulSet.Namespace, kubernetesNameBase(identity.Name)+"-ssh"); err != nil {
 		return err
 	}
 	if err := p.deleteIngresses(ctx, resources.StatefulSet.Namespace, workspaceLabels(identity)); err != nil {
@@ -118,6 +130,15 @@ func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContex
 		}
 	}
 	return nil
+}
+
+func (p *Plugin) deleteLegacyCombinedService(ctx context.Context, namespace, name string) error {
+	var service corev1.Service
+	key := client.ObjectKey{Namespace: namespace, Name: name}
+	if err := p.kubeClient.Get(ctx, key, &service); err != nil {
+		return ignoreNotFound(err)
+	}
+	return ignoreNotFound(p.kubeClient.Delete(ctx, &service))
 }
 
 func (p *Plugin) deleteIngresses(ctx context.Context, namespace string, labels map[string]string) error {
@@ -162,10 +183,12 @@ func taskInfoForPods(pods []corev1.Pod) *pluginsCore.TaskInfo {
 
 func (p *Plugin) ensureResources(ctx context.Context, resources WorkspaceResources) (bool, error) {
 	created := false
-	if ok, err := p.ensureObject(ctx, resources.Secret); err != nil {
-		return false, err
-	} else if ok {
-		created = true
+	if resources.Secret != nil {
+		if ok, err := p.ensureObject(ctx, resources.Secret); err != nil {
+			return false, err
+		} else if ok {
+			created = true
+		}
 	}
 	if resources.PVC != nil {
 		if ok, err := p.ensureObject(ctx, resources.PVC); err != nil {
@@ -181,10 +204,17 @@ func (p *Plugin) ensureResources(ctx context.Context, resources WorkspaceResourc
 			created = true
 		}
 	}
-	if ok, err := p.ensureObject(ctx, resources.Service); err != nil {
+	if ok, err := p.ensureObject(ctx, resources.CodeServerService); err != nil {
 		return false, err
 	} else if ok {
 		created = true
+	}
+	if resources.SSHService != nil {
+		if ok, err := p.ensureObject(ctx, resources.SSHService); err != nil {
+			return false, err
+		} else if ok {
+			created = true
+		}
 	}
 	if ok, err := p.ensureObject(ctx, resources.CodeServerIngress); err != nil {
 		return false, err

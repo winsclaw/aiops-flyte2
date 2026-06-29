@@ -165,7 +165,6 @@ func (s *DevelopmentInstanceService) CreateDevelopmentInstance(ctx context.Conte
 		model.Status = existing.Status
 		model.Generation = existing.Generation
 		model.NodePort = existing.NodePort
-		model.CodeServerNodePort = existing.CodeServerNodePort
 		model.CodeServerURL = existing.CodeServerURL
 		model.CodeServerWorkspaceURL = existing.CodeServerWorkspaceURL
 		if err := s.repo.DevelopmentInstanceRepo().Update(ctx, model); err != nil {
@@ -219,11 +218,10 @@ func (s *DevelopmentInstanceService) StartDevelopmentInstance(ctx context.Contex
 	instance.Generation = generation
 	instance.LatestRunName = runName
 	instance.Status = models.DevelopmentInstanceStatusStarting
-	if req.Msg.GetNodePort() > 0 {
+	if instance.EnableSSH && req.Msg.GetNodePort() > 0 {
 		instance.NodePort = req.Msg.GetNodePort()
-	}
-	if req.Msg.GetCodeServerNodePort() > 0 {
-		instance.CodeServerNodePort = req.Msg.GetCodeServerNodePort()
+	} else if !instance.EnableSSH {
+		instance.NodePort = 0
 	}
 	instance.WorkspacePVCName = defaultString(instance.WorkspacePVCName, instance.ID+"-workspace")
 	applyDevelopmentInstanceRunAccess(instance, runName)
@@ -239,16 +237,15 @@ func (s *DevelopmentInstanceService) StartDevelopmentInstance(ctx context.Contex
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	run := &models.DevelopmentInstanceRun{
-		InstanceID:         instance.ID,
-		Org:                instance.Org,
-		Project:            instance.Project,
-		Domain:             instance.Domain,
-		RunName:            runName,
-		Generation:         generation,
-		Status:             models.DevelopmentInstanceStatusStarting,
-		NodePort:           instance.NodePort,
-		CodeServerNodePort: instance.CodeServerNodePort,
-		StartedAt:          &startedAt,
+		InstanceID: instance.ID,
+		Org:        instance.Org,
+		Project:    instance.Project,
+		Domain:     instance.Domain,
+		RunName:    runName,
+		Generation: generation,
+		Status:     models.DevelopmentInstanceStatusStarting,
+		NodePort:   instance.NodePort,
+		StartedAt:  &startedAt,
 	}
 	if err := s.repo.DevelopmentInstanceRepo().AppendRun(ctx, run); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -448,6 +445,7 @@ func buildDevelopmentInstanceModel(project *common.ProjectIdentifier, input *dev
 		CodeRepositorySecretName: strings.TrimSpace(input.GetCodeRepositorySecretName()),
 		GPUNodeLabelKey:          strings.TrimSpace(input.GetGpuNodeLabelKey()),
 		BaseImageMountPath:       strings.TrimSpace(input.GetBaseImageMountPath()),
+		EnableSSH:                input.GetEnableSsh(),
 		SSHUser:                  defaultString(strings.TrimSpace(input.GetSshUser()), "flytekit"),
 		AuthorizedKeysJSON:       authorizedKeysJSON,
 		WorkspacePVCName:         id + "-workspace",
@@ -506,6 +504,7 @@ func developmentInstanceModelToProto(model *models.DevelopmentInstance) *develop
 		CodeRepositorySecretName: model.CodeRepositorySecretName,
 		GpuNodeLabelKey:          model.GPUNodeLabelKey,
 		BaseImageMountPath:       model.BaseImageMountPath,
+		EnableSsh:                model.EnableSSH,
 		Access:                   developmentInstanceAccessInfoToProto(model),
 		Status:                   developmentInstanceStatusToProto(model.Status),
 		Generation:               model.Generation,
@@ -523,19 +522,18 @@ func (s *DevelopmentInstanceService) developmentInstanceRunModelToProto(ctx cont
 		return nil
 	}
 	proto := &developmentinstancepb.DevelopmentInstanceRun{
-		InstanceId:         model.InstanceID,
-		Org:                model.Org,
-		Project:            model.Project,
-		Domain:             model.Domain,
-		RunName:            model.RunName,
-		Generation:         model.Generation,
-		Status:             developmentInstanceStatusToProto(model.Status),
-		NodePort:           model.NodePort,
-		CodeServerNodePort: model.CodeServerNodePort,
-		StartedAt:          timestampFromPtr(model.StartedAt),
-		EndedAt:            timestampFromPtr(model.EndedAt),
-		CreatedAt:          timestampFromTime(model.CreatedAt),
-		UpdatedAt:          timestampFromTime(model.UpdatedAt),
+		InstanceId: model.InstanceID,
+		Org:        model.Org,
+		Project:    model.Project,
+		Domain:     model.Domain,
+		RunName:    model.RunName,
+		Generation: model.Generation,
+		Status:     developmentInstanceStatusToProto(model.Status),
+		NodePort:   model.NodePort,
+		StartedAt:  timestampFromPtr(model.StartedAt),
+		EndedAt:    timestampFromPtr(model.EndedAt),
+		CreatedAt:  timestampFromTime(model.CreatedAt),
+		UpdatedAt:  timestampFromTime(model.UpdatedAt),
 	}
 	actionRepo := s.repo.ActionRepo()
 	if actionRepo == nil {
@@ -564,7 +562,6 @@ func developmentInstanceAccessInfoToProto(model *models.DevelopmentInstance) *de
 	return &developmentinstancepb.DevelopmentInstanceAccessInfo{
 		SshUser:                model.SSHUser,
 		NodePort:               model.NodePort,
-		CodeServerNodePort:     model.CodeServerNodePort,
 		CodeServerUrl:          model.CodeServerURL,
 		CodeServerWorkspaceUrl: model.CodeServerWorkspaceURL,
 		WorkspacePvcName:       model.WorkspacePVCName,

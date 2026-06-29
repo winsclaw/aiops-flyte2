@@ -51,7 +51,6 @@ describe("aione external instance helpers", () => {
     const mapped = buildAioneInstanceValues({
       payload: basePayload,
       nodePort: 31000,
-      codeServerNodePort: 31001,
       internalOrg: "aione",
       defaultStorageClass: "bj1-ebs",
       defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
@@ -68,6 +67,8 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.project).toBe("aione");
     expect(mapped.values.domain).toBe("development");
     expect(mapped.values.maxHours).toBe(1);
+    expect(mapped.values.enableSsh).toBe(false);
+    expect(mapped.values.authorizedKey).toBe("");
     expect(mapped.values.sshUser).toBe("flytekit");
     expect(mapped.values.image).toBe(
       "docker.fzyun.io/founder/aione.ide:1.0.0.60",
@@ -108,7 +109,6 @@ describe("aione external instance helpers", () => {
     const first = buildAioneInstanceValues({
       payload: basePayload,
       nodePort: 31000,
-      codeServerNodePort: 31001,
       internalOrg: "aione",
       defaultStorageClass: "bj1-ebs",
       defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
@@ -117,7 +117,6 @@ describe("aione external instance helpers", () => {
     const second = buildAioneInstanceValues({
       payload: basePayload,
       nodePort: 31002,
-      codeServerNodePort: 31003,
       internalOrg: "aione",
       defaultStorageClass: "bj1-ebs",
       defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
@@ -146,13 +145,13 @@ describe("aione external instance helpers", () => {
     const mapped = buildAioneInstanceValues({
       payload: {
         ...basePayload,
+        enableSsh: true,
         imageType: "OWN",
         image: "docker.fzyun.io/pytorch/pytorch:1.13.1",
         imageKey: "custom-user",
         imageSecret: "custom-secret",
       },
       nodePort: 31010,
-      codeServerNodePort: 31011,
       internalOrg: "aione",
       defaultStorageClass: "bj1-ebs",
       defaultAuthorizedKey: "ssh-rsa BBBB user@example",
@@ -175,7 +174,6 @@ describe("aione external instance helpers", () => {
         timeout: 0.1,
       },
       nodePort: 31000,
-      codeServerNodePort: 31001,
       internalOrg: "aione",
       defaultStorageClass: "bj1-ebs",
       defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
@@ -185,12 +183,11 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.maxHours).toBe(1);
   });
 
-  it("rejects payloads without any SSH public key source", () => {
+  it("rejects SSH payloads without any SSH public key source", () => {
     expect(() =>
       buildAioneInstanceValues({
-        payload: { ...basePayload },
+        payload: { ...basePayload, enableSsh: true },
         nodePort: 31000,
-        codeServerNodePort: 31001,
         internalOrg: "aione",
         defaultStorageClass: "bj1-ebs",
         defaultAuthorizedKey: "",
@@ -259,15 +256,15 @@ describe("aione external instance helpers", () => {
       buildAioneInstanceAccessInfo({
         runName: "ins-5ud29xk04tmc6e4ufe8083dvn0",
         sourceName: "开发实例一",
+        enableSsh: true,
         sshUser: "dev",
         nodePort: 31004,
-        codeServerNodePort: 31005,
         cpu: "2",
         memory: "4Gi",
         gpuCount: 0,
         workspaceSize: "20Gi",
-        publicScheme: "http",
         publicHost: "172.19.65.230",
+        codeServerHost: "ins-5ud29xk04tmc6e4ufe8083dvn0-code.ops.fzyun.io",
       }),
     ).toEqual({
       id: "ins-5ud29xk04tmc6e4ufe8083dvn0",
@@ -280,10 +277,12 @@ describe("aione external instance helpers", () => {
         command: "ssh -p 31004 dev@172.19.65.230",
       },
       codeServer: {
-        host: "172.19.65.230",
-        port: 31005,
-        url: "http://172.19.65.230:31005",
-        workspaceUrl: "http://172.19.65.230:31005/?folder=/workspace",
+        host: "ins-5ud29xk04tmc6e4ufe8083dvn0-code.ops.fzyun.io",
+        port: 443,
+        url: "https://ins-5ud29xk04tmc6e4ufe8083dvn0-code.ops.fzyun.io",
+        workspaceUrl:
+          "https://ins-5ud29xk04tmc6e4ufe8083dvn0-code.ops.fzyun.io/?folder=/workspace",
+        available: true,
       },
       resources: {
         cpu: "2",
@@ -294,22 +293,24 @@ describe("aione external instance helpers", () => {
     });
   });
 
-  it("defaults external access URLs to the deployed NodePort host", () => {
+  it("omits SSH access by default", () => {
     const access = buildAioneInstanceAccessInfo({
       runName: "ins-default",
       sourceName: "",
+      enableSsh: false,
       sshUser: "dev",
-      nodePort: 31004,
-      codeServerNodePort: 31005,
+      nodePort: 0,
       cpu: "2",
       memory: "4Gi",
       gpuCount: 0,
       workspaceSize: "20Gi",
+      codeServerHost: "ins-default-code.ops.fzyun.io",
     });
 
-    expect(access.codeServer.url).toBe("http://172.19.65.230:31005");
+    expect(access.ssh).toBeUndefined();
+    expect(access.codeServer.url).toBe("https://ins-default-code.ops.fzyun.io");
     expect(access.codeServer.workspaceUrl).toBe(
-      "http://172.19.65.230:31005/?folder=/workspace",
+      "https://ins-default-code.ops.fzyun.io/?folder=/workspace",
     );
   });
 
@@ -317,9 +318,9 @@ describe("aione external instance helpers", () => {
     const access = buildAioneInstanceAccessInfo({
       runName: "ins-domain-test-r1",
       sourceName: "",
+      enableSsh: false,
       sshUser: "dev",
       nodePort: 31004,
-      codeServerNodePort: 31005,
       cpu: "2",
       memory: "4Gi",
       gpuCount: 0,
@@ -334,6 +335,7 @@ describe("aione external instance helpers", () => {
       url: "https://ins-domain-test-r1-code.ops.fzyun.io",
       workspaceUrl:
         "https://ins-domain-test-r1-code.ops.fzyun.io/?folder=/workspace",
+      available: true,
     });
   });
 
@@ -341,15 +343,15 @@ describe("aione external instance helpers", () => {
     const info = buildAioneInstanceAccessInfo({
       runName: "ins-2024ad6h4e4x036u9u5j31ec89",
       sourceName: "实例2",
+      enableSsh: true,
       sshUser: "dev",
       nodePort: 31006,
-      codeServerNodePort: 31007,
       cpu: "2",
       memory: "4Gi",
       gpuCount: 0,
       workspaceSize: "20Gi",
-      publicScheme: "http",
       publicHost: "172.19.65.230",
+      codeServerHost: "ins-2024ad6h4e4x036u9u5j31ec89-code.ops.fzyun.io",
     });
 
     expect(

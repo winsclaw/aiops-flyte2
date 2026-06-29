@@ -46,6 +46,7 @@ type DevelopmentInstance struct {
 	CodeRepositorySecretName string                             `db:"code_repository_secret_name"`
 	GPUNodeLabelKey          string                             `db:"gpu_node_label_key"`
 	BaseImageMountPath       string                             `db:"base_image_mount_path"`
+	EnableSSH                bool                               `db:"enable_ssh"`
 	SSHUser                  string                             `db:"ssh_user"`
 	AuthorizedKeysJSON       string                             `db:"authorized_keys_json"`
 	WorkspacePVCName         string                             `db:"workspace_pvc_name"`
@@ -53,7 +54,6 @@ type DevelopmentInstance struct {
 	Status                   string                             `db:"status"`
 	Generation               uint32                             `db:"generation"`
 	NodePort                 uint32                             `db:"node_port"`
-	CodeServerNodePort       uint32                             `db:"code_server_node_port"`
 	CodeServerURL            string                             `db:"code_server_url"`
 	CodeServerWorkspaceURL   string                             `db:"code_server_workspace_url"`
 	CloudStorageMountsJSON   string                             `db:"cloud_storage_mounts_json"`
@@ -162,20 +162,19 @@ type DevelopmentInstanceListResult struct {
 }
 
 type DevelopmentInstanceRun struct {
-	ID                 uint64     `db:"id"`
-	InstanceID         string     `db:"instance_id"`
-	Org                string     `db:"org"`
-	Project            string     `db:"project"`
-	Domain             string     `db:"domain"`
-	RunName            string     `db:"run_name"`
-	Generation         uint32     `db:"generation"`
-	Status             string     `db:"status"`
-	NodePort           uint32     `db:"node_port"`
-	CodeServerNodePort uint32     `db:"code_server_node_port"`
-	StartedAt          *time.Time `db:"started_at"`
-	EndedAt            *time.Time `db:"ended_at"`
-	CreatedAt          time.Time  `db:"created_at"`
-	UpdatedAt          time.Time  `db:"updated_at"`
+	ID         uint64     `db:"id"`
+	InstanceID string     `db:"instance_id"`
+	Org        string     `db:"org"`
+	Project    string     `db:"project"`
+	Domain     string     `db:"domain"`
+	RunName    string     `db:"run_name"`
+	Generation uint32     `db:"generation"`
+	Status     string     `db:"status"`
+	NodePort   uint32     `db:"node_port"`
+	StartedAt  *time.Time `db:"started_at"`
+	EndedAt    *time.Time `db:"ended_at"`
+	CreatedAt  time.Time  `db:"created_at"`
+	UpdatedAt  time.Time  `db:"updated_at"`
 }
 
 type DevelopmentInstanceRunListInput struct {

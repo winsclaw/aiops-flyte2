@@ -47,7 +47,8 @@ type WorkspaceResources struct {
 	PVC               *corev1.PersistentVolumeClaim
 	CloudStoragePVCs  []*corev1.PersistentVolumeClaim
 	StatefulSet       *appsv1.StatefulSet
-	Service           *corev1.Service
+	CodeServerService *corev1.Service
+	SSHService        *corev1.Service
 	CodeServerIngress *networkingv1.Ingress
 }
 
@@ -73,7 +74,8 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	if cfg.WorkspacePVCName != "" {
 		pvcName = cfg.WorkspacePVCName
 	}
-	serviceName := resourceName + "-ssh"
+	codeServerServiceName := resourceName + "-code"
+	sshServiceName := resourceName + "-ssh"
 
 	var cpu, memory resource.Quantity
 	var err error
@@ -90,16 +92,21 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		}
 	}
 
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: identity.Namespace,
-			Labels:    labels,
-		},
-		Type: corev1.SecretTypeOpaque,
-		Data: map[string][]byte{
-			"authorized_keys": []byte(strings.Join(cfg.AuthorizedKeys, "\n") + "\n"),
-		},
+	var secret *corev1.Secret
+	needsGeneratedCodeRepositorySecret := len(cfg.CodeRepositories) > 0 && cfg.CodeRepositorySecretName == ""
+	if cfg.EnableSSH || needsGeneratedCodeRepositorySecret {
+		secret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: identity.Namespace,
+				Labels:    labels,
+			},
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{},
+		}
+		if cfg.EnableSSH {
+			secret.Data["authorized_keys"] = []byte(strings.Join(cfg.AuthorizedKeys, "\n") + "\n")
+		}
 	}
 	if len(cfg.CodeRepositories) > 0 {
 		if cfg.CodeRepositorySecretName == "" {
@@ -134,9 +141,38 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 
 	replicas := int32(1)
 	rootUser := int64(0)
-	entrypoint := workspaceEntrypoint(cfg.SSHUser)
+	entrypoint := workspaceEntrypoint(cfg.EnableSSH, cfg.SSHUser)
 	if len(cfg.CodeRepositories) > 0 {
 		entrypoint = aionecoderepository.CommandWithDownload(entrypoint)
+	}
+	containerPorts := []corev1.ContainerPort{{
+		Name:          "code-server",
+		ContainerPort: 8080,
+		Protocol:      corev1.ProtocolTCP,
+	}}
+	volumeMounts := []corev1.VolumeMount{}
+	volumes := []corev1.Volume{}
+	if cfg.EnableSSH {
+		containerPorts = append([]corev1.ContainerPort{{
+			Name:          "ssh",
+			ContainerPort: 22,
+			Protocol:      corev1.ProtocolTCP,
+		}}, containerPorts...)
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "ssh-keys",
+			MountPath: "/flyte-ssh",
+			ReadOnly:  true,
+		})
+		volumes = append(volumes, corev1.Volume{
+			Name: "ssh-keys",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: secretName},
+			},
+		})
+	}
+	readinessCommand := "test -f /tmp/aione-workspace-ready"
+	if cfg.EnableSSH {
+		readinessCommand = "test -f /tmp/aione-workspace-ready && pgrep -x sshd >/dev/null 2>&1"
 	}
 	container := corev1.Container{
 		Name:            "ssh",
@@ -148,24 +184,12 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 			RunAsUser:  &rootUser,
 			RunAsGroup: &rootUser,
 		},
-		Ports: []corev1.ContainerPort{{
-			Name:          "ssh",
-			ContainerPort: 22,
-			Protocol:      corev1.ProtocolTCP,
-		}, {
-			Name:          "code-server",
-			ContainerPort: 8080,
-			Protocol:      corev1.ProtocolTCP,
-		}},
-		Env: envVars(cfg.Environment),
-		VolumeMounts: []corev1.VolumeMount{{
-			Name:      "ssh-keys",
-			MountPath: "/flyte-ssh",
-			ReadOnly:  true,
-		}},
+		Ports:        containerPorts,
+		Env:          envVars(cfg.Environment),
+		VolumeMounts: volumeMounts,
 		ReadinessProbe: &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{
-				TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(22)},
+				Exec: &corev1.ExecAction{Command: []string{"/bin/sh", "-c", readinessCommand}},
 			},
 			InitialDelaySeconds: 3,
 			PeriodSeconds:       5,
@@ -202,12 +226,6 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		container.Resources.Limits[corev1.ResourceName("nvidia.com/gpu")] = gpu
 	}
 
-	volumes := []corev1.Volume{{
-		Name: "ssh-keys",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{SecretName: secretName},
-		},
-	}}
 	if pvc != nil {
 		volumes = append(volumes, corev1.Volume{
 			Name: "workspace",
@@ -275,7 +293,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
-			ServiceName: serviceName,
+			ServiceName: codeServerServiceName,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{labelWorkspaceName: identity.Name},
 			},
@@ -308,35 +326,47 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		}
 	}
 
-	sshServicePort := corev1.ServicePort{
-		Name:       "ssh",
-		Port:       22,
-		TargetPort: intstr.FromInt(22),
-		Protocol:   corev1.ProtocolTCP,
-	}
-	if cfg.NodePort != nil {
-		sshServicePort.NodePort = *cfg.NodePort
-	}
 	codeServerServicePort := corev1.ServicePort{
 		Name:       "code-server",
 		Port:       8080,
 		TargetPort: intstr.FromInt(8080),
 		Protocol:   corev1.ProtocolTCP,
 	}
-	if cfg.CodeServerNodePort != nil {
-		codeServerServicePort.NodePort = *cfg.CodeServerNodePort
-	}
-	svc := &corev1.Service{
+	codeServerService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceName,
+			Name:      codeServerServiceName,
 			Namespace: identity.Namespace,
 			Labels:    labels,
 		},
 		Spec: corev1.ServiceSpec{
-			Type:     cfg.ServiceType,
+			Type:     corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{labelWorkspaceName: identity.Name},
-			Ports:    []corev1.ServicePort{sshServicePort, codeServerServicePort},
+			Ports:    []corev1.ServicePort{codeServerServicePort},
 		},
+	}
+	var sshService *corev1.Service
+	if cfg.EnableSSH {
+		sshServicePort := corev1.ServicePort{
+			Name:       "ssh",
+			Port:       22,
+			TargetPort: intstr.FromInt(22),
+			Protocol:   corev1.ProtocolTCP,
+		}
+		if cfg.NodePort != nil {
+			sshServicePort.NodePort = *cfg.NodePort
+		}
+		sshService = &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      sshServiceName,
+				Namespace: identity.Namespace,
+				Labels:    labels,
+			},
+			Spec: corev1.ServiceSpec{
+				Type:     cfg.ServiceType,
+				Selector: map[string]string{labelWorkspaceName: identity.Name},
+				Ports:    []corev1.ServicePort{sshServicePort},
+			},
+		}
 	}
 
 	pathType := networkingv1.PathTypePrefix
@@ -356,7 +386,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 							PathType: &pathType,
 							Backend: networkingv1.IngressBackend{
 								Service: &networkingv1.IngressServiceBackend{
-									Name: serviceName,
+									Name: codeServerServiceName,
 									Port: networkingv1.ServiceBackendPort{Name: "code-server"},
 								},
 							},
@@ -372,7 +402,8 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		PVC:               pvc,
 		CloudStoragePVCs:  cloudPVCs,
 		StatefulSet:       sts,
-		Service:           svc,
+		CodeServerService: codeServerService,
+		SSHService:        sshService,
 		CodeServerIngress: ingress,
 	}, nil
 }
@@ -482,8 +513,36 @@ func sanitizeLabelValue(value string) string {
 	return strings.Trim(cleaned, "-")
 }
 
-func workspaceEntrypoint(sshUser string) string {
+func workspaceEntrypoint(enableSSH bool, sshUser string) string {
 	codeServerUser := DefaultWorkspaceSSHUser
+	if !enableSSH {
+		return fmt.Sprintf(`set -eu
+if ! id %[1]s >/dev/null 2>&1; then
+  useradd -m -s /bin/bash %[1]s
+fi
+if command -v usermod >/dev/null 2>&1 && [ -x /bin/bash ]; then
+  usermod -s /bin/bash %[1]s || true
+fi
+mkdir -p /home/%[1]s/.local/share/code-server /workspace
+chown -R %[1]s:%[1]s /home/%[1]s
+chown -R %[1]s:%[1]s /workspace
+chmod -R u+rwX,g+rwX /workspace
+CODE_SERVER_BIN=""
+if command -v code-server >/dev/null 2>&1; then
+  CODE_SERVER_BIN="$(command -v code-server)"
+elif [ -x /opt/code-server-4.19.0-linux-amd64/bin/code-server ]; then
+  CODE_SERVER_BIN="/opt/code-server-4.19.0-linux-amd64/bin/code-server"
+fi
+if [ -n "$CODE_SERVER_BIN" ] && [ -x "$CODE_SERVER_BIN" ]; then
+  printf 'AIONE_CODE_SERVER_STATUS %%s\n' '{"available":true}'
+  touch /tmp/aione-workspace-ready
+  exec su - %[1]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /workspace"
+fi
+printf 'AIONE_CODE_SERVER_STATUS %%s\n' '{"available":false,"reason":"CODE_SERVER_NOT_FOUND","message":"code-server is not installed in the image"}'
+touch /tmp/aione-workspace-ready
+while true; do sleep 3600; done
+`, codeServerUser)
+	}
 	return fmt.Sprintf(`set -eu
 if ! command -v /usr/sbin/sshd >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
@@ -502,7 +561,7 @@ if command -v usermod >/dev/null 2>&1 && [ -x /bin/bash ]; then
   usermod -s /bin/bash %[1]s || true
   usermod -s /bin/bash %[2]s || true
 fi
-mkdir -p /home/%[1]s/.ssh /home/%[2]s/.local/share/code-server /workspace /run/sshd
+mkdir -p /home/%[1]s/.ssh /home/%[2]s/.local/share/code-server /workspace /run/sshd /etc/ssh/sshd_config.d
 cp /flyte-ssh/authorized_keys /home/%[1]s/.ssh/authorized_keys
 chown -R %[1]s:%[1]s /home/%[1]s
 chown -R %[2]s:%[2]s /home/%[2]s
@@ -516,24 +575,17 @@ if command -v code-server >/dev/null 2>&1; then
   CODE_SERVER_BIN="$(command -v code-server)"
 elif [ -x /opt/code-server-4.19.0-linux-amd64/bin/code-server ]; then
   CODE_SERVER_BIN="/opt/code-server-4.19.0-linux-amd64/bin/code-server"
-elif [ -f /opt/code-server-4.19.0-linux-amd64.tar.gz ]; then
-  tar -xzf /opt/code-server-4.19.0-linux-amd64.tar.gz -C /opt
-  CODE_SERVER_BIN="/opt/code-server-4.19.0-linux-amd64/bin/code-server"
 fi
 if [ -n "$CODE_SERVER_BIN" ] && [ -x "$CODE_SERVER_BIN" ]; then
+  printf 'AIONE_CODE_SERVER_STATUS %%s\n' '{"available":true}'
   su - %[2]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /workspace" &
 else
-  if ! command -v python3 >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update
-    apt-get install -y --no-install-recommends python3
-  fi
-  mkdir -p /tmp/code-server-missing
-  printf '%%s\n' '<!doctype html><html><head><meta charset="utf-8"><title>code-server 未安装</title><style>body{font-family:system-ui,sans-serif;margin:40px;color:#111827}h1{font-size:20px}</style></head><body><h1>code-server 未安装</h1><p>当前开发实例镜像中没有安装 code-server，请使用包含 code-server 的镜像重新创建实例。</p></body></html>' > /tmp/code-server-missing/index.html
-  if command -v python3 >/dev/null 2>&1; then
-    python3 -m http.server 8080 --directory /tmp/code-server-missing &
-  fi
+  printf 'AIONE_CODE_SERVER_STATUS %%s\n' '{"available":false,"reason":"CODE_SERVER_NOT_FOUND","message":"code-server is not installed in the image"}'
 fi
+if command -v ssh-keygen >/dev/null 2>&1; then
+  ssh-keygen -A || true
+fi
+touch /tmp/aione-workspace-ready
 exec /usr/sbin/sshd -D -e
 `, sshUser, codeServerUser)
 }

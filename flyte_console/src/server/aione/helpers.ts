@@ -36,6 +36,7 @@ type ExternalInstancePayload = {
     imageSecret?: string;
     mountPath?: string;
   };
+  enableSsh?: boolean;
   authorizedKey?: string;
   authorizedKeys?: string[];
   codes?: {
@@ -74,7 +75,6 @@ export type CodeRepositoryWithToken = {
 export type BuildAioneInstanceValuesInput = {
   payload: ExternalInstancePayload;
   nodePort: number;
-  codeServerNodePort: number;
   internalOrg?: string;
   defaultStorageClass?: string;
   defaultAuthorizedKey?: string;
@@ -84,17 +84,19 @@ export type BuildAioneInstanceValuesInput = {
 export type BuildAioneInstanceAccessInfoInput = {
   runName: string;
   sourceName: string;
+  enableSsh: boolean;
   sshUser: string;
   nodePort: number;
-  codeServerNodePort: number;
   cpu: string;
   memory: string;
   gpuCount: number;
   workspaceSize: string;
-  publicScheme?: string;
   publicHost?: string;
   codeServerScheme?: string;
   codeServerHost?: string;
+  codeServerAvailable?: boolean;
+  codeServerReason?: string;
+  codeServerMessage?: string;
 };
 
 export type AioneInstanceAccessInfo = ReturnType<
@@ -136,7 +138,6 @@ export function authenticateAioneRequest(
 export function buildAioneInstanceValues({
   payload,
   nodePort,
-  codeServerNodePort,
   internalOrg = DEFAULT_AIONE_INTERNAL_ORG,
   defaultStorageClass = DEFAULT_AIONE_STORAGE_CLASS,
   defaultAuthorizedKey = "",
@@ -156,11 +157,12 @@ export function buildAioneInstanceValues({
   const codeServerHost = buildCodeServerHost(sourceBaseName);
   const codeServerUrl = buildCodeServerUrl(codeServerHost);
   const codeServerWorkspaceUrl = buildCodeServerWorkspaceUrl(codeServerHost);
+  const enableSsh = payload.enableSsh === true;
 
   const authorizedKey =
     firstNonEmpty([payload.authorizedKey, ...(payload.authorizedKeys ?? [])]) ||
     defaultAuthorizedKey.trim();
-  if (!authorizedKey) {
+  if (enableSsh && !authorizedKey) {
     throw new Error("authorizedKey is required");
   }
 
@@ -212,8 +214,9 @@ export function buildAioneInstanceValues({
     imageType: "custom",
     officialImageId: "",
     image,
+    enableSsh,
     sshUser: "flytekit",
-    authorizedKey,
+    authorizedKey: enableSsh ? authorizedKey : "",
     cpu: payload.resourceDefinition?.cpu?.trim() || "2",
     memory: payload.resourceDefinition?.memory?.trim() || "4Gi",
     gpuCount: payload.resourceDefinition?.gpu ?? 0,
@@ -221,7 +224,6 @@ export function buildAioneInstanceValues({
     workspaceSize: "20Gi",
     workspacePVCName,
     nodePort,
-    codeServerNodePort,
     codeServerHost,
     codeServerUrl,
     codeServerWorkspaceUrl,
@@ -279,42 +281,63 @@ export function buildDockerConfigJson(credentials: RegistryCredentials) {
 export function buildAioneInstanceAccessInfo({
   runName,
   sourceName,
+  enableSsh,
   sshUser,
   nodePort,
-  codeServerNodePort,
   cpu,
   memory,
   gpuCount,
   workspaceSize,
-  publicScheme = DEFAULT_EXTERNAL_API_PUBLIC_SCHEME,
   publicHost = DEFAULT_EXTERNAL_API_PUBLIC_HOST,
   codeServerScheme = "https",
   codeServerHost,
+  codeServerAvailable = true,
+  codeServerReason,
+  codeServerMessage,
 }: BuildAioneInstanceAccessInfoInput) {
-  const scheme = publicScheme.trim() || DEFAULT_EXTERNAL_API_PUBLIC_SCHEME;
   const host = publicHost.trim() || DEFAULT_EXTERNAL_API_PUBLIC_HOST;
   const resolvedCodeServerHost = codeServerHost?.trim();
   const resolvedCodeServerUrl = resolvedCodeServerHost
     ? buildCodeServerUrl(resolvedCodeServerHost, codeServerScheme)
-    : `${scheme}://${host}:${codeServerNodePort}`;
-  const resolvedCodeServerPort = resolvedCodeServerHost
-    ? 443
-    : codeServerNodePort;
-  return {
+    : "";
+  const resolvedCodeServerPort = codeServerScheme === "http" ? 80 : 443;
+  const info: {
+    id: string;
+    name: string;
+    status: string;
+    ssh?: {
+      user: string;
+      host: string;
+      port: number;
+      command: string;
+    };
+    codeServer: {
+      host: string;
+      port: number;
+      url: string;
+      workspaceUrl: string;
+      available: boolean;
+      reason?: string;
+      message?: string;
+    };
+    resources: {
+      cpu: string;
+      memory: string;
+      gpu: number;
+      workspaceSize: string;
+    };
+  } = {
     id: runName,
     name: sourceName,
     status: "CREATED",
-    ssh: {
-      user: sshUser,
-      host,
-      port: nodePort,
-      command: `ssh -p ${nodePort} ${sshUser}@${host}`,
-    },
     codeServer: {
-      host: resolvedCodeServerHost || host,
+      host: resolvedCodeServerHost || "",
       port: resolvedCodeServerPort,
       url: resolvedCodeServerUrl,
       workspaceUrl: `${resolvedCodeServerUrl}/?folder=/workspace`,
+      available: codeServerAvailable,
+      reason: codeServerReason || undefined,
+      message: codeServerMessage || undefined,
     },
     resources: {
       cpu,
@@ -323,6 +346,15 @@ export function buildAioneInstanceAccessInfo({
       workspaceSize,
     },
   };
+  if (enableSsh) {
+    info.ssh = {
+      user: sshUser,
+      host,
+      port: nodePort,
+      command: `ssh -p ${nodePort} ${sshUser}@${host}`,
+    };
+  }
+  return info;
 }
 
 export function buildAioneCreateInstanceResponse({

@@ -39,9 +39,10 @@ func TestBuildDevelopmentInstanceModelUsesExplicitID(t *testing.T) {
 	require.Equal(t, "4Gi", model.Memory)
 	require.Equal(t, "20Gi", model.WorkspaceSize)
 	require.Equal(t, models.DevelopmentInstanceStatusNotStarted, model.Status)
+	require.False(t, model.EnableSSH)
 }
 
-func TestBuildDevelopmentInstanceSpecUsesSSHWorkspacePluginAndDisplayShortName(t *testing.T) {
+func TestBuildDevelopmentInstanceSpecDefaultsToIngressOnlyCodeServer(t *testing.T) {
 	spec, err := BuildDevelopmentInstanceSpec(&models.DevelopmentInstance{
 		DevelopmentInstanceKey: models.DevelopmentInstanceKey{ID: "ins-abc"},
 		Org:                    "testorg",
@@ -55,8 +56,8 @@ func TestBuildDevelopmentInstanceSpecUsesSSHWorkspacePluginAndDisplayShortName(t
 		WorkspaceSize:          "20Gi",
 		MaxHours:               24,
 		WorkspacePVCName:       "ins-abc-workspace",
-		NodePort:               31000,
-		CodeServerNodePort:     31001,
+		CodeServerURL:          "https://ins-abc-r1-code.ops.fzyun.io",
+		CodeServerWorkspaceURL: "https://ins-abc-r1-code.ops.fzyun.io/?folder=/workspace",
 	})
 
 	require.NoError(t, err)
@@ -67,8 +68,37 @@ func TestBuildDevelopmentInstanceSpecUsesSSHWorkspacePluginAndDisplayShortName(t
 	require.Equal(t, "ins-abc", custom["sourceInstanceId"].GetStringValue())
 	require.Equal(t, "开发实例-带云存储", custom["sourceName"].GetStringValue())
 	require.Equal(t, "docker.fzyun.io/founder/aione.ide:1.0.0.60", custom["image"].GetStringValue())
+	require.False(t, custom["enableSsh"].GetBoolValue())
+	require.Nil(t, custom["nodePort"])
+	require.Nil(t, custom["authorizedKeys"])
+	require.Equal(t, "https://ins-abc-r1-code.ops.fzyun.io", custom["codeServerUrl"].GetStringValue())
+}
+
+func TestBuildDevelopmentInstanceSpecPassesSSHOnlyWhenEnabled(t *testing.T) {
+	spec, err := BuildDevelopmentInstanceSpec(&models.DevelopmentInstance{
+		DevelopmentInstanceKey: models.DevelopmentInstanceKey{ID: "ins-ssh"},
+		Org:                    "testorg",
+		Project:                "flytesnacks",
+		Domain:                 "development",
+		Name:                   "开发实例-SSH",
+		ImageURI:               "docker.fzyun.io/founder/aione.ide:1.0.0.60",
+		EnableSSH:              true,
+		SSHUser:                "dev",
+		AuthorizedKeysJSON:     `["ssh-rsa AAAA user@example"]`,
+		CPU:                    "2",
+		Memory:                 "4Gi",
+		WorkspaceSize:          "20Gi",
+		MaxHours:               24,
+		WorkspacePVCName:       "ins-ssh-workspace",
+		NodePort:               31000,
+	})
+
+	require.NoError(t, err)
+	custom := spec.GetTaskTemplate().GetCustom().GetFields()
+	require.True(t, custom["enableSsh"].GetBoolValue())
 	require.Equal(t, float64(31000), custom["nodePort"].GetNumberValue())
-	require.Equal(t, float64(31001), custom["codeServerNodePort"].GetNumberValue())
+	require.Equal(t, "NodePort", custom["serviceType"].GetStringValue())
+	require.Len(t, custom["authorizedKeys"].GetListValue().GetValues(), 1)
 }
 
 func TestBuildDevelopmentInstanceSpecLetsPluginOwnCodeRepositorySecret(t *testing.T) {
@@ -85,8 +115,6 @@ func TestBuildDevelopmentInstanceSpecLetsPluginOwnCodeRepositorySecret(t *testin
 		WorkspaceSize:            "20Gi",
 		MaxHours:                 1,
 		WorkspacePVCName:         "aione-instance-workspace",
-		NodePort:                 31000,
-		CodeServerNodePort:       31001,
 		CodeRepositorySecretName: "aione-aione-instance-code",
 		CodeRepositoryMounts: []models.DevelopmentInstanceCodeRepoMount{{
 			CodeRepositoryID: "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",

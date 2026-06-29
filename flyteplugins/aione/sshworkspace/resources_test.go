@@ -28,6 +28,7 @@ func taskTemplateWithCustom(t *testing.T, values map[string]any) *idlcore.TaskTe
 func TestParseConfigUsesCustomPayload(t *testing.T) {
 	tmpl := taskTemplateWithCustom(t, map[string]any{
 		"image":                    "ubuntu:22.04",
+		"enableSsh":                true,
 		"sshUser":                  "dev",
 		"authorizedKeys":           []any{"ssh-rsa AAAA user@example"},
 		"cpu":                      "1",
@@ -38,7 +39,6 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 		"workspacePVCName":         "stable-workspace-pvc",
 		"serviceType":              "NodePort",
 		"nodePort":                 float64(30222),
-		"codeServerNodePort":       float64(31080),
 		"codeServerHost":           "run-abc-code.ops.fzyun.io",
 		"imagePullSecretName":      "workspace-image-pull",
 		"codeRepositorySecretName": "workspace-code-repos",
@@ -59,6 +59,7 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "ubuntu:22.04", cfg.Image)
+	assert.True(t, cfg.EnableSSH)
 	assert.Equal(t, "dev", cfg.SSHUser)
 	assert.Equal(t, []string{"ssh-rsa AAAA user@example"}, cfg.AuthorizedKeys)
 	assert.Equal(t, "1", cfg.CPU)
@@ -73,8 +74,6 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	assert.Equal(t, corev1.ServiceTypeNodePort, cfg.ServiceType)
 	require.NotNil(t, cfg.NodePort)
 	assert.Equal(t, int32(30222), *cfg.NodePort)
-	require.NotNil(t, cfg.CodeServerNodePort)
-	assert.Equal(t, int32(31080), *cfg.CodeServerNodePort)
 	assert.Equal(t, "run-abc-code.ops.fzyun.io", cfg.CodeServerHost)
 	assert.Equal(t, map[string]string{"EXAMPLE": "value"}, cfg.Environment)
 	require.Len(t, cfg.CodeRepositories, 1)
@@ -83,21 +82,22 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 }
 
 func TestParseConfigDefaultsToOfficialIDEImage(t *testing.T) {
-	tmpl := taskTemplateWithCustom(t, map[string]any{
-		"authorizedKeys": []any{"ssh-rsa AAAA user@example"},
-	})
+	tmpl := taskTemplateWithCustom(t, map[string]any{})
 
 	cfg, err := ParseConfig(tmpl)
 
 	require.NoError(t, err)
 	assert.Equal(t, "docker.fzyun.io/founder/aione.ide:1.0.0.60", cfg.Image)
 	assert.Equal(t, "flytekit", cfg.SSHUser)
+	assert.False(t, cfg.EnableSSH)
+	assert.Empty(t, cfg.AuthorizedKeys)
 }
 
-func TestParseConfigRejectsMissingAuthorizedKeys(t *testing.T) {
+func TestParseConfigRejectsMissingAuthorizedKeysWhenSSHEnabled(t *testing.T) {
 	tmpl := taskTemplateWithCustom(t, map[string]any{
-		"image":   "ubuntu:22.04",
-		"sshUser": "dev",
+		"image":     "ubuntu:22.04",
+		"enableSsh": true,
+		"sshUser":   "dev",
 	})
 
 	_, err := ParseConfig(tmpl)
@@ -109,6 +109,7 @@ func TestParseConfigRejectsMissingAuthorizedKeys(t *testing.T) {
 func TestParseConfigRejectsInvalidServiceType(t *testing.T) {
 	tmpl := taskTemplateWithCustom(t, map[string]any{
 		"image":          "ubuntu:22.04",
+		"enableSsh":      true,
 		"sshUser":        "dev",
 		"authorizedKeys": []any{"ssh-rsa AAAA user@example"},
 		"serviceType":    "ExternalName",
@@ -122,20 +123,19 @@ func TestParseConfigRejectsInvalidServiceType(t *testing.T) {
 
 func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	nodePort := int32(30222)
-	codeServerNodePort := int32(31080)
 	cfg := WorkspaceConfig{
-		Image:              "ubuntu:22.04",
-		SSHUser:            "dev",
-		AuthorizedKeys:     []string{"ssh-rsa AAAA user@example"},
-		CPU:                "1",
-		Memory:             "2Gi",
-		GPUCount:           1,
-		GPUModel:           "NVIDIA T4",
-		WorkspaceSize:      "20Gi",
-		ServiceType:        corev1.ServiceTypeNodePort,
-		NodePort:           &nodePort,
-		CodeServerNodePort: &codeServerNodePort,
-		Environment:        map[string]string{"EXAMPLE": "value"},
+		Image:          "ubuntu:22.04",
+		EnableSSH:      true,
+		SSHUser:        "dev",
+		AuthorizedKeys: []string{"ssh-rsa AAAA user@example"},
+		CPU:            "1",
+		Memory:         "2Gi",
+		GPUCount:       1,
+		GPUModel:       "NVIDIA T4",
+		WorkspaceSize:  "20Gi",
+		ServiceType:    corev1.ServiceTypeNodePort,
+		NodePort:       &nodePort,
+		Environment:    map[string]string{"EXAMPLE": "value"},
 	}
 	identity := WorkspaceIdentity{
 		Namespace:  "flyte",
@@ -150,6 +150,7 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	resources, err := BuildResources(identity, cfg)
 
 	require.NoError(t, err)
+	require.NotNil(t, resources.Secret)
 	assert.Equal(t, "run-abc-ssh", resources.Secret.Name)
 	assert.Equal(t, "flyte", resources.Secret.Namespace)
 	assert.Equal(t, "ssh-rsa AAAA user@example\n", string(resources.Secret.Data["authorized_keys"]))
@@ -172,6 +173,7 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Contains(t, container.Command, "/bin/sh")
 	assert.Contains(t, container.Args[0], "/usr/sbin/sshd -D -e")
 	assert.Contains(t, container.Args[0], "code-server")
+	assert.Contains(t, container.Args[0], "apt-get install -y --no-install-recommends openssh-server sudo ca-certificates")
 	assert.Contains(t, container.Args[0], "useradd")
 	assert.Contains(t, container.Args[0], "su - flytekit -c")
 	assert.NotContains(t, container.Args[0], "su - dev -c")
@@ -185,16 +187,22 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, int32(8080), container.Ports[1].ContainerPort)
 	assert.Equal(t, "code-server", container.Ports[1].Name)
 
-	svc := resources.Service
-	assert.Equal(t, "run-abc-ssh", svc.Name)
-	assert.Equal(t, corev1.ServiceTypeNodePort, svc.Spec.Type)
-	require.Len(t, svc.Spec.Ports, 2)
-	assert.Equal(t, int32(22), svc.Spec.Ports[0].Port)
-	assert.Equal(t, int32(30222), svc.Spec.Ports[0].NodePort)
-	assert.Equal(t, "code-server", svc.Spec.Ports[1].Name)
-	assert.Equal(t, int32(8080), svc.Spec.Ports[1].Port)
-	assert.Equal(t, int32(31080), svc.Spec.Ports[1].NodePort)
-	assert.Equal(t, "run-abc", svc.Spec.Selector[labelWorkspaceName])
+	codeSvc := resources.CodeServerService
+	assert.Equal(t, "run-abc-code", codeSvc.Name)
+	assert.Equal(t, corev1.ServiceTypeClusterIP, codeSvc.Spec.Type)
+	require.Len(t, codeSvc.Spec.Ports, 1)
+	assert.Equal(t, "code-server", codeSvc.Spec.Ports[0].Name)
+	assert.Equal(t, int32(8080), codeSvc.Spec.Ports[0].Port)
+	assert.Equal(t, int32(0), codeSvc.Spec.Ports[0].NodePort)
+	assert.Equal(t, "run-abc", codeSvc.Spec.Selector[labelWorkspaceName])
+
+	sshSvc := resources.SSHService
+	require.NotNil(t, sshSvc)
+	assert.Equal(t, "run-abc-ssh", sshSvc.Name)
+	assert.Equal(t, corev1.ServiceTypeNodePort, sshSvc.Spec.Type)
+	require.Len(t, sshSvc.Spec.Ports, 1)
+	assert.Equal(t, int32(22), sshSvc.Spec.Ports[0].Port)
+	assert.Equal(t, int32(30222), sshSvc.Spec.Ports[0].NodePort)
 
 	ingress := resources.CodeServerIngress
 	require.IsType(t, &networkingv1.Ingress{}, ingress)
@@ -206,8 +214,46 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, "/", path.Path)
 	require.NotNil(t, path.PathType)
 	assert.Equal(t, networkingv1.PathTypePrefix, *path.PathType)
-	assert.Equal(t, "run-abc-ssh", path.Backend.Service.Name)
+	assert.Equal(t, "run-abc-code", path.Backend.Service.Name)
 	assert.Equal(t, networkingv1.ServiceBackendPort{Name: "code-server"}, path.Backend.Service.Port)
+}
+
+func TestBuildResourcesDefaultsToIngressOnlyCodeServerWithoutSSH(t *testing.T) {
+	cfg := WorkspaceConfig{
+		Image:         "ubuntu:22.04",
+		WorkspaceSize: "20Gi",
+	}
+	identity := WorkspaceIdentity{
+		Namespace:  "flyte",
+		Name:       "run-no-ssh",
+		RunName:    "run-no-ssh",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	assert.Nil(t, resources.Secret)
+	assert.Nil(t, resources.SSHService)
+	require.NotNil(t, resources.CodeServerService)
+	assert.Equal(t, corev1.ServiceTypeClusterIP, resources.CodeServerService.Spec.Type)
+	require.Len(t, resources.CodeServerService.Spec.Ports, 1)
+	assert.Equal(t, "code-server", resources.CodeServerService.Spec.Ports[0].Name)
+	assert.Equal(t, int32(0), resources.CodeServerService.Spec.Ports[0].NodePort)
+
+	container := resources.StatefulSet.Spec.Template.Spec.Containers[0]
+	require.Len(t, container.Ports, 1)
+	assert.Equal(t, "code-server", container.Ports[0].Name)
+	assert.NotContains(t, container.Args[0], "apt-get")
+	assert.NotContains(t, container.Args[0], "/usr/sbin/sshd")
+	assert.Contains(t, container.Args[0], "AIONE_CODE_SERVER_STATUS")
+	assert.Contains(t, container.Args[0], "CODE_SERVER_NOT_FOUND")
+	require.NotNil(t, container.ReadinessProbe)
+	require.NotNil(t, container.ReadinessProbe.Exec)
+	assert.Contains(t, strings.Join(container.ReadinessProbe.Exec.Command, " "), "/tmp/aione-workspace-ready")
 }
 
 func TestBuildResourcesCreatesBoundedCodeServerIngressHost(t *testing.T) {
@@ -293,7 +339,7 @@ func TestBuildResourcesUsesExternalSecretsAndGPUNodeLabel(t *testing.T) {
 	resources, err := BuildResources(identity, cfg)
 
 	require.NoError(t, err)
-	assert.NotContains(t, resources.Secret.Data, "code_repositories")
+	assert.Nil(t, resources.Secret)
 	podSpec := resources.StatefulSet.Spec.Template.Spec
 	require.Len(t, podSpec.ImagePullSecrets, 1)
 	assert.Equal(t, "workspace-image-pull", podSpec.ImagePullSecrets[0].Name)
@@ -408,11 +454,10 @@ func TestBuildResourcesUsesValidKubernetesNamesWhenRunStartsWithDigit(t *testing
 	resources, err := BuildResources(identity, cfg)
 
 	require.NoError(t, err)
-	assert.Empty(t, validation.IsDNS1035Label(resources.Service.Name))
+	assert.Empty(t, validation.IsDNS1035Label(resources.CodeServerService.Name))
 	assert.Empty(t, validation.IsDNS1123Subdomain(resources.StatefulSet.Name))
-	assert.Empty(t, validation.IsDNS1123Subdomain(resources.Secret.Name))
 	assert.Empty(t, validation.IsDNS1123Subdomain(resources.PVC.Name))
-	assert.Equal(t, "1111-a0-0", resources.Service.Spec.Selector[labelWorkspaceName])
+	assert.Equal(t, "1111-a0-0", resources.CodeServerService.Spec.Selector[labelWorkspaceName])
 	assert.Equal(t, "1111-a0-0", resources.StatefulSet.Spec.Selector.MatchLabels[labelWorkspaceName])
 	assert.Equal(t, "1111-a0-0", resources.StatefulSet.Spec.Template.Labels[labelWorkspaceName])
 }
