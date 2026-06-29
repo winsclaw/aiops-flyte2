@@ -616,7 +616,7 @@ export function DevelopmentInstanceCreatePage() {
                         placeholder="请输入镜像完整地址"
                       />
                       <span className="mt-1 block text-xs font-normal text-zinc-500">
-                        例：docker.fzyun.io/aione/image1:1.0.1
+                        例：docker.fzyun.io/founder/aione.ide:1.0.0.60
                       </span>
                     </label>
                   )}
