@@ -242,7 +242,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 			downloadMounts = append(downloadMounts, mount)
 			container.VolumeMounts = append(container.VolumeMounts, mount)
 			params.OSSDatas = append(params.OSSDatas, aionedownloader.OSSData{
-				EndPoint:   dataset.EndPoint,
+				Endpoint:   dataset.Endpoint,
 				Port:       dataset.Port,
 				AccessKey:  dataset.AccessKey,
 				SecretKey:  dataset.SecretKey,

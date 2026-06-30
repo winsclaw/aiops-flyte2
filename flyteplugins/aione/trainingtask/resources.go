@@ -155,7 +155,7 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 			volumeMounts = append(volumeMounts, mount)
 			container.VolumeMounts = append(container.VolumeMounts, mount)
 			params.OSSDatas = append(params.OSSDatas, aionedownloader.OSSData{
-				EndPoint:   dataset.EndPoint,
+				Endpoint:   dataset.Endpoint,
 				Port:       dataset.Port,
 				AccessKey:  dataset.AccessKey,
 				SecretKey:  dataset.SecretKey,

@@ -74,7 +74,7 @@ def _inputs(params: dict[str, Any]) -> WorkflowInputs:
     ]
     s3_datas = [
         S3Data(
-            endpoint=f"{ossdata.get('endPoint')}:{ossdata.get('port')}",
+            endpoint=f"{ossdata.get('endpoint')}:{ossdata.get('port')}",
             access_key=ossdata.get("accessKey") or "",
             secret_key=ossdata.get("secretKey") or "",
             bucket_name=ossdata.get("bucket") or "",

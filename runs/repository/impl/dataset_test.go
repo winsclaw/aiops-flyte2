@@ -24,7 +24,7 @@ func TestDatasetRepoCreateGetListUpdateAndDelete(t *testing.T) {
 		DatasetKey:          key,
 		Name:                "语音识别",
 		Description:         "training speech",
-		EndPoint:            "http://minio.flyte.svc",
+		Endpoint:            "http://minio.flyte.svc",
 		Port:                "9000",
 		AccessKey:           "rustfs",
 		SecretKeyCiphertext: "encrypted-secret",
@@ -38,7 +38,7 @@ func TestDatasetRepoCreateGetListUpdateAndDelete(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "语音识别", got.Name)
 	require.Equal(t, "training speech", got.Description)
-	require.Equal(t, "http://minio.flyte.svc", got.EndPoint)
+	require.Equal(t, "http://minio.flyte.svc", got.Endpoint)
 	require.Equal(t, "9000", got.Port)
 	require.Equal(t, "rustfs", got.AccessKey)
 	require.Equal(t, "encrypted-secret", got.SecretKeyCiphertext)

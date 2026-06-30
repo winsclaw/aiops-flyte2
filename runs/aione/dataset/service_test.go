@@ -26,7 +26,7 @@ func TestDatasetServiceCreateNormalizesFolderPath(t *testing.T) {
 		Dataset: &datasetpb.DatasetInput{
 			Name:        "语音识别",
 			Description: "training speech",
-			EndPoint:    "http://minio.flyte.svc",
+			Endpoint:    "minio.flyte.svc",
 			Port:        "9000",
 			AccessKey:   "rustfs",
 			SecretKey:   "rustfsstorage",
@@ -40,7 +40,7 @@ func TestDatasetServiceCreateNormalizesFolderPath(t *testing.T) {
 	got := resp.Msg.GetDataset()
 	require.True(t, strings.HasPrefix(got.GetId().GetId(), "ds-"))
 	require.Equal(t, "语音识别", got.GetName())
-	require.Equal(t, "http://minio.flyte.svc", got.GetEndPoint())
+	require.Equal(t, "minio.flyte.svc", got.GetEndpoint())
 	require.Equal(t, "9000", got.GetPort())
 	require.Equal(t, "rustfs", got.GetAccessKey())
 	require.Empty(t, got.GetSecretKey())
@@ -69,8 +69,23 @@ func TestDatasetServiceCreateRejectsInvalidInput(t *testing.T) {
 	_, err = svc.CreateDataset(context.Background(), connect.NewRequest(&datasetpb.CreateDatasetRequest{
 		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
 		Dataset: &datasetpb.DatasetInput{
+			Name:       "bad-endpoint",
+			Endpoint:   "http://minio.flyte.svc",
+			Port:       "9000",
+			AccessKey:  "rustfs",
+			SecretKey:  "rustfsstorage",
+			TargetPath: "/mnt/datasets",
+			Bucket:     "datasets",
+		},
+	}))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "endpoint must not include a URL scheme")
+
+	_, err = svc.CreateDataset(context.Background(), connect.NewRequest(&datasetpb.CreateDatasetRequest{
+		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
+		Dataset: &datasetpb.DatasetInput{
 			Name:       "bad-path",
-			EndPoint:   "http://minio.flyte.svc",
+			Endpoint:   "minio.flyte.svc",
 			Port:       "9000",
 			AccessKey:  "rustfs",
 			SecretKey:  "rustfsstorage",
@@ -90,7 +105,7 @@ func TestDatasetServiceCreateRejectsMissingObjectStorageFields(t *testing.T) {
 		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
 		Dataset: &datasetpb.DatasetInput{
 			Name:      "missing-bucket",
-			EndPoint:  "http://minio.flyte.svc",
+			Endpoint:  "minio.flyte.svc",
 			Port:      "9000",
 			AccessKey: "rustfs",
 			SecretKey: "rustfsstorage",
@@ -107,7 +122,7 @@ func TestDatasetServiceUpdateKeepsExistingSecretWhenInputIsEmpty(t *testing.T) {
 	datasets.items[key.ID] = &models.Dataset{
 		DatasetKey:          key,
 		Name:                "dataset",
-		EndPoint:            "http://minio.flyte.svc",
+		Endpoint:            "minio.flyte.svc",
 		Port:                "9000",
 		AccessKey:           "rustfs",
 		SecretKeyCiphertext: "encrypted-secret",
@@ -122,7 +137,7 @@ func TestDatasetServiceUpdateKeepsExistingSecretWhenInputIsEmpty(t *testing.T) {
 		Id: &datasetpb.DatasetIdentifier{Org: key.Org, Project: key.Project, Domain: key.Domain, Id: key.ID},
 		Dataset: &datasetpb.DatasetInput{
 			Name:       "dataset updated",
-			EndPoint:   "http://minio.flyte.svc",
+			Endpoint:   "minio.flyte.svc",
 			Port:       "9000",
 			AccessKey:  "rustfs",
 			TargetPath: "/mnt/datasets",

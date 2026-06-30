@@ -23,7 +23,7 @@ service DatasetService {
 message DatasetInput {
   string name = 1;
   string description = 2;
-  string end_point = 3;
+  string endpoint = 3;
   string port = 4;
   string access_key = 5;
   string secret_key = 6;

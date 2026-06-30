@@ -33,7 +33,7 @@ INSERT INTO aione_datasets (
 	$11, $12, $13, $14
 )`,
 		dataset.ID, dataset.Org, dataset.Project, dataset.Domain, dataset.Name, dataset.Description,
-		dataset.EndPoint, dataset.Port, dataset.AccessKey, dataset.SecretKeyCiphertext,
+		dataset.Endpoint, dataset.Port, dataset.AccessKey, dataset.SecretKeyCiphertext,
 		dataset.TargetPath, dataset.Bucket, dataset.BucketPath, dataset.Creator)
 	if err != nil {
 		return fmt.Errorf("failed to create dataset %s/%s/%s/%s: %w", dataset.Org, dataset.Project, dataset.Domain, dataset.ID, err)
@@ -72,7 +72,7 @@ SET name = $5,
     updated_at = NOW()
 WHERE org = $1 AND project = $2 AND domain = $3 AND id = $4`,
 		dataset.Org, dataset.Project, dataset.Domain, dataset.ID, dataset.Name, dataset.Description,
-		dataset.EndPoint, dataset.Port, dataset.AccessKey, dataset.SecretKeyCiphertext, dataset.TargetPath, dataset.Bucket, dataset.BucketPath)
+		dataset.Endpoint, dataset.Port, dataset.AccessKey, dataset.SecretKeyCiphertext, dataset.TargetPath, dataset.Bucket, dataset.BucketPath)
 	if err != nil {
 		return fmt.Errorf("failed to update dataset %s/%s/%s/%s: %w", dataset.Org, dataset.Project, dataset.Domain, dataset.ID, err)
 	}

@@ -89,7 +89,7 @@ export function DatasetsListPage() {
     () =>
       items.filter((item) =>
         searchTerm
-          ? `${item.name} ${item.description} ${item.endPoint} ${item.bucket} ${item.bucketPath}`
+          ? `${item.name} ${item.description} ${item.endpoint} ${item.bucket} ${item.bucketPath}`
               .toLowerCase()
               .includes(searchTerm.toLowerCase())
           : true,

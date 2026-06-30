@@ -203,7 +203,7 @@ export function DatasetDetailPage() {
                   ["名称", dataset?.name],
                   ["数据集 ID", dataset?.id?.id],
                   ["描述", dataset?.description || "-"],
-                  ["EndPoint", dataset?.endPoint],
+                  ["Endpoint", dataset?.endpoint],
                   ["Port", dataset?.port],
                   ["AccessKey", dataset?.accessKey],
                   ["SecretKey", dataset ? "已加密保存" : "-"],

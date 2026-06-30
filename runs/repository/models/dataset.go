@@ -14,7 +14,7 @@ type Dataset struct {
 
 	Name                string    `db:"name"`
 	Description         string    `db:"description"`
-	EndPoint            string    `db:"end_point"`
+	Endpoint            string    `db:"end_point"`
 	Port                string    `db:"port"`
 	AccessKey           string    `db:"access_key"`
 	SecretKeyCiphertext string    `db:"secret_key_ciphertext"`

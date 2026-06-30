@@ -70,7 +70,7 @@ def _inputs(params: any):
         for code in params.get("codes")
     ]
     s3_datas = [S3Data(
-        endpoint=f"{ossdata.get("endPoint")}:{ossdata.get("port")}",
+        endpoint=f"{ossdata.get('endpoint')}:{ossdata.get('port')}",
         access_key=ossdata.get("accessKey"),
         secret_key=ossdata.get("secretKey"),
         bucket_name=ossdata.get("bucket"),

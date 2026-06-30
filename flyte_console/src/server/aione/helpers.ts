@@ -257,8 +257,8 @@ export function buildAioneInstanceValues({
       };
     }),
     datasets: (payload.datasets ?? []).map((dataset) => {
-      if (dataset.endpoint) {
-        throw new Error("datasets.endPoint is required");
+      if (Object.prototype.hasOwnProperty.call(dataset, "endPoint")) {
+        throw new Error("datasets.endPoint is not supported; use endpoint");
       }
       const bucketPath = dataset.bucketPath?.trim() || "";
       if (
@@ -271,7 +271,7 @@ export function buildAioneInstanceValues({
         );
       }
       return {
-        endPoint: requiredString(dataset.endPoint, "datasets.endPoint"),
+        endpoint: requiredString(dataset.endpoint, "datasets.endpoint"),
         port: String(requiredString(String(dataset.port ?? ""), "datasets.port")),
         accessKey: requiredString(dataset.accessKey, "datasets.accessKey"),
         secretKey: requiredString(dataset.secretKey, "datasets.secretKey"),

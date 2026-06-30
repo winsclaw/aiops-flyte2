@@ -57,7 +57,7 @@ export function DatasetFormPage({
   const datasetClient = useConnectRpcClient(DatasetService);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [endPoint, setEndPoint] = useState("");
+  const [endpoint, setEndpoint] = useState("");
   const [port, setPort] = useState("");
   const [accessKey, setAccessKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
@@ -119,7 +119,7 @@ export function DatasetFormPage({
       }
       setName(dataset.name);
       setDescription(dataset.description);
-      setEndPoint(dataset.endPoint);
+      setEndpoint(dataset.endpoint);
       setPort(dataset.port);
       setAccessKey(dataset.accessKey);
       setSecretKey("");
@@ -149,8 +149,11 @@ export function DatasetFormPage({
     if (description.trim().length > 255) {
       return "描述不能超过 255 个字符";
     }
-    if (!endPoint.trim()) {
-      return "请输入 EndPoint";
+    if (!endpoint.trim()) {
+      return "请输入 Endpoint";
+    }
+    if (endpoint.trim().includes("://")) {
+      return "Endpoint 不能包含协议";
     }
     if (!port.trim()) {
       return "请输入 Port";
@@ -190,7 +193,7 @@ export function DatasetFormPage({
       const datasetInput = create(DatasetInputSchema, {
         name: name.trim(),
         description: description.trim(),
-        endPoint: endPoint.trim(),
+        endpoint: endpoint.trim(),
         port: port.trim(),
         accessKey: accessKey.trim(),
         secretKey,
@@ -291,12 +294,12 @@ export function DatasetFormPage({
                 </div>
                 <div className="grid gap-5 p-5 md:grid-cols-2">
                   <label className={labelClass}>
-                    EndPoint
+                    Endpoint
                     <input
                       className={fieldClass}
-                      value={endPoint}
-                      onChange={(event) => setEndPoint(event.target.value)}
-                      placeholder="请输入 EndPoint"
+                      value={endpoint}
+                      onChange={(event) => setEndpoint(event.target.value)}
+                      placeholder="请输入 Endpoint"
                     />
                   </label>
                   <label className={labelClass}>

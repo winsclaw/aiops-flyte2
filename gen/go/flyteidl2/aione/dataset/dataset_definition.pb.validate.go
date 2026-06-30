@@ -199,7 +199,7 @@ func (m *Dataset) validate(all bool) error {
 
 	// no validation rules for Description
 
-	// no validation rules for EndPoint
+	// no validation rules for Endpoint
 
 	// no validation rules for Port
 
@@ -372,7 +372,7 @@ func (m *RuntimeDataset) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for EndPoint
+	// no validation rules for Endpoint
 
 	// no validation rules for Port
 

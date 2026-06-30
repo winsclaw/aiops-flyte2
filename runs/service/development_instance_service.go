@@ -694,7 +694,7 @@ func (s *DevelopmentInstanceService) populateDevelopmentInstanceDatasets(ctx con
 			return connect.NewError(connect.CodeNotFound, err)
 		}
 		resolved = append(resolved, models.RuntimeDataset{
-			EndPoint:            dataset.EndPoint,
+			Endpoint:            dataset.Endpoint,
 			Port:                dataset.Port,
 			AccessKey:           dataset.AccessKey,
 			SecretKeyCiphertext: dataset.SecretKeyCiphertext,

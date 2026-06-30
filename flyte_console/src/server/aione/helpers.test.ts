@@ -183,6 +183,65 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.maxHours).toBe(1);
   });
 
+  it("maps external runtime datasets from endpoint", () => {
+    const mapped = buildAioneInstanceValues({
+      payload: {
+        ...basePayload,
+        datasets: [
+          {
+            endpoint: "1.2.3.4",
+            port: 111,
+            accessKey: "ak",
+            secretKey: "sk",
+            targetPath: "/data/set1",
+            bucket: "mybucket1",
+            bucketPath: "sub-path/xxx",
+          },
+        ],
+      },
+      nodePort: 31000,
+      internalOrg: "aione",
+      defaultStorageClass: "bj1-ebs",
+      defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+      runNameSuffix: "r1",
+    });
+
+    expect(mapped.values.datasets?.[0]).toMatchObject({
+      endpoint: "1.2.3.4",
+      port: "111",
+      accessKey: "ak",
+      secretKey: "sk",
+      targetPath: "/data/set1",
+      bucket: "mybucket1",
+      bucketPath: "sub-path/xxx",
+    });
+  });
+
+  it("rejects legacy endPoint on external runtime datasets", () => {
+    expect(() =>
+      buildAioneInstanceValues({
+        payload: {
+          ...basePayload,
+          datasets: [
+            {
+              endPoint: "1.2.3.4",
+              port: 111,
+              accessKey: "ak",
+              secretKey: "sk",
+              targetPath: "/data/set1",
+              bucket: "mybucket1",
+            },
+          ],
+        },
+        nodePort: 31000,
+        internalOrg: "aione",
+        defaultStorageClass: "bj1-ebs",
+        defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+        runNameSuffix: "r1",
+      }),
+    ).toThrow("datasets.endPoint is not supported; use endpoint");
+  });
+
   it("rejects SSH payloads without any SSH public key source", () => {
     expect(() =>
       buildAioneInstanceValues({

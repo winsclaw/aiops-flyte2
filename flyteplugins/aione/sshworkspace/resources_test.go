@@ -459,7 +459,7 @@ func TestBuildResourcesAddsDatasetDownloader(t *testing.T) {
 		ServiceType:     corev1.ServiceTypeClusterIP,
 		DownloaderImage: "aione-downloader:main-abc1234",
 		Datasets: []RuntimeDataset{{
-			EndPoint:   "1.2.3.4",
+			Endpoint:   "1.2.3.4",
 			Port:       "9000",
 			AccessKey:  "ak",
 			SecretKey:  "sk",

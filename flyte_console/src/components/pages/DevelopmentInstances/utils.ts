@@ -165,7 +165,7 @@ export type DevelopmentInstanceFormValues = {
     token?: string;
   }[];
   datasets?: {
-    endPoint: string;
+    endpoint: string;
     port: string;
     accessKey: string;
     secretKey: string;

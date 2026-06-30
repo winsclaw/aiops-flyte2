@@ -83,8 +83,8 @@ describe("DatasetFormPage", () => {
       "training speech",
     );
     await user.type(
-      screen.getByPlaceholderText("请输入 EndPoint"),
-      "http://minio.flyte.svc",
+      screen.getByPlaceholderText("请输入 Endpoint"),
+      "minio.flyte.svc",
     );
     await user.type(screen.getByPlaceholderText("请输入 Port"), "9000");
     await user.type(screen.getByPlaceholderText("请输入 AccessKey"), "rustfs");
@@ -116,7 +116,7 @@ describe("DatasetFormPage", () => {
     expect(request.dataset).toMatchObject({
       name: "语音识别",
       description: "training speech",
-      endPoint: "http://minio.flyte.svc",
+      endpoint: "minio.flyte.svc",
       port: "9000",
       accessKey: "rustfs",
       secretKey: "rustfsstorage",
@@ -124,5 +124,21 @@ describe("DatasetFormPage", () => {
       bucket: "datasets",
       bucketPath: "data/speech/",
     });
+  });
+
+  it("rejects endpoint values with a protocol", async () => {
+    const user = userEvent.setup();
+    render(<DatasetFormPage />);
+
+    await user.type(screen.getByPlaceholderText("请输入名称"), "语音识别");
+    await user.type(
+      screen.getByPlaceholderText("请输入 Endpoint"),
+      "http://minio.flyte.svc",
+    );
+
+    await user.click(screen.getByRole("button", { name: "创建" }));
+
+    expect(await screen.findByText("Endpoint 不能包含协议")).toBeInTheDocument();
+    expect(mocks.createDataset).not.toHaveBeenCalled();
   });
 });

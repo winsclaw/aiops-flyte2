@@ -53,7 +53,7 @@ type CloudStorageMount struct {
 type CodeRepositoryMount = aionecoderepository.Mount
 
 type RuntimeDataset struct {
-	EndPoint            string
+	Endpoint            string
 	Port                string
 	AccessKey           string
 	SecretKey           string
@@ -261,7 +261,7 @@ func datasetsValue(custom *structpb.Struct) ([]RuntimeDataset, error) {
 	for _, item := range list.Values {
 		fields := item.GetStructValue().GetFields()
 		dataset := RuntimeDataset{
-			EndPoint:            strings.TrimSpace(fields["endPoint"].GetStringValue()),
+			Endpoint:            strings.TrimSpace(fields["endpoint"].GetStringValue()),
 			Port:                strings.TrimSpace(valueToString(fields["port"])),
 			AccessKey:           strings.TrimSpace(fields["accessKey"].GetStringValue()),
 			SecretKey:           strings.TrimSpace(fields["secretKey"].GetStringValue()),
@@ -277,8 +277,8 @@ func datasetsValue(custom *structpb.Struct) ([]RuntimeDataset, error) {
 			}
 			dataset.SecretKey = secretKey
 		}
-		if dataset.EndPoint == "" || dataset.Port == "" || dataset.AccessKey == "" || dataset.SecretKey == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
-			return nil, fmt.Errorf("datasets entries require endPoint, port, accessKey, secretKey, targetPath, and bucket")
+		if dataset.Endpoint == "" || dataset.Port == "" || dataset.AccessKey == "" || dataset.SecretKey == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
+			return nil, fmt.Errorf("datasets entries require endpoint, port, accessKey, secretKey, targetPath, and bucket")
 		}
 		datasets = append(datasets, dataset)
 	}

@@ -578,7 +578,7 @@ func (s *TrainingTaskService) populateTrainingTaskDatasets(ctx context.Context, 
 			return connect.NewError(connect.CodeNotFound, err)
 		}
 		resolved = append(resolved, models.RuntimeDataset{
-			EndPoint:            dataset.EndPoint,
+			Endpoint:            dataset.Endpoint,
 			Port:                dataset.Port,
 			AccessKey:           dataset.AccessKey,
 			SecretKeyCiphertext: dataset.SecretKeyCiphertext,
@@ -606,7 +606,7 @@ func runtimeDatasetsFromProto(items []*datasetpb.RuntimeDataset) ([]models.Runti
 			continue
 		}
 		dataset := models.RuntimeDataset{
-			EndPoint:   strings.TrimSpace(item.GetEndPoint()),
+			Endpoint:   strings.TrimSpace(item.GetEndpoint()),
 			Port:       strings.TrimSpace(item.GetPort()),
 			AccessKey:  strings.TrimSpace(item.GetAccessKey()),
 			TargetPath: strings.TrimSpace(item.GetTargetPath()),
@@ -614,11 +614,11 @@ func runtimeDatasetsFromProto(items []*datasetpb.RuntimeDataset) ([]models.Runti
 			BucketPath: strings.TrimSpace(item.GetBucketPath()),
 		}
 		secretKey := strings.TrimSpace(item.GetSecretKey())
-		if dataset.EndPoint == "" || dataset.Port == "" || dataset.AccessKey == "" || secretKey == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
-			return nil, fmt.Errorf("datasets entries require endPoint, port, accessKey, secretKey, targetPath, and bucket")
+		if dataset.Endpoint == "" || dataset.Port == "" || dataset.AccessKey == "" || secretKey == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
+			return nil, fmt.Errorf("datasets entries require endpoint, port, accessKey, secretKey, targetPath, and bucket")
 		}
-		if strings.Contains(dataset.EndPoint, "://") {
-			return nil, fmt.Errorf("dataset endPoint must not include a URL scheme")
+		if strings.Contains(dataset.Endpoint, "://") {
+			return nil, fmt.Errorf("dataset endpoint must not include a URL scheme")
 		}
 		if !strings.HasPrefix(dataset.TargetPath, "/") {
 			return nil, fmt.Errorf("dataset targetPath must be absolute")
@@ -821,7 +821,7 @@ func runtimeDatasetsToProto(items []models.RuntimeDataset) []*datasetpb.RuntimeD
 	result := make([]*datasetpb.RuntimeDataset, 0, len(items))
 	for _, item := range items {
 		result = append(result, &datasetpb.RuntimeDataset{
-			EndPoint:   item.EndPoint,
+			Endpoint:   item.Endpoint,
 			Port:       item.Port,
 			AccessKey:  item.AccessKey,
 			SecretKey:  "",

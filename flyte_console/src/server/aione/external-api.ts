@@ -1046,16 +1046,19 @@ function parseExternalRuntimeDatasets(value: unknown) {
   }
   return value.map((item, index) => {
     const dataset = getPayloadObject(item);
-    if (Object.prototype.hasOwnProperty.call(dataset, "endpoint")) {
-      throw statusError(`datasets[${index}].endPoint is required`, 400);
+    if (Object.prototype.hasOwnProperty.call(dataset, "endPoint")) {
+      throw statusError(
+        `datasets[${index}].endPoint is not supported; use endpoint`,
+        400,
+      );
     }
-    const endPoint = requiredStringField(
+    const endpoint = requiredStringField(
       dataset,
-      "endPoint",
-      `datasets[${index}].endPoint`,
+      "endpoint",
+      `datasets[${index}].endpoint`,
     );
-    if (endPoint.includes("://")) {
-      throw statusError(`datasets[${index}].endPoint must not include scheme`, 400);
+    if (endpoint.includes("://")) {
+      throw statusError(`datasets[${index}].endpoint must not include scheme`, 400);
     }
     const portValue = dataset.port;
     const port =
@@ -1077,7 +1080,7 @@ function parseExternalRuntimeDatasets(value: unknown) {
       );
     }
     return create(RuntimeDatasetSchema, {
-      endPoint,
+      endpoint,
       port,
       accessKey: requiredStringField(
         dataset,
@@ -1504,7 +1507,7 @@ function buildDevelopmentInstanceInput(values: DevelopmentInstanceFormValues) {
     ),
     datasets: (values.datasets ?? []).map((dataset) =>
       create(RuntimeDatasetSchema, {
-        endPoint: dataset.endPoint,
+        endpoint: dataset.endpoint,
         port: dataset.port,
         accessKey: dataset.accessKey,
         secretKey: dataset.secretKey,

@@ -18,7 +18,7 @@ message Dataset {
   DatasetIdentifier id = 1 [(buf.validate.field).required = true];
   string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
   string description = 3 [(buf.validate.field).string.max_len = 255];
-  string end_point = 4;
+  string endpoint = 4;
   string port = 5;
   string access_key = 6;
   string secret_key = 7;
@@ -31,7 +31,7 @@ message Dataset {
 }
 
 message RuntimeDataset {
-  string end_point = 1;
+  string endpoint = 1;
   string port = 2;
   string access_key = 3;
   string secret_key = 4;

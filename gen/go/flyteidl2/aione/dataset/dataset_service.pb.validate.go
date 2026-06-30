@@ -61,7 +61,7 @@ func (m *DatasetInput) validate(all bool) error {
 
 	// no validation rules for Description
 
-	// no validation rules for EndPoint
+	// no validation rules for Endpoint
 
 	// no validation rules for Port
 

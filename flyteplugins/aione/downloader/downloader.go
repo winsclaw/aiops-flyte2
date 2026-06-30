@@ -22,7 +22,7 @@ type Code struct {
 }
 
 type OSSData struct {
-	EndPoint   string `json:"endPoint"`
+	Endpoint   string `json:"endpoint"`
 	Port       string `json:"port"`
 	AccessKey  string `json:"accessKey"`
 	SecretKey  string `json:"secretKey"`

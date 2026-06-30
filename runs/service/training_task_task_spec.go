@@ -61,11 +61,11 @@ func BuildTrainingTaskSpec(trainingTask *models.TrainingTask) (*task.TaskSpec, e
 
 	datasets := make([]any, 0, len(trainingTask.SelectedDatasets()))
 	for _, dataset := range trainingTask.SelectedDatasets() {
-		if dataset.EndPoint == "" || dataset.Port == "" || dataset.AccessKey == "" || dataset.SecretKeyCiphertext == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
+		if dataset.Endpoint == "" || dataset.Port == "" || dataset.AccessKey == "" || dataset.SecretKeyCiphertext == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
 			return nil, fmt.Errorf("dataset mount %q is incomplete", dataset.TargetPath)
 		}
 		datasets = append(datasets, map[string]any{
-			"endPoint":            dataset.EndPoint,
+			"endpoint":            dataset.Endpoint,
 			"port":                dataset.Port,
 			"accessKey":           dataset.AccessKey,
 			"secretKeyCiphertext": dataset.SecretKeyCiphertext,

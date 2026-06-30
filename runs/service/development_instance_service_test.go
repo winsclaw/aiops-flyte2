@@ -88,7 +88,7 @@ func TestBuildDevelopmentInstanceSpecIncludesDatasetsWithoutPlainSecret(t *testi
 		MaxHours:               24,
 		WorkspacePVCName:       "ins-dataset-workspace",
 		Datasets: []models.RuntimeDataset{{
-			EndPoint:            "1.2.3.4",
+			Endpoint:            "1.2.3.4",
 			Port:                "9000",
 			AccessKey:           "ak",
 			SecretKeyCiphertext: "v1:ciphertext",
@@ -103,7 +103,7 @@ func TestBuildDevelopmentInstanceSpecIncludesDatasetsWithoutPlainSecret(t *testi
 	values := fields["datasets"].GetListValue().GetValues()
 	require.Len(t, values, 1)
 	dataset := values[0].GetStructValue().GetFields()
-	require.Equal(t, "1.2.3.4", dataset["endPoint"].GetStringValue())
+	require.Equal(t, "1.2.3.4", dataset["endpoint"].GetStringValue())
 	require.Equal(t, "v1:ciphertext", dataset["secretKeyCiphertext"].GetStringValue())
 	require.Nil(t, dataset["secretKey"])
 }

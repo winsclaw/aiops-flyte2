@@ -182,9 +182,12 @@ func buildModelFromKey(key models.DatasetKey, input *datasetpb.DatasetInput, cre
 	if len([]rune(description)) > 255 {
 		return nil, fmt.Errorf("description must be at most 255 characters")
 	}
-	endPoint := strings.TrimSpace(input.GetEndPoint())
-	if endPoint == "" {
-		return nil, fmt.Errorf("end point is required")
+	endpoint := strings.TrimSpace(input.GetEndpoint())
+	if endpoint == "" {
+		return nil, fmt.Errorf("endpoint is required")
+	}
+	if strings.Contains(endpoint, "://") {
+		return nil, fmt.Errorf("endpoint must not include a URL scheme")
 	}
 	port := strings.TrimSpace(input.GetPort())
 	if port == "" {
@@ -225,7 +228,7 @@ func buildModelFromKey(key models.DatasetKey, input *datasetpb.DatasetInput, cre
 		DatasetKey:          key,
 		Name:                name,
 		Description:         description,
-		EndPoint:            endPoint,
+		Endpoint:            endpoint,
 		Port:                port,
 		AccessKey:           accessKey,
 		SecretKeyCiphertext: secretKeyCiphertext,
@@ -283,7 +286,7 @@ func modelToProto(model *models.Dataset) *datasetpb.Dataset {
 		Creator:     model.Creator,
 		CreatedAt:   optionalTimestamp(model.CreatedAt),
 		UpdatedAt:   optionalTimestamp(model.UpdatedAt),
-		EndPoint:    model.EndPoint,
+		Endpoint:    model.Endpoint,
 		Port:        model.Port,
 		AccessKey:   model.AccessKey,
 		SecretKey:   "",

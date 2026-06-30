@@ -3,7 +3,7 @@ package models
 import "encoding/json"
 
 type RuntimeDataset struct {
-	EndPoint            string `json:"endPoint"`
+	Endpoint            string `json:"endpoint"`
 	Port                string `json:"port"`
 	AccessKey           string `json:"accessKey"`
 	SecretKeyCiphertext string `json:"secretKeyCiphertext,omitempty"`
