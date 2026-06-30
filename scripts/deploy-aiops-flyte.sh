@@ -249,7 +249,15 @@ pull_containerd_image() {
     printf 'Image already present: %s\n' "$image"
     return
   fi
+  if [[ "$image" != */* ]] && printf '%s\n' "$image_refs" | grep -Fxq "docker.fzyun.io/library/$image"; then
+    printf 'Image already present: %s\n' "$image"
+    return
+  fi
   if [[ "$image" == */* && "$image" != *.*/* && "$image" != localhost/* ]] && printf '%s\n' "$image_refs" | grep -Fxq "docker.io/$image"; then
+    printf 'Image already present: %s\n' "$image"
+    return
+  fi
+  if [[ "$image" == */* && "$image" != *.*/* && "$image" != localhost/* ]] && printf '%s\n' "$image_refs" | grep -Fxq "docker.fzyun.io/$image"; then
     printf 'Image already present: %s\n' "$image"
     return
   fi
