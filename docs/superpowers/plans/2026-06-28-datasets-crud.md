@@ -64,12 +64,16 @@ message Dataset {
   DatasetIdentifier id = 1 [(buf.validate.field).required = true];
   string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
   string description = 3 [(buf.validate.field).string.max_len = 255];
-  string cloud_storage_id = 4 [(buf.validate.field).string.min_len = 1];
-  string folder_path = 5;
-  bool project_public = 6;
-  string creator = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  string end_point = 4 [(buf.validate.field).string.min_len = 1];
+  string port = 5 [(buf.validate.field).string.min_len = 1];
+  string access_key = 6 [(buf.validate.field).string.min_len = 1];
+  string secret_key = 7;
+  string target_path = 8 [(buf.validate.field).string.min_len = 1];
+  string bucket = 9 [(buf.validate.field).string.min_len = 1];
+  string bucket_path = 10;
+  string creator = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
 }
 ```
 
@@ -188,10 +192,11 @@ git commit -m "feat: persist datasets"
 
 Tests must cover:
 
-- create trims and normalizes `folder_path` from `/data/speech/` to `data/speech/`
+- create trims and normalizes `bucket_path` from `/data/speech/` to `data/speech/`
 - create rejects missing name
-- create rejects missing cloud storage
-- update rejects changing `project_public` from `true` to `false`
+- create rejects missing object storage fields
+- create encrypts `secret_key` before persistence and does not return plaintext
+- update with empty `secret_key` keeps the existing encrypted value
 - list supports search
 - delete removes metadata
 
@@ -335,4 +340,3 @@ Verify:
 - List shows the dataset.
 - Edit updates description/path/public flag.
 - Delete removes the row.
-

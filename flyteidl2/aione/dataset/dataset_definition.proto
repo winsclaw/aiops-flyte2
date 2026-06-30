@@ -18,10 +18,29 @@ message Dataset {
   DatasetIdentifier id = 1 [(buf.validate.field).required = true];
   string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
   string description = 3 [(buf.validate.field).string.max_len = 255];
-  string cloud_storage_id = 4 [(buf.validate.field).string.min_len = 1];
-  string folder_path = 5;
-  bool project_public = 6;
-  string creator = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  string end_point = 4;
+  string port = 5;
+  string access_key = 6;
+  string secret_key = 7;
+  string target_path = 8;
+  string bucket = 9;
+  string bucket_path = 10;
+  string creator = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message RuntimeDataset {
+  string end_point = 1;
+  string port = 2;
+  string access_key = 3;
+  string secret_key = 4;
+  string target_path = 5;
+  string bucket = 6;
+  string bucket_path = 7;
+}
+
+message DatasetMount {
+  string dataset_id = 1;
+  string target_path = 2;
 }

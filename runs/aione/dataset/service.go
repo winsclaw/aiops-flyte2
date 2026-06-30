@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"k8s.io/apimachinery/pkg/util/rand"
+	k8srand "k8s.io/apimachinery/pkg/util/rand"
 
 	datasetpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/dataset"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/dataset/datasetconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/common"
+	"github.com/flyteorg/flyte/v2/runs/aione/datasetsecret"
 	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -21,12 +22,11 @@ import (
 
 type Service struct {
 	datasetconnect.UnimplementedDatasetServiceHandler
-	datasets      interfaces.DatasetRepo
-	cloudStorages interfaces.CloudStorageRepo
+	datasets interfaces.DatasetRepo
 }
 
-func NewService(datasets interfaces.DatasetRepo, cloudStorages interfaces.CloudStorageRepo) *Service {
-	return &Service{datasets: datasets, cloudStorages: cloudStorages}
+func NewService(datasets interfaces.DatasetRepo) *Service {
+	return &Service{datasets: datasets}
 }
 
 var _ datasetconnect.DatasetServiceHandler = (*Service)(nil)
@@ -38,9 +38,6 @@ func (s *Service) CreateDataset(ctx context.Context, req *connect.Request[datase
 	model, err := buildCreateModel(req.Msg.GetProject(), req.Msg.GetDataset(), req.Msg.GetCreator())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if err := s.ensureCloudStorage(ctx, model.DatasetKey, model.CloudStorageID); err != nil {
-		return nil, err
 	}
 	if err := s.datasets.Create(ctx, model); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -64,9 +61,6 @@ func (s *Service) UpdateDataset(ctx context.Context, req *connect.Request[datase
 	updated, err := buildUpdateModel(key, req.Msg.GetDataset(), current)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if err := s.ensureCloudStorage(ctx, key, updated.CloudStorageID); err != nil {
-		return nil, err
 	}
 	if err := s.datasets.Update(ctx, updated); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -146,22 +140,6 @@ func (s *Service) DeleteDataset(ctx context.Context, req *connect.Request[datase
 	return connect.NewResponse(&datasetpb.DeleteDatasetResponse{}), nil
 }
 
-func (s *Service) ensureCloudStorage(ctx context.Context, key models.DatasetKey, cloudStorageID string) error {
-	if s.cloudStorages == nil {
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("cloud storage repository is required"))
-	}
-	_, err := s.cloudStorages.Get(ctx, models.CloudStorageKey{
-		Org:     key.Org,
-		Project: key.Project,
-		Domain:  key.Domain,
-		ID:      cloudStorageID,
-	})
-	if err != nil {
-		return connect.NewError(connect.CodeNotFound, fmt.Errorf("cloud storage not found: %w", err))
-	}
-	return nil
-}
-
 func buildCreateModel(project *common.ProjectIdentifier, input *datasetpb.DatasetInput, creator string) (*models.Dataset, error) {
 	if project == nil {
 		return nil, fmt.Errorf("project is required")
@@ -171,21 +149,25 @@ func buildCreateModel(project *common.ProjectIdentifier, input *datasetpb.Datase
 		Project: project.GetName(),
 		Domain:  project.GetDomain(),
 		ID:      newDatasetID(),
-	}, input, creator, false, false)
+	}, input, creator, false)
 }
 
 func buildUpdateModel(key models.DatasetKey, input *datasetpb.DatasetInput, current *models.Dataset) (*models.Dataset, error) {
-	if current != nil && current.ProjectPublic && !input.GetProjectPublic() {
-		return nil, fmt.Errorf("project public datasets cannot be made private")
-	}
 	creator := ""
 	if current != nil {
 		creator = current.Creator
 	}
-	return buildModelFromKey(key, input, creator, current != nil && current.ProjectPublic, true)
+	updated, err := buildModelFromKey(key, input, creator, true)
+	if err != nil {
+		return nil, err
+	}
+	if updated.SecretKeyCiphertext == "" && current != nil {
+		updated.SecretKeyCiphertext = current.SecretKeyCiphertext
+	}
+	return updated, nil
 }
 
-func buildModelFromKey(key models.DatasetKey, input *datasetpb.DatasetInput, creator string, keepPublic bool, isUpdate bool) (*models.Dataset, error) {
+func buildModelFromKey(key models.DatasetKey, input *datasetpb.DatasetInput, creator string, isUpdate bool) (*models.Dataset, error) {
 	if input == nil {
 		return nil, fmt.Errorf("dataset is required")
 	}
@@ -200,46 +182,77 @@ func buildModelFromKey(key models.DatasetKey, input *datasetpb.DatasetInput, cre
 	if len([]rune(description)) > 255 {
 		return nil, fmt.Errorf("description must be at most 255 characters")
 	}
-	cloudStorageID := strings.TrimSpace(input.GetCloudStorageId())
-	if cloudStorageID == "" {
-		return nil, fmt.Errorf("cloud storage id is required")
+	endPoint := strings.TrimSpace(input.GetEndPoint())
+	if endPoint == "" {
+		return nil, fmt.Errorf("end point is required")
 	}
-	folderPath, err := normalizeFolderPath(input.GetFolderPath())
+	port := strings.TrimSpace(input.GetPort())
+	if port == "" {
+		return nil, fmt.Errorf("port is required")
+	}
+	accessKey := strings.TrimSpace(input.GetAccessKey())
+	if accessKey == "" {
+		return nil, fmt.Errorf("access key is required")
+	}
+	secretKey := input.GetSecretKey()
+	if !isUpdate && strings.TrimSpace(secretKey) == "" {
+		return nil, fmt.Errorf("secret key is required")
+	}
+	secretKeyCiphertext := ""
+	if strings.TrimSpace(secretKey) != "" {
+		var err error
+		secretKeyCiphertext, err = datasetsecret.Encrypt(secretKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	targetPath := strings.TrimSpace(input.GetTargetPath())
+	if targetPath == "" {
+		return nil, fmt.Errorf("target path is required")
+	}
+	bucket := strings.TrimSpace(input.GetBucket())
+	if bucket == "" {
+		return nil, fmt.Errorf("bucket is required")
+	}
+	bucketPath, err := normalizeBucketPath(input.GetBucketPath())
 	if err != nil {
 		return nil, err
 	}
-	projectPublic := input.GetProjectPublic() || keepPublic
 	if isUpdate && key.ID == "" {
 		return nil, fmt.Errorf("dataset id is required")
 	}
 	return &models.Dataset{
-		DatasetKey:     key,
-		Name:           name,
-		Description:    description,
-		CloudStorageID: cloudStorageID,
-		FolderPath:     folderPath,
-		ProjectPublic:  projectPublic,
-		Creator:        creator,
+		DatasetKey:          key,
+		Name:                name,
+		Description:         description,
+		EndPoint:            endPoint,
+		Port:                port,
+		AccessKey:           accessKey,
+		SecretKeyCiphertext: secretKeyCiphertext,
+		TargetPath:          targetPath,
+		Bucket:              bucket,
+		BucketPath:          bucketPath,
+		Creator:             creator,
 	}, nil
 }
 
-func normalizeFolderPath(value string) (string, error) {
+func normalizeBucketPath(value string) (string, error) {
 	trimmed := strings.TrimSpace(value)
 	trimmed = strings.TrimLeft(trimmed, "/")
 	if trimmed == "" {
 		return "", nil
 	}
 	if strings.Contains(trimmed, `\`) || strings.Contains(trimmed, "..") {
-		return "", fmt.Errorf("folder path cannot contain .., backslash, or URL scheme")
+		return "", fmt.Errorf("bucket path cannot contain .., backslash, or URL scheme")
 	}
 	if parsed, err := url.Parse(trimmed); err == nil && parsed.Scheme != "" {
-		return "", fmt.Errorf("folder path cannot contain .., backslash, or URL scheme")
+		return "", fmt.Errorf("bucket path cannot contain .., backslash, or URL scheme")
 	}
 	return trimmed, nil
 }
 
 func newDatasetID() string {
-	return fmt.Sprintf("ds-%s-%d", rand.String(8), time.Now().Unix())
+	return fmt.Sprintf("ds-%s-%d", k8srand.String(8), time.Now().Unix())
 }
 
 func keyFromProto(id *datasetpb.DatasetIdentifier) models.DatasetKey {
@@ -265,14 +278,18 @@ func modelToProto(model *models.Dataset) *datasetpb.Dataset {
 			Domain:  model.Domain,
 			Id:      model.ID,
 		},
-		Name:           model.Name,
-		Description:    model.Description,
-		CloudStorageId: model.CloudStorageID,
-		FolderPath:     model.FolderPath,
-		ProjectPublic:  model.ProjectPublic,
-		Creator:        model.Creator,
-		CreatedAt:      optionalTimestamp(model.CreatedAt),
-		UpdatedAt:      optionalTimestamp(model.UpdatedAt),
+		Name:        model.Name,
+		Description: model.Description,
+		Creator:     model.Creator,
+		CreatedAt:   optionalTimestamp(model.CreatedAt),
+		UpdatedAt:   optionalTimestamp(model.UpdatedAt),
+		EndPoint:    model.EndPoint,
+		Port:        model.Port,
+		AccessKey:   model.AccessKey,
+		SecretKey:   "",
+		TargetPath:  model.TargetPath,
+		Bucket:      model.Bucket,
+		BucketPath:  model.BucketPath,
 	}
 }
 

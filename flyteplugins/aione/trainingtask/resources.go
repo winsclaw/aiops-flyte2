@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	aionecoderepository "github.com/flyteorg/flyte/v2/flyteplugins/aione/coderepository"
+	aionedownloader "github.com/flyteorg/flyte/v2/flyteplugins/aione/downloader"
 )
 
 const (
@@ -40,9 +40,11 @@ type TrainingIdentity struct {
 }
 
 type TrainingResources struct {
-	Job                  *batchv1.Job
-	CloudStoragePVCs     []*corev1.PersistentVolumeClaim
-	CodeRepositorySecret *corev1.Secret
+	Job                     *batchv1.Job
+	CloudStoragePVCs        []*corev1.PersistentVolumeClaim
+	CodeRepositorySecret    *corev1.Secret
+	CodeDownloaderSecret    *corev1.Secret
+	DatasetDownloaderSecret *corev1.Secret
 }
 
 func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingResources, error) {
@@ -87,7 +89,6 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 	}
 
 	resourceName := kubernetesNameBase(identity.Name)
-	codeRepositorySecretName := resourceName + "-code-repositories"
 	container := corev1.Container{
 		Name:            "training",
 		Image:           cfg.Image,
@@ -95,23 +96,94 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 		Command:         []string{"/bin/sh", "-c"},
 		Args:            []string{cfg.Command},
 	}
-	var codeRepositorySecret *corev1.Secret
+	var codeDownloaderSecret *corev1.Secret
+	var datasetDownloaderSecret *corev1.Secret
+	initContainers := []corev1.Container{}
+	volumes := make([]corev1.Volume, 0, len(cfg.CloudStorageMounts)+len(cfg.CodeRepositories)+len(cfg.Datasets))
 	if len(cfg.CodeRepositories) > 0 {
-		data, err := aionecoderepository.SecretValue(cfg.CodeRepositories)
+		secretName := resourceName + "-code-downloader"
+		params := aionedownloader.Params{Codes: make([]aionedownloader.Code, 0, len(cfg.CodeRepositories))}
+		volumeMounts := make([]corev1.VolumeMount, 0, len(cfg.CodeRepositories))
+		for i, repo := range cfg.CodeRepositories {
+			volumeName := fmt.Sprintf("code-repository-%d", i)
+			volumes = append(volumes, corev1.Volume{
+				Name:         volumeName,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			})
+			mount := corev1.VolumeMount{Name: volumeName, MountPath: repo.MountPath}
+			volumeMounts = append(volumeMounts, mount)
+			container.VolumeMounts = append(container.VolumeMounts, mount)
+			params.Codes = append(params.Codes, aionedownloader.Code{
+				ID:     repo.RepoURL,
+				Path:   repo.MountPath,
+				Token:  repo.Token,
+				Branch: repo.Branch,
+			})
+		}
+		data, err := aionedownloader.SecretValue(params)
 		if err != nil {
 			return TrainingResources{}, err
 		}
-		codeRepositorySecret = &corev1.Secret{
+		codeDownloaderSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      codeRepositorySecretName,
+				Name:      secretName,
 				Namespace: identity.Namespace,
 				Labels:    labels,
 			},
 			Type: corev1.SecretTypeOpaque,
-			Data: map[string][]byte{aionecoderepository.SecretKey: data},
+			Data: map[string][]byte{aionedownloader.SecretKey: data},
 		}
-		container.Env = append(container.Env, aionecoderepository.EnvVar(codeRepositorySecretName))
-		container.Args = []string{aionecoderepository.CommandWithDownload(cfg.Command)}
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "code-downloader",
+			Image:           aionedownloader.Image(cfg.DownloaderImage),
+			ImagePullPolicy: corev1.PullNever,
+			Env:             []corev1.EnvVar{aionedownloader.EnvVar(secretName)},
+			VolumeMounts:    volumeMounts,
+		})
+	}
+	if len(cfg.Datasets) > 0 {
+		secretName := resourceName + "-dataset-downloader"
+		params := aionedownloader.Params{OSSDatas: make([]aionedownloader.OSSData, 0, len(cfg.Datasets))}
+		volumeMounts := make([]corev1.VolumeMount, 0, len(cfg.Datasets))
+		for i, dataset := range cfg.Datasets {
+			volumeName := fmt.Sprintf("dataset-%d", i)
+			volumes = append(volumes, corev1.Volume{
+				Name:         volumeName,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			})
+			mount := corev1.VolumeMount{Name: volumeName, MountPath: dataset.TargetPath}
+			volumeMounts = append(volumeMounts, mount)
+			container.VolumeMounts = append(container.VolumeMounts, mount)
+			params.OSSDatas = append(params.OSSDatas, aionedownloader.OSSData{
+				EndPoint:   dataset.EndPoint,
+				Port:       dataset.Port,
+				AccessKey:  dataset.AccessKey,
+				SecretKey:  dataset.SecretKey,
+				TargetPath: dataset.TargetPath,
+				Bucket:     dataset.Bucket,
+				BucketPath: dataset.BucketPath,
+			})
+		}
+		data, err := aionedownloader.SecretValue(params)
+		if err != nil {
+			return TrainingResources{}, err
+		}
+		datasetDownloaderSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: identity.Namespace,
+				Labels:    labels,
+			},
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{aionedownloader.SecretKey: data},
+		}
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "dataset-downloader",
+			Image:           aionedownloader.Image(cfg.DownloaderImage),
+			ImagePullPolicy: corev1.PullNever,
+			Env:             []corev1.EnvVar{aionedownloader.EnvVar(secretName)},
+			VolumeMounts:    volumeMounts,
+		})
 	}
 	if !cpu.IsZero() {
 		if container.Resources.Requests == nil {
@@ -136,7 +208,6 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 		container.Resources.Requests[corev1.ResourceName("nvidia.com/gpu")] = gpu
 		container.Resources.Limits[corev1.ResourceName("nvidia.com/gpu")] = gpu
 	}
-	volumes := make([]corev1.Volume, 0, len(cfg.CloudStorageMounts))
 	cloudPVCs := make([]*corev1.PersistentVolumeClaim, 0, len(cfg.CloudStorageMounts))
 	for i, mount := range cfg.CloudStorageMounts {
 		size, err := resource.ParseQuantity(mount.Size)
@@ -193,15 +264,16 @@ func BuildResources(identity TrainingIdentity, cfg TrainingConfig) (TrainingReso
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: labels, Annotations: annotations},
 				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyNever,
-					Containers:    []corev1.Container{container},
-					Volumes:       volumes,
+					RestartPolicy:  corev1.RestartPolicyNever,
+					InitContainers: initContainers,
+					Containers:     []corev1.Container{container},
+					Volumes:        volumes,
 				},
 			},
 		},
 	}
 
-	return TrainingResources{Job: job, CloudStoragePVCs: cloudPVCs, CodeRepositorySecret: codeRepositorySecret}, nil
+	return TrainingResources{Job: job, CloudStoragePVCs: cloudPVCs, CodeDownloaderSecret: codeDownloaderSecret, DatasetDownloaderSecret: datasetDownloaderSecret}, nil
 }
 
 func trainingLabels(identity TrainingIdentity) map[string]string {

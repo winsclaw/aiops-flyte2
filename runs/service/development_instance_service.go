@@ -159,6 +159,9 @@ func (s *DevelopmentInstanceService) CreateDevelopmentInstance(ctx context.Conte
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := s.populateDevelopmentInstanceDatasets(ctx, req.Msg.GetProject(), req.Msg.GetDevelopmentInstance(), model); err != nil {
+		return nil, err
+	}
 	existing, getErr := s.repo.DevelopmentInstanceRepo().GetByID(ctx, model.ID)
 	if getErr == nil && existing != nil {
 		model.LatestRunName = existing.LatestRunName
@@ -410,6 +413,25 @@ func buildDevelopmentInstanceModel(project *common.ProjectIdentifier, input *dev
 	if err != nil {
 		return nil, fmt.Errorf("code repository mounts are invalid: %w", err)
 	}
+	datasets, err := runtimeDatasetsFromProto(input.GetDatasets())
+	if err != nil {
+		return nil, err
+	}
+	datasetMounts, err := datasetMountsFromProto(input.GetDatasetMounts())
+	if err != nil {
+		return nil, err
+	}
+	if err := validateDevelopmentInstanceMountPaths(datasets, cloudMounts, codeMounts); err != nil {
+		return nil, err
+	}
+	datasetsJSON, err := models.EncodeRuntimeDatasets(datasets)
+	if err != nil {
+		return nil, fmt.Errorf("datasets are invalid: %w", err)
+	}
+	datasetMountsJSON, err := models.EncodeDatasetMounts(datasetMounts)
+	if err != nil {
+		return nil, fmt.Errorf("dataset mounts are invalid: %w", err)
+	}
 	owner := strings.TrimSpace(input.GetOwner())
 	if owner == "" {
 		owner = creator
@@ -452,8 +474,12 @@ func buildDevelopmentInstanceModel(project *common.ProjectIdentifier, input *dev
 		Status:                   models.DevelopmentInstanceStatusNotStarted,
 		CloudStorageMountsJSON:   cloudMountsJSON,
 		CodeRepositoryMountsJSON: codeMountsJSON,
+		DatasetsJSON:             datasetsJSON,
+		DatasetMountsJSON:        datasetMountsJSON,
 		CloudStorageMounts:       cloudMounts,
 		CodeRepositoryMounts:     codeMounts,
+		Datasets:                 datasets,
+		DatasetMounts:            datasetMounts,
 	}, nil
 }
 
@@ -514,6 +540,8 @@ func developmentInstanceModelToProto(model *models.DevelopmentInstance) *develop
 		CloudStorageMounts:       developmentInstanceCloudMountsToProto(model.SelectedCloudStorageMounts()),
 		CodeRepositoryMounts:     developmentInstanceCodeRepositoryMountsToProto(model.SelectedCodeRepositoryMounts()),
 		CodeRepositoryDetails:    developmentInstanceCodeRepositoryDetailsToProto(model.SelectedCodeRepositoryMounts()),
+		Datasets:                 runtimeDatasetsToProto(model.SelectedDatasets()),
+		DatasetMounts:            datasetMountsToProto(model.SelectedDatasetMounts()),
 	}
 }
 
@@ -645,6 +673,69 @@ func (s *DevelopmentInstanceService) developmentInstanceIsActive(ctx context.Con
 	default:
 		return false
 	}
+}
+
+func (s *DevelopmentInstanceService) populateDevelopmentInstanceDatasets(ctx context.Context, project *common.ProjectIdentifier, input *developmentinstancepb.DevelopmentInstanceInput, instance *models.DevelopmentInstance) error {
+	if len(input.GetDatasetMounts()) == 0 {
+		return nil
+	}
+	if s.repo.DatasetRepo() == nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("dataset repository is required"))
+	}
+	resolved := append([]models.RuntimeDataset{}, instance.SelectedDatasets()...)
+	for _, mount := range instance.SelectedDatasetMounts() {
+		dataset, err := s.repo.DatasetRepo().Get(ctx, models.DatasetKey{
+			Org:     project.GetOrganization(),
+			Project: project.GetName(),
+			Domain:  project.GetDomain(),
+			ID:      mount.DatasetID,
+		})
+		if err != nil {
+			return connect.NewError(connect.CodeNotFound, err)
+		}
+		resolved = append(resolved, models.RuntimeDataset{
+			EndPoint:            dataset.EndPoint,
+			Port:                dataset.Port,
+			AccessKey:           dataset.AccessKey,
+			SecretKeyCiphertext: dataset.SecretKeyCiphertext,
+			TargetPath:          mount.TargetPath,
+			Bucket:              dataset.Bucket,
+			BucketPath:          dataset.BucketPath,
+		})
+	}
+	if err := validateDevelopmentInstanceMountPaths(resolved, instance.SelectedCloudStorageMounts(), instance.SelectedCodeRepositoryMounts()); err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	value, err := models.EncodeRuntimeDatasets(resolved)
+	if err != nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	instance.Datasets = resolved
+	instance.DatasetsJSON = value
+	return nil
+}
+
+func validateDevelopmentInstanceMountPaths(datasets []models.RuntimeDataset, cloudMounts []models.DevelopmentInstanceCloudMount, codeMounts []models.DevelopmentInstanceCodeRepoMount) error {
+	seen := map[string]string{}
+	for _, dataset := range datasets {
+		if owner, ok := seen[dataset.TargetPath]; ok {
+			return fmt.Errorf("mount path %s is already used by %s", dataset.TargetPath, owner)
+		}
+		seen[dataset.TargetPath] = "dataset"
+	}
+	for _, mount := range cloudMounts {
+		if owner, ok := seen[mount.MountPath]; ok {
+			return fmt.Errorf("mount path %s is already used by %s", mount.MountPath, owner)
+		}
+		seen[mount.MountPath] = "cloud storage"
+	}
+	for _, mount := range codeMounts {
+		if owner, ok := seen[mount.MountPath]; ok {
+			return fmt.Errorf("mount path %s is already used by %s", mount.MountPath, owner)
+		}
+		seen[mount.MountPath] = "code repository"
+	}
+	return nil
 }
 
 func developmentInstanceActionPhaseIsTerminal(phase common.ActionPhase) bool {

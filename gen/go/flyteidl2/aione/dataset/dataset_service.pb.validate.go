@@ -61,11 +61,19 @@ func (m *DatasetInput) validate(all bool) error {
 
 	// no validation rules for Description
 
-	// no validation rules for CloudStorageId
+	// no validation rules for EndPoint
 
-	// no validation rules for FolderPath
+	// no validation rules for Port
 
-	// no validation rules for ProjectPublic
+	// no validation rules for AccessKey
+
+	// no validation rules for SecretKey
+
+	// no validation rules for TargetPath
+
+	// no validation rules for Bucket
+
+	// no validation rules for BucketPath
 
 	if len(errors) > 0 {
 		return DatasetInputMultiError(errors)

@@ -49,7 +49,9 @@ assert_contains 'wait_for_buildkit'
 assert_contains 'NERDCTL=(sudo env HTTP_PROXY="${HTTP_PROXY:-}"'
 assert_contains '/usr/local/bin/nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io)'
 assert_contains '"${NERDCTL[@]}" build "${build_proxy_args[@]}" -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .'
+assert_contains '"${NERDCTL[@]}" build "${build_proxy_args[@]}" -t "${DOWNLOADER_IMAGE_REPOSITORY}:${IMAGE_TAG}" -f flyteplugins/aione/downloader/Dockerfile flyteplugins/aione/downloader'
 assert_contains "IMAGE_REPOSITORY='flyte-binary-v2'"
+assert_contains "DOWNLOADER_IMAGE_REPOSITORY='aione-downloader'"
 assert_contains "IMAGE_TAG='main-${short_head}'"
 assert_contains "IMAGE_TAG_PREFIX='main-'"
 assert_contains "IMAGE_TAG_KEEP='3'"
@@ -71,6 +73,8 @@ assert_contains 'helm upgrade --install "$RELEASE" charts/flyte-devbox'
 assert_contains '--set docker-registry.enabled=false'
 assert_contains '--set flyte-binary.configuration.co-pilot.image.repository="$IMAGE_REPOSITORY"'
 assert_contains '--set flyte-binary.configuration.co-pilot.image.tag="$IMAGE_TAG"'
+assert_contains '--set flyte-binary.deployment.extraEnvVars[0].name=AIONE_DOWNLOADER_IMAGE'
+assert_contains '--set flyte-binary.deployment.extraEnvVars[0].value="${DOWNLOADER_IMAGE_REPOSITORY}:${IMAGE_TAG}"'
 assert_contains '--set flyte-binary.console.image.repository=ghcr.io/unionai-oss/flyteconsole-v2'
 assert_contains '--set knative-serving.enabled=false'
 assert_contains 'kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary-console'

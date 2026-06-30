@@ -30,14 +30,14 @@ INSERT INTO development_instances (
 	image_pull_secret_name, code_repository_secret_name, gpu_node_label_key, base_image_mount_path,
 	enable_ssh, ssh_user, authorized_keys_json,
 	workspace_pvc_name, latest_run_name, status, generation, node_port,
-	code_server_url, code_server_workspace_url, cloud_storage_mounts_json, code_repository_mounts_json
+	code_server_url, code_server_workspace_url, cloud_storage_mounts_json, code_repository_mounts_json, datasets_json, dataset_mounts_json
 ) VALUES (
 	$1, $2, $3, $4, $5, $6, $7, $8,
 	$9, $10, $11, $12, $13, $14, $15, $16,
 	$17, $18, $19, $20, $21, $22,
 	$23, $24, $25, $26,
 	$27, $28, $29, $30, $31,
-	$32, $33, $34, $35, $36
+	$32, $33, $34, $35, $36, $37, $38
 )`,
 		instance.ID, instance.Org, instance.Project, instance.Domain, instance.Name, instance.Description, instance.Owner, instance.SourceSystem,
 		instance.ResourceDisplay, instance.CPU, instance.Memory, instance.GPUCount, instance.GPUModel, instance.Bandwidth, instance.WorkspaceSize, instance.MaxHours,
@@ -45,7 +45,8 @@ INSERT INTO development_instances (
 		instance.ImagePullSecretName, instance.CodeRepositorySecretName, instance.GPUNodeLabelKey, instance.BaseImageMountPath,
 		instance.EnableSSH, instance.SSHUser, instance.AuthorizedKeysJSON,
 		instance.WorkspacePVCName, instance.LatestRunName, defaultDevelopmentInstanceStatus(instance.Status), instance.Generation, instance.NodePort,
-		instance.CodeServerURL, instance.CodeServerWorkspaceURL, defaultJSON(instance.CloudStorageMountsJSON), defaultJSON(instance.CodeRepositoryMountsJSON))
+		instance.CodeServerURL, instance.CodeServerWorkspaceURL, defaultJSON(instance.CloudStorageMountsJSON), defaultJSON(instance.CodeRepositoryMountsJSON),
+		defaultJSON(instance.DatasetsJSON), defaultJSON(instance.DatasetMountsJSON))
 	if err != nil {
 		return fmt.Errorf("failed to create development instance %s: %w", instance.ID, err)
 	}
@@ -106,6 +107,8 @@ UPDATE development_instances SET
 	code_server_workspace_url = $34,
 	cloud_storage_mounts_json = $35,
 	code_repository_mounts_json = $36,
+	datasets_json = $37,
+	dataset_mounts_json = $38,
 	updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL`,
 		instance.ID, instance.Org, instance.Project, instance.Domain, instance.Name, instance.Description, instance.Owner, instance.SourceSystem,
@@ -114,7 +117,8 @@ WHERE id = $1 AND deleted_at IS NULL`,
 		instance.ImagePullSecretName, instance.CodeRepositorySecretName, instance.GPUNodeLabelKey, instance.BaseImageMountPath,
 		instance.EnableSSH, instance.SSHUser, instance.AuthorizedKeysJSON,
 		instance.WorkspacePVCName, instance.LatestRunName, defaultDevelopmentInstanceStatus(instance.Status), instance.Generation, instance.NodePort,
-		instance.CodeServerURL, instance.CodeServerWorkspaceURL, defaultJSON(instance.CloudStorageMountsJSON), defaultJSON(instance.CodeRepositoryMountsJSON))
+		instance.CodeServerURL, instance.CodeServerWorkspaceURL, defaultJSON(instance.CloudStorageMountsJSON), defaultJSON(instance.CodeRepositoryMountsJSON),
+		defaultJSON(instance.DatasetsJSON), defaultJSON(instance.DatasetMountsJSON))
 	if err != nil {
 		return fmt.Errorf("failed to update development instance %s: %w", instance.ID, err)
 	}

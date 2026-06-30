@@ -453,6 +453,43 @@ func TestBuildTrainingTaskSpecIncludesCodeRepositories(t *testing.T) {
 	require.Equal(t, "secret-token", fields["token"].GetStringValue())
 }
 
+func TestBuildTrainingTaskSpecIncludesDatasetsWithoutPlainSecret(t *testing.T) {
+	spec, err := BuildTrainingTaskSpec(&models.TrainingTask{
+		TrainingTaskKey: models.TrainingTaskKey{
+			ID:      "train-dataset",
+			Org:     "testorg",
+			Project: "flytesnacks",
+			Domain:  "development",
+		},
+		Name:            "任务-数据集",
+		CPU:             "2",
+		Memory:          "4Gi",
+		Command:         "echo hello",
+		MaxRuntimeHours: 1,
+		ImageURI:        "busybox:1.36",
+		Datasets: []models.RuntimeDataset{{
+			EndPoint:            "1.2.3.4",
+			Port:                "9000",
+			AccessKey:           "ak",
+			SecretKeyCiphertext: "v1:ciphertext",
+			TargetPath:          "/data/set1",
+			Bucket:              "mybucket1",
+			BucketPath:          "sub-path/xxx",
+		}},
+	})
+
+	require.NoError(t, err)
+	fields := spec.GetTaskTemplate().GetCustom().GetFields()
+	require.Equal(t, "aione-downloader:latest", fields["downloaderImage"].GetStringValue())
+	values := fields["datasets"].GetListValue().GetValues()
+	require.Len(t, values, 1)
+	dataset := values[0].GetStructValue().GetFields()
+	require.Equal(t, "1.2.3.4", dataset["endPoint"].GetStringValue())
+	require.Equal(t, "9000", dataset["port"].GetStringValue())
+	require.Equal(t, "v1:ciphertext", dataset["secretKeyCiphertext"].GetStringValue())
+	require.Nil(t, dataset["secretKey"])
+}
+
 func TestBuildTrainingTaskModelIncludesCodeRepositoryMounts(t *testing.T) {
 	model, err := buildTrainingTaskModel(
 		&common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},

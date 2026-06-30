@@ -18,24 +18,20 @@ export function buildDatasetEditHref(
   return `${buildDatasetDetailHref(domain, project, datasetId)}/edit`;
 }
 
-export function normalizeDatasetFolderPath(value: string) {
+export function normalizeDatasetBucketPath(value: string) {
   return value.trim().replace(/^\/+/, "");
 }
 
-export function validateDatasetFolderPath(value: string) {
-  const normalized = normalizeDatasetFolderPath(value);
+export function validateDatasetBucketPath(value: string) {
+  const normalized = normalizeDatasetBucketPath(value);
   if (
     normalized.includes("..") ||
     normalized.includes("\\") ||
     /^[a-z][a-z0-9+.-]*:\/\//i.test(normalized)
   ) {
-    return "文件夹路径不能包含 ..、反斜杠或 URL";
+    return "BucketPath 不能包含 ..、反斜杠或 URL";
   }
   return "";
-}
-
-export function datasetVisibilityText(projectPublic: boolean) {
-  return projectPublic ? "项目内公开" : "私有";
 }
 
 export function decodeDatasetId(value?: string) {

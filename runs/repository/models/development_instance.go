@@ -58,8 +58,12 @@ type DevelopmentInstance struct {
 	CodeServerWorkspaceURL   string                             `db:"code_server_workspace_url"`
 	CloudStorageMountsJSON   string                             `db:"cloud_storage_mounts_json"`
 	CodeRepositoryMountsJSON string                             `db:"code_repository_mounts_json"`
+	DatasetsJSON             string                             `db:"datasets_json"`
+	DatasetMountsJSON        string                             `db:"dataset_mounts_json"`
 	CloudStorageMounts       []DevelopmentInstanceCloudMount    `db:"-"`
 	CodeRepositoryMounts     []DevelopmentInstanceCodeRepoMount `db:"-"`
+	Datasets                 []RuntimeDataset                   `db:"-"`
+	DatasetMounts            []DatasetMount                     `db:"-"`
 	DeletedAt                *time.Time                         `db:"deleted_at"`
 	CreatedAt                time.Time                          `db:"created_at"`
 	UpdatedAt                time.Time                          `db:"updated_at"`
@@ -100,6 +104,28 @@ func (i *DevelopmentInstance) SelectedCodeRepositoryMounts() []DevelopmentInstan
 		return i.CodeRepositoryMounts
 	}
 	mounts, _ := DecodeDevelopmentInstanceCodeRepoMounts(i.CodeRepositoryMountsJSON)
+	return mounts
+}
+
+func (i *DevelopmentInstance) SelectedDatasets() []RuntimeDataset {
+	if i == nil {
+		return nil
+	}
+	if len(i.Datasets) > 0 {
+		return i.Datasets
+	}
+	datasets, _ := DecodeRuntimeDatasets(i.DatasetsJSON)
+	return datasets
+}
+
+func (i *DevelopmentInstance) SelectedDatasetMounts() []DatasetMount {
+	if i == nil {
+		return nil
+	}
+	if len(i.DatasetMounts) > 0 {
+		return i.DatasetMounts
+	}
+	mounts, _ := DecodeDatasetMounts(i.DatasetMountsJSON)
 	return mounts
 }
 

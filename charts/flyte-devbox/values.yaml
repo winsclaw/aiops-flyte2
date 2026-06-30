@@ -111,6 +111,9 @@ flyte-binary:
       repository: flyte-binary-v2
       tag: sandbox
       pullPolicy: Never
+    extraEnvVars:
+      - name: AIONE_DOWNLOADER_IMAGE
+        value: aione-downloader:sandbox
     startupProbe:
       httpGet:
         path: /healthz

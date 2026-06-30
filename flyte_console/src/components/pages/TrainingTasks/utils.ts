@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { CloudStorageMountSchema } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
 import { CodeRepositoryMountSchema } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
+import { DatasetMountSchema } from "@/gen/flyteidl2/aione/dataset/dataset_definition_pb";
 import {
   ImageType,
   TrainingTaskStatus,
@@ -24,6 +25,7 @@ export type TrainingTaskFormValues = {
   imageUri: string;
   cloudStorageMounts: { cloudStorageId: string; mountPath: string }[];
   codeRepositoryMounts: { codeRepositoryId: string; mountPath: string }[];
+  datasetMounts: { datasetId: string; targetPath: string }[];
 };
 
 export function validateTrainingTaskForm(values: TrainingTaskFormValues) {
@@ -39,21 +41,33 @@ export function validateTrainingTaskForm(values: TrainingTaskFormValues) {
   if (values.imageType === ImageType.CUSTOM && !values.imageUri.trim()) {
     return "请输入自定义镜像地址";
   }
+  const mountPaths = new Set<string>();
   for (const mount of values.cloudStorageMounts) {
-    if (!mount.mountPath.trim().startsWith("/")) {
+    const mountPath = mount.mountPath.trim();
+    if (!mountPath.startsWith("/")) {
       return "云存储挂载路径必须为绝对路径";
     }
+    mountPaths.add(mountPath);
   }
-  const codeRepositoryMountPaths = new Set<string>();
   for (const mount of values.codeRepositoryMounts) {
     const mountPath = mount.mountPath.trim();
     if (!mountPath.startsWith("/")) {
       return "代码库挂载路径必须为绝对路径";
     }
-    if (codeRepositoryMountPaths.has(mountPath)) {
-      return "代码库挂载路径不能重复";
+    if (mountPaths.has(mountPath)) {
+      return "挂载路径不能重复";
     }
-    codeRepositoryMountPaths.add(mountPath);
+    mountPaths.add(mountPath);
+  }
+  for (const mount of values.datasetMounts) {
+    const targetPath = mount.targetPath.trim();
+    if (!targetPath.startsWith("/")) {
+      return "数据集挂载路径必须为绝对路径";
+    }
+    if (mountPaths.has(targetPath)) {
+      return "挂载路径不能重复";
+    }
+    mountPaths.add(targetPath);
   }
   return "";
 }
@@ -86,6 +100,12 @@ export function buildTrainingTaskInput(values: TrainingTaskFormValues) {
       create(CodeRepositoryMountSchema, {
         codeRepositoryId: mount.codeRepositoryId,
         mountPath: mount.mountPath.trim(),
+      }),
+    ),
+    datasetMounts: values.datasetMounts.map((mount) =>
+      create(DatasetMountSchema, {
+        datasetId: mount.datasetId,
+        targetPath: mount.targetPath.trim(),
       }),
     ),
   });

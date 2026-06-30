@@ -199,11 +199,19 @@ func (m *Dataset) validate(all bool) error {
 
 	// no validation rules for Description
 
-	// no validation rules for CloudStorageId
+	// no validation rules for EndPoint
 
-	// no validation rules for FolderPath
+	// no validation rules for Port
 
-	// no validation rules for ProjectPublic
+	// no validation rules for AccessKey
+
+	// no validation rules for SecretKey
+
+	// no validation rules for TargetPath
+
+	// no validation rules for Bucket
+
+	// no validation rules for BucketPath
 
 	// no validation rules for Creator
 
@@ -341,3 +349,220 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = DatasetValidationError{}
+
+// Validate checks the field values on RuntimeDataset with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *RuntimeDataset) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on RuntimeDataset with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in RuntimeDatasetMultiError,
+// or nil if none found.
+func (m *RuntimeDataset) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *RuntimeDataset) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for EndPoint
+
+	// no validation rules for Port
+
+	// no validation rules for AccessKey
+
+	// no validation rules for SecretKey
+
+	// no validation rules for TargetPath
+
+	// no validation rules for Bucket
+
+	// no validation rules for BucketPath
+
+	if len(errors) > 0 {
+		return RuntimeDatasetMultiError(errors)
+	}
+
+	return nil
+}
+
+// RuntimeDatasetMultiError is an error wrapping multiple validation errors
+// returned by RuntimeDataset.ValidateAll() if the designated constraints
+// aren't met.
+type RuntimeDatasetMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m RuntimeDatasetMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m RuntimeDatasetMultiError) AllErrors() []error { return m }
+
+// RuntimeDatasetValidationError is the validation error returned by
+// RuntimeDataset.Validate if the designated constraints aren't met.
+type RuntimeDatasetValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e RuntimeDatasetValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e RuntimeDatasetValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e RuntimeDatasetValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e RuntimeDatasetValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e RuntimeDatasetValidationError) ErrorName() string { return "RuntimeDatasetValidationError" }
+
+// Error satisfies the builtin error interface
+func (e RuntimeDatasetValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sRuntimeDataset.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = RuntimeDatasetValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = RuntimeDatasetValidationError{}
+
+// Validate checks the field values on DatasetMount with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *DatasetMount) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on DatasetMount with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in DatasetMountMultiError, or
+// nil if none found.
+func (m *DatasetMount) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *DatasetMount) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for DatasetId
+
+	// no validation rules for TargetPath
+
+	if len(errors) > 0 {
+		return DatasetMountMultiError(errors)
+	}
+
+	return nil
+}
+
+// DatasetMountMultiError is an error wrapping multiple validation errors
+// returned by DatasetMount.ValidateAll() if the designated constraints aren't met.
+type DatasetMountMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m DatasetMountMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m DatasetMountMultiError) AllErrors() []error { return m }
+
+// DatasetMountValidationError is the validation error returned by
+// DatasetMount.Validate if the designated constraints aren't met.
+type DatasetMountValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e DatasetMountValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e DatasetMountValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e DatasetMountValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e DatasetMountValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e DatasetMountValidationError) ErrorName() string { return "DatasetMountValidationError" }
+
+// Error satisfies the builtin error interface
+func (e DatasetMountValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sDatasetMount.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = DatasetMountValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = DatasetMountValidationError{}

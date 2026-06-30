@@ -14,11 +14,13 @@ import (
 	pluginutils "github.com/flyteorg/flyte/v2/flyteplugins/go/tasks/pluginmachinery/utils"
 	cloudstoragepb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/cloudstorage"
 	coderepositorypb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/coderepository"
+	datasetpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/aione/dataset"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/common"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/task"
 	trainingtaskpb "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask/trainingtaskconnect"
 	"github.com/flyteorg/flyte/v2/gen/go/flyteidl2/workflow"
+	"github.com/flyteorg/flyte/v2/runs/aione/datasetsecret"
 	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -58,6 +60,9 @@ func (s *TrainingTaskService) CreateTrainingTask(ctx context.Context, req *conne
 	}
 	if s.repo == nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("repository is required"))
+	}
+	if err := s.populateTrainingTaskDatasets(ctx, project, input, model); err != nil {
+		return nil, err
 	}
 	if err := s.repo.TrainingTaskRepo().Create(ctx, model); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -157,6 +162,9 @@ func (s *TrainingTaskService) UpdateTrainingTask(ctx context.Context, req *conne
 	updated, err := buildTrainingTaskModel(&common.ProjectIdentifier{Organization: key.Org, Name: key.Project, Domain: key.Domain}, req.Msg.GetTrainingTask(), current.Creator, key.ID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := s.populateTrainingTaskDatasets(ctx, &common.ProjectIdentifier{Organization: key.Org, Name: key.Project, Domain: key.Domain}, req.Msg.GetTrainingTask(), updated); err != nil {
+		return nil, err
 	}
 	updated.LatestRunName = current.LatestRunName
 	if err := s.repo.TrainingTaskRepo().Update(ctx, updated); err != nil {
@@ -314,6 +322,25 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 	if err != nil {
 		return nil, fmt.Errorf("code repository mounts are invalid: %w", err)
 	}
+	datasets, err := runtimeDatasetsFromProto(input.GetDatasets())
+	if err != nil {
+		return nil, err
+	}
+	datasetMounts, err := datasetMountsFromProto(input.GetDatasetMounts())
+	if err != nil {
+		return nil, err
+	}
+	if err := validateRuntimeMountPaths(datasets, mounts, codeRepositoryMounts); err != nil {
+		return nil, err
+	}
+	datasetsJSON, err := models.EncodeRuntimeDatasets(datasets)
+	if err != nil {
+		return nil, fmt.Errorf("datasets are invalid: %w", err)
+	}
+	datasetMountsJSON, err := models.EncodeDatasetMounts(datasetMounts)
+	if err != nil {
+		return nil, fmt.Errorf("dataset mounts are invalid: %w", err)
+	}
 	return &models.TrainingTask{
 		TrainingTaskKey: models.TrainingTaskKey{
 			Org:     project.GetOrganization(),
@@ -339,8 +366,12 @@ func buildTrainingTaskModel(project *common.ProjectIdentifier, input *trainingta
 		Creator:                  creator,
 		CloudStorageMountsJSON:   mountsJSON,
 		CodeRepositoryMountsJSON: codeRepositoryMountsJSON,
+		DatasetsJSON:             datasetsJSON,
+		DatasetMountsJSON:        datasetMountsJSON,
 		CloudStorageMounts:       mounts,
 		CodeRepositoryMounts:     codeRepositoryMounts,
+		Datasets:                 datasets,
+		DatasetMounts:            datasetMounts,
 	}, nil
 }
 
@@ -442,6 +473,8 @@ func trainingTaskModelToProto(model *models.TrainingTask) *trainingtaskpb.Traini
 		Status:               status,
 		CloudStorageMounts:   trainingTaskMountsToProto(model.SelectedCloudStorageMounts()),
 		CodeRepositoryMounts: trainingTaskCodeRepositoryMountsToProto(model.SelectedCodeRepositoryMounts()),
+		Datasets:             runtimeDatasetsToProto(model.SelectedDatasets()),
+		DatasetMounts:        datasetMountsToProto(model.SelectedDatasetMounts()),
 		CreatedAt:            timestamppb.New(model.CreatedAt),
 		UpdatedAt:            timestamppb.New(model.UpdatedAt),
 	}
@@ -524,6 +557,137 @@ func trainingTaskStatusMessage(
 		}
 	}
 	return ""
+}
+
+func (s *TrainingTaskService) populateTrainingTaskDatasets(ctx context.Context, project *common.ProjectIdentifier, input *trainingtaskpb.TrainingTaskInput, task *models.TrainingTask) error {
+	if len(input.GetDatasetMounts()) == 0 {
+		return nil
+	}
+	if s.repo.DatasetRepo() == nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("dataset repository is required"))
+	}
+	resolved := append([]models.RuntimeDataset{}, task.SelectedDatasets()...)
+	for _, mount := range task.SelectedDatasetMounts() {
+		dataset, err := s.repo.DatasetRepo().Get(ctx, models.DatasetKey{
+			Org:     project.GetOrganization(),
+			Project: project.GetName(),
+			Domain:  project.GetDomain(),
+			ID:      mount.DatasetID,
+		})
+		if err != nil {
+			return connect.NewError(connect.CodeNotFound, err)
+		}
+		resolved = append(resolved, models.RuntimeDataset{
+			EndPoint:            dataset.EndPoint,
+			Port:                dataset.Port,
+			AccessKey:           dataset.AccessKey,
+			SecretKeyCiphertext: dataset.SecretKeyCiphertext,
+			TargetPath:          mount.TargetPath,
+			Bucket:              dataset.Bucket,
+			BucketPath:          dataset.BucketPath,
+		})
+	}
+	if err := validateRuntimeMountPaths(resolved, task.SelectedCloudStorageMounts(), task.SelectedCodeRepositoryMounts()); err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	value, err := models.EncodeRuntimeDatasets(resolved)
+	if err != nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	task.Datasets = resolved
+	task.DatasetsJSON = value
+	return nil
+}
+
+func runtimeDatasetsFromProto(items []*datasetpb.RuntimeDataset) ([]models.RuntimeDataset, error) {
+	datasets := make([]models.RuntimeDataset, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		dataset := models.RuntimeDataset{
+			EndPoint:   strings.TrimSpace(item.GetEndPoint()),
+			Port:       strings.TrimSpace(item.GetPort()),
+			AccessKey:  strings.TrimSpace(item.GetAccessKey()),
+			TargetPath: strings.TrimSpace(item.GetTargetPath()),
+			Bucket:     strings.TrimSpace(item.GetBucket()),
+			BucketPath: strings.TrimSpace(item.GetBucketPath()),
+		}
+		secretKey := strings.TrimSpace(item.GetSecretKey())
+		if dataset.EndPoint == "" || dataset.Port == "" || dataset.AccessKey == "" || secretKey == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
+			return nil, fmt.Errorf("datasets entries require endPoint, port, accessKey, secretKey, targetPath, and bucket")
+		}
+		if strings.Contains(dataset.EndPoint, "://") {
+			return nil, fmt.Errorf("dataset endPoint must not include a URL scheme")
+		}
+		if !strings.HasPrefix(dataset.TargetPath, "/") {
+			return nil, fmt.Errorf("dataset targetPath must be absolute")
+		}
+		if err := validateBucketPath(dataset.BucketPath); err != nil {
+			return nil, err
+		}
+		ciphertext, err := datasetsecret.Encrypt(secretKey)
+		if err != nil {
+			return nil, err
+		}
+		dataset.SecretKeyCiphertext = ciphertext
+		datasets = append(datasets, dataset)
+	}
+	return datasets, nil
+}
+
+func datasetMountsFromProto(items []*datasetpb.DatasetMount) ([]models.DatasetMount, error) {
+	mounts := make([]models.DatasetMount, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		mount := models.DatasetMount{
+			DatasetID:  strings.TrimSpace(item.GetDatasetId()),
+			TargetPath: strings.TrimSpace(item.GetTargetPath()),
+		}
+		if mount.DatasetID == "" || mount.TargetPath == "" {
+			return nil, fmt.Errorf("datasetMounts entries require datasetId and targetPath")
+		}
+		if !strings.HasPrefix(mount.TargetPath, "/") {
+			return nil, fmt.Errorf("dataset targetPath must be absolute")
+		}
+		mounts = append(mounts, mount)
+	}
+	return mounts, nil
+}
+
+func validateBucketPath(value string) error {
+	if value == "" {
+		return nil
+	}
+	if strings.Contains(value, "..") || strings.Contains(value, "\\") || strings.Contains(value, "://") {
+		return fmt.Errorf("bucketPath cannot contain .., backslash, or URL scheme")
+	}
+	return nil
+}
+
+func validateRuntimeMountPaths(datasets []models.RuntimeDataset, cloudMounts []models.TrainingTaskCloudStorageMount, codeMounts []models.TrainingTaskCodeRepositoryMount) error {
+	seen := map[string]string{}
+	for _, dataset := range datasets {
+		if owner, ok := seen[dataset.TargetPath]; ok {
+			return fmt.Errorf("mount path %s is already used by %s", dataset.TargetPath, owner)
+		}
+		seen[dataset.TargetPath] = "dataset"
+	}
+	for _, mount := range cloudMounts {
+		if owner, ok := seen[mount.MountPath]; ok {
+			return fmt.Errorf("mount path %s is already used by %s", mount.MountPath, owner)
+		}
+		seen[mount.MountPath] = "cloud storage"
+	}
+	for _, mount := range codeMounts {
+		if owner, ok := seen[mount.MountPath]; ok {
+			return fmt.Errorf("mount path %s is already used by %s", mount.MountPath, owner)
+		}
+		seen[mount.MountPath] = "code repository"
+	}
+	return nil
 }
 
 func actionEventStatusMessage(event *workflow.ActionEvent) string {
@@ -648,6 +812,33 @@ func trainingTaskCodeRepositoryMountsToProto(mounts []models.TrainingTaskCodeRep
 		result = append(result, &coderepositorypb.CodeRepositoryMount{
 			CodeRepositoryId: mount.CodeRepositoryID,
 			MountPath:        mount.MountPath,
+		})
+	}
+	return result
+}
+
+func runtimeDatasetsToProto(items []models.RuntimeDataset) []*datasetpb.RuntimeDataset {
+	result := make([]*datasetpb.RuntimeDataset, 0, len(items))
+	for _, item := range items {
+		result = append(result, &datasetpb.RuntimeDataset{
+			EndPoint:   item.EndPoint,
+			Port:       item.Port,
+			AccessKey:  item.AccessKey,
+			SecretKey:  "",
+			TargetPath: item.TargetPath,
+			Bucket:     item.Bucket,
+			BucketPath: item.BucketPath,
+		})
+	}
+	return result
+}
+
+func datasetMountsToProto(items []models.DatasetMount) []*datasetpb.DatasetMount {
+	result := make([]*datasetpb.DatasetMount, 0, len(items))
+	for _, item := range items {
+		result = append(result, &datasetpb.DatasetMount{
+			DatasetId:  item.DatasetID,
+			TargetPath: item.TargetPath,
 		})
 	}
 	return result

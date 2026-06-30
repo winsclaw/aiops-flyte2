@@ -1,6 +1,7 @@
 package trainingtask
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -159,10 +160,11 @@ func TestBuildResourcesAddsCloudStoragePVCMounts(t *testing.T) {
 
 func TestBuildResourcesAddsCodeRepositoryDownloader(t *testing.T) {
 	cfg := TrainingConfig{
-		Image:   "busybox:1.36",
-		Command: "echo hello",
-		CPU:     "2",
-		Memory:  "4Gi",
+		Image:           "busybox:1.36",
+		Command:         "echo hello",
+		CPU:             "2",
+		Memory:          "4Gi",
+		DownloaderImage: "aione-downloader:main-abc1234",
 		CodeRepositories: []CodeRepositoryMount{{
 			ID:        "repo-1",
 			RepoURL:   "https://git.fzyun.io/serverless/aione.git",
@@ -184,14 +186,75 @@ func TestBuildResourcesAddsCodeRepositoryDownloader(t *testing.T) {
 	resources, err := BuildResources(identity, cfg)
 
 	require.NoError(t, err)
-	require.NotNil(t, resources.CodeRepositorySecret)
-	assert.Equal(t, "run-abc-code-repositories", resources.CodeRepositorySecret.Name)
-	assert.Contains(t, string(resources.CodeRepositorySecret.Data["code_repositories"]), "secret-token")
+	require.NotNil(t, resources.CodeDownloaderSecret)
+	assert.Equal(t, "run-abc-code-downloader", resources.CodeDownloaderSecret.Name)
+	secretPayload := decodedDownloaderSecret(t, resources.CodeDownloaderSecret)
+	assert.NotContains(t, string(resources.CodeDownloaderSecret.Data["aione_params"]), "secret-token")
+	assert.Contains(t, secretPayload, "secret-token")
 
-	container := resources.Job.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "AIONE_CODE_REPOSITORIES", container.Env[0].Name)
-	assert.Contains(t, container.Args[0], "download GitLab archive repositories")
-	assert.Contains(t, container.Args[0], "echo hello")
+	podSpec := resources.Job.Spec.Template.Spec
+	require.Len(t, podSpec.InitContainers, 1)
+	initContainer := podSpec.InitContainers[0]
+	assert.Equal(t, "code-downloader", initContainer.Name)
+	assert.Equal(t, "aione-downloader:main-abc1234", initContainer.Image)
+	assert.Equal(t, corev1.PullNever, initContainer.ImagePullPolicy)
+	assert.Equal(t, "AIONE_PARAMS", initContainer.Env[0].Name)
+	assert.Equal(t, "run-abc-code-downloader", initContainer.Env[0].ValueFrom.SecretKeyRef.Name)
+	assert.True(t, hasEmptyDirVolume(podSpec.Volumes, "code-repository-0"))
+	assert.True(t, hasVolumeMount(initContainer.VolumeMounts, "code-repository-0", "/workspace/aione"))
+
+	container := podSpec.Containers[0]
+	assert.Empty(t, container.Env)
+	assert.Equal(t, []string{"echo hello"}, container.Args)
+	assert.True(t, hasVolumeMount(container.VolumeMounts, "code-repository-0", "/workspace/aione"))
+}
+
+func TestBuildResourcesAddsDatasetDownloader(t *testing.T) {
+	cfg := TrainingConfig{
+		Image:           "busybox:1.36",
+		Command:         "echo hello",
+		DownloaderImage: "aione-downloader:main-abc1234",
+		Datasets: []RuntimeDataset{{
+			EndPoint:   "1.2.3.4",
+			Port:       "9000",
+			AccessKey:  "ak",
+			SecretKey:  "sk",
+			TargetPath: "/data/set1",
+			Bucket:     "mybucket1",
+			BucketPath: "sub-path/xxx",
+		}},
+	}
+	identity := TrainingIdentity{
+		Namespace:  "flyte",
+		Name:       "run-abc",
+		RunName:    "run-abc",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	require.NotNil(t, resources.DatasetDownloaderSecret)
+	assert.Equal(t, "run-abc-dataset-downloader", resources.DatasetDownloaderSecret.Name)
+	secretPayload := decodedDownloaderSecret(t, resources.DatasetDownloaderSecret)
+	assert.Contains(t, secretPayload, "mybucket1")
+	assert.NotContains(t, secretPayload, "cloud_storage_id")
+
+	podSpec := resources.Job.Spec.Template.Spec
+	require.Len(t, podSpec.InitContainers, 1)
+	initContainer := podSpec.InitContainers[0]
+	assert.Equal(t, "dataset-downloader", initContainer.Name)
+	assert.Equal(t, "aione-downloader:main-abc1234", initContainer.Image)
+	assert.Equal(t, corev1.PullNever, initContainer.ImagePullPolicy)
+	assert.True(t, hasEmptyDirVolume(podSpec.Volumes, "dataset-0"))
+	assert.True(t, hasVolumeMount(initContainer.VolumeMounts, "dataset-0", "/data/set1"))
+
+	container := podSpec.Containers[0]
+	assert.Equal(t, []string{"echo hello"}, container.Args)
+	assert.True(t, hasVolumeMount(container.VolumeMounts, "dataset-0", "/data/set1"))
 }
 
 func hasPVCVolume(volumes []corev1.Volume, name, claimName string) bool {
@@ -201,6 +264,22 @@ func hasPVCVolume(volumes []corev1.Volume, name, claimName string) bool {
 		}
 	}
 	return false
+}
+
+func hasEmptyDirVolume(volumes []corev1.Volume, name string) bool {
+	for _, volume := range volumes {
+		if volume.Name == name && volume.EmptyDir != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func decodedDownloaderSecret(t *testing.T, secret *corev1.Secret) string {
+	t.Helper()
+	decoded, err := base64.StdEncoding.DecodeString(string(secret.Data["aione_params"]))
+	require.NoError(t, err)
+	return string(decoded)
 }
 
 func hasVolumeMount(mounts []corev1.VolumeMount, name, mountPath string) bool {

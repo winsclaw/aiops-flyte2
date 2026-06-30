@@ -5,6 +5,7 @@ package flyteidl2.trainingtask;
 import "buf/validate/validate.proto";
 import "flyteidl2/aione/cloudstorage/cloud_storage_definition.proto";
 import "flyteidl2/aione/coderepository/code_repository_definition.proto";
+import "flyteidl2/aione/dataset/dataset_definition.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask";
@@ -70,4 +71,6 @@ message TrainingTask {
   repeated aione.cloudstorage.CloudStorageMount cloud_storage_mounts = 19;
   repeated aione.coderepository.CodeRepositoryMount code_repository_mounts = 20;
   string status_message = 21;
+  repeated aione.dataset.RuntimeDataset datasets = 22;
+  repeated aione.dataset.DatasetMount dataset_mounts = 23;
 }

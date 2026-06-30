@@ -18,22 +18,21 @@ import (
 
 func TestDatasetServiceCreateNormalizesFolderPath(t *testing.T) {
 	datasets := newFakeDatasetRepo()
-	storages := newFakeCloudStorageRepo()
-	storages.items["stg-1"] = &models.CloudStorage{
-		CloudStorageKey: models.CloudStorageKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "stg-1"},
-		Name:            "test511",
-	}
-	svc := NewService(datasets, storages)
+	svc := NewService(datasets)
 
 	resp, err := svc.CreateDataset(context.Background(), connect.NewRequest(&datasetpb.CreateDatasetRequest{
 		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
 		Creator: "ljgong",
 		Dataset: &datasetpb.DatasetInput{
-			Name:           "语音识别",
-			Description:    "training speech",
-			CloudStorageId: "stg-1",
-			FolderPath:     "/data/speech/",
-			ProjectPublic:  true,
+			Name:        "语音识别",
+			Description: "training speech",
+			EndPoint:    "http://minio.flyte.svc",
+			Port:        "9000",
+			AccessKey:   "rustfs",
+			SecretKey:   "rustfsstorage",
+			TargetPath:  "/mnt/datasets",
+			Bucket:      "datasets",
+			BucketPath:  "/data/speech/",
 		},
 	}))
 
@@ -41,20 +40,27 @@ func TestDatasetServiceCreateNormalizesFolderPath(t *testing.T) {
 	got := resp.Msg.GetDataset()
 	require.True(t, strings.HasPrefix(got.GetId().GetId(), "ds-"))
 	require.Equal(t, "语音识别", got.GetName())
-	require.Equal(t, "data/speech/", got.GetFolderPath())
-	require.Equal(t, "stg-1", got.GetCloudStorageId())
-	require.True(t, got.GetProjectPublic())
+	require.Equal(t, "http://minio.flyte.svc", got.GetEndPoint())
+	require.Equal(t, "9000", got.GetPort())
+	require.Equal(t, "rustfs", got.GetAccessKey())
+	require.Empty(t, got.GetSecretKey())
+	require.Equal(t, "/mnt/datasets", got.GetTargetPath())
+	require.Equal(t, "datasets", got.GetBucket())
+	require.Equal(t, "data/speech/", got.GetBucketPath())
 	require.Equal(t, "ljgong", got.GetCreator())
+
+	stored := datasets.items[got.GetId().GetId()]
+	require.NotEmpty(t, stored.SecretKeyCiphertext)
+	require.NotEqual(t, "rustfsstorage", stored.SecretKeyCiphertext)
 }
 
 func TestDatasetServiceCreateRejectsInvalidInput(t *testing.T) {
-	svc := NewService(newFakeDatasetRepo(), newFakeCloudStorageRepo())
+	svc := NewService(newFakeDatasetRepo())
 
 	_, err := svc.CreateDataset(context.Background(), connect.NewRequest(&datasetpb.CreateDatasetRequest{
 		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
 		Dataset: &datasetpb.DatasetInput{
-			Name:           "",
-			CloudStorageId: "stg-1",
+			Name: "",
 		},
 	}))
 	require.Error(t, err)
@@ -63,68 +69,85 @@ func TestDatasetServiceCreateRejectsInvalidInput(t *testing.T) {
 	_, err = svc.CreateDataset(context.Background(), connect.NewRequest(&datasetpb.CreateDatasetRequest{
 		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
 		Dataset: &datasetpb.DatasetInput{
-			Name:           "bad-path",
-			CloudStorageId: "stg-1",
-			FolderPath:     "http://example.test/data",
+			Name:       "bad-path",
+			EndPoint:   "http://minio.flyte.svc",
+			Port:       "9000",
+			AccessKey:  "rustfs",
+			SecretKey:  "rustfsstorage",
+			TargetPath: "/mnt/datasets",
+			Bucket:     "datasets",
+			BucketPath: "http://example.test/data",
 		},
 	}))
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "folder path cannot contain .., backslash, or URL scheme")
+	require.Contains(t, err.Error(), "bucket path cannot contain .., backslash, or URL scheme")
 }
 
-func TestDatasetServiceCreateRejectsMissingCloudStorage(t *testing.T) {
-	svc := NewService(newFakeDatasetRepo(), newFakeCloudStorageRepo())
+func TestDatasetServiceCreateRejectsMissingObjectStorageFields(t *testing.T) {
+	svc := NewService(newFakeDatasetRepo())
 
 	_, err := svc.CreateDataset(context.Background(), connect.NewRequest(&datasetpb.CreateDatasetRequest{
 		Project: &common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
 		Dataset: &datasetpb.DatasetInput{
-			Name:           "missing-storage",
-			CloudStorageId: "stg-missing",
+			Name:      "missing-bucket",
+			EndPoint:  "http://minio.flyte.svc",
+			Port:      "9000",
+			AccessKey: "rustfs",
+			SecretKey: "rustfsstorage",
 		},
 	}))
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "cloud storage not found")
+	require.Contains(t, err.Error(), "target path is required")
 }
 
-func TestDatasetServiceUpdateRejectsPublicToPrivate(t *testing.T) {
+func TestDatasetServiceUpdateKeepsExistingSecretWhenInputIsEmpty(t *testing.T) {
 	datasets := newFakeDatasetRepo()
-	storages := newFakeCloudStorageRepo()
 	key := models.DatasetKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "ds-public"}
 	datasets.items[key.ID] = &models.Dataset{
-		DatasetKey:     key,
-		Name:           "public dataset",
-		CloudStorageID: "stg-1",
-		ProjectPublic:  true,
-		Creator:        "ljgong",
+		DatasetKey:          key,
+		Name:                "dataset",
+		EndPoint:            "http://minio.flyte.svc",
+		Port:                "9000",
+		AccessKey:           "rustfs",
+		SecretKeyCiphertext: "encrypted-secret",
+		TargetPath:          "/mnt/datasets",
+		Bucket:              "datasets",
+		BucketPath:          "data/speech/",
+		Creator:             "ljgong",
 	}
-	storages.items["stg-1"] = &models.CloudStorage{CloudStorageKey: models.CloudStorageKey{Org: key.Org, Project: key.Project, Domain: key.Domain, ID: "stg-1"}}
-	svc := NewService(datasets, storages)
+	svc := NewService(datasets)
 
-	_, err := svc.UpdateDataset(context.Background(), connect.NewRequest(&datasetpb.UpdateDatasetRequest{
+	resp, err := svc.UpdateDataset(context.Background(), connect.NewRequest(&datasetpb.UpdateDatasetRequest{
 		Id: &datasetpb.DatasetIdentifier{Org: key.Org, Project: key.Project, Domain: key.Domain, Id: key.ID},
 		Dataset: &datasetpb.DatasetInput{
-			Name:           "public dataset",
-			CloudStorageId: "stg-1",
-			ProjectPublic:  false,
+			Name:       "dataset updated",
+			EndPoint:   "http://minio.flyte.svc",
+			Port:       "9000",
+			AccessKey:  "rustfs",
+			TargetPath: "/mnt/datasets",
+			Bucket:     "datasets",
+			BucketPath: "data/speech/v2/",
 		},
 	}))
 
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "project public datasets cannot be made private")
+	require.NoError(t, err)
+	require.Empty(t, resp.Msg.GetDataset().GetSecretKey())
+	require.Equal(t, "encrypted-secret", datasets.items[key.ID].SecretKeyCiphertext)
+	require.Equal(t, "data/speech/v2/", datasets.items[key.ID].BucketPath)
 }
 
 func TestDatasetServiceListAndDelete(t *testing.T) {
 	datasets := newFakeDatasetRepo()
 	key := models.DatasetKey{Org: "testorg", Project: "flytesnacks", Domain: "development", ID: "ds-speech"}
 	datasets.items[key.ID] = &models.Dataset{
-		DatasetKey:     key,
-		Name:           "语音识别",
-		Description:    "speech data",
-		CloudStorageID: "stg-1",
-		Creator:        "ljgong",
+		DatasetKey:  key,
+		Name:        "语音识别",
+		Description: "speech data",
+		Bucket:      "datasets",
+		Creator:     "ljgong",
 	}
-	svc := NewService(datasets, newFakeCloudStorageRepo())
+	svc := NewService(datasets)
 
 	list, err := svc.ListDatasets(context.Background(), connect.NewRequest(&datasetpb.ListDatasetsRequest{
 		Project: &common.ProjectIdentifier{Organization: key.Org, Name: key.Project, Domain: key.Domain},

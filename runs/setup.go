@@ -121,7 +121,7 @@ func Setup(ctx context.Context, sc *app.SetupContext) error {
 
 	aionecloudstorage.Setup(ctx, sc, repo.CloudStorageRepo(), otelInterceptor)
 	aionecoderepository.Setup(ctx, sc, repo.CodeRepositoryRepo(), otelInterceptor)
-	aionedataset.Setup(ctx, sc, repo.DatasetRepo(), repo.CloudStorageRepo(), otelInterceptor)
+	aionedataset.Setup(ctx, sc, repo.DatasetRepo(), otelInterceptor)
 
 	identitySvc := service.NewIdentityService()
 	identityPath, identityHandler := authconnect.NewIdentityServiceHandler(identitySvc, connect.WithInterceptors(otelInterceptor))

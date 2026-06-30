@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	aionecoderepository "github.com/flyteorg/flyte/v2/flyteplugins/aione/coderepository"
+	aionedownloader "github.com/flyteorg/flyte/v2/flyteplugins/aione/downloader"
 )
 
 const (
@@ -43,13 +43,15 @@ type WorkspaceIdentity struct {
 }
 
 type WorkspaceResources struct {
-	Secret            *corev1.Secret
-	PVC               *corev1.PersistentVolumeClaim
-	CloudStoragePVCs  []*corev1.PersistentVolumeClaim
-	StatefulSet       *appsv1.StatefulSet
-	CodeServerService *corev1.Service
-	SSHService        *corev1.Service
-	CodeServerIngress *networkingv1.Ingress
+	Secret                  *corev1.Secret
+	CodeDownloaderSecret    *corev1.Secret
+	DatasetDownloaderSecret *corev1.Secret
+	PVC                     *corev1.PersistentVolumeClaim
+	CloudStoragePVCs        []*corev1.PersistentVolumeClaim
+	StatefulSet             *appsv1.StatefulSet
+	CodeServerService       *corev1.Service
+	SSHService              *corev1.Service
+	CodeServerIngress       *networkingv1.Ingress
 }
 
 func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceResources, error) {
@@ -93,8 +95,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}
 
 	var secret *corev1.Secret
-	needsGeneratedCodeRepositorySecret := len(cfg.CodeRepositories) > 0 && cfg.CodeRepositorySecretName == ""
-	if cfg.EnableSSH || needsGeneratedCodeRepositorySecret {
+	if cfg.EnableSSH {
 		secret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
@@ -106,15 +107,6 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		}
 		if cfg.EnableSSH {
 			secret.Data["authorized_keys"] = []byte(strings.Join(cfg.AuthorizedKeys, "\n") + "\n")
-		}
-	}
-	if len(cfg.CodeRepositories) > 0 {
-		if cfg.CodeRepositorySecretName == "" {
-			data, err := aionecoderepository.SecretValue(cfg.CodeRepositories)
-			if err != nil {
-				return WorkspaceResources{}, err
-			}
-			secret.Data[aionecoderepository.SecretKey] = data
 		}
 	}
 
@@ -142,9 +134,6 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	replicas := int32(1)
 	rootUser := int64(0)
 	entrypoint := workspaceEntrypoint(cfg.EnableSSH, cfg.SSHUser)
-	if len(cfg.CodeRepositories) > 0 {
-		entrypoint = aionecoderepository.CommandWithDownload(entrypoint)
-	}
 	containerPorts := []corev1.ContainerPort{{
 		Name:          "code-server",
 		ContainerPort: 8080,
@@ -152,6 +141,7 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}}
 	volumeMounts := []corev1.VolumeMount{}
 	volumes := []corev1.Volume{}
+	initContainers := []corev1.Container{}
 	if cfg.EnableSSH {
 		containerPorts = append([]corev1.ContainerPort{{
 			Name:          "ssh",
@@ -195,12 +185,92 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 			PeriodSeconds:       5,
 		},
 	}
+	var codeDownloaderSecret *corev1.Secret
 	if len(cfg.CodeRepositories) > 0 {
-		repositorySecretName := secretName
-		if cfg.CodeRepositorySecretName != "" {
-			repositorySecretName = cfg.CodeRepositorySecretName
+		secretName := resourceName + "-code-downloader"
+		params := aionedownloader.Params{Codes: make([]aionedownloader.Code, 0, len(cfg.CodeRepositories))}
+		downloadMounts := make([]corev1.VolumeMount, 0, len(cfg.CodeRepositories))
+		for i, repo := range cfg.CodeRepositories {
+			volumeName := fmt.Sprintf("code-repository-%d", i)
+			volumes = append(volumes, corev1.Volume{
+				Name:         volumeName,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			})
+			mount := corev1.VolumeMount{Name: volumeName, MountPath: repo.MountPath}
+			downloadMounts = append(downloadMounts, mount)
+			container.VolumeMounts = append(container.VolumeMounts, mount)
+			params.Codes = append(params.Codes, aionedownloader.Code{
+				ID:     repo.RepoURL,
+				Path:   repo.MountPath,
+				Token:  repo.Token,
+				Branch: repo.Branch,
+			})
 		}
-		container.Env = append(container.Env, aionecoderepository.EnvVar(repositorySecretName))
+		data, err := aionedownloader.SecretValue(params)
+		if err != nil {
+			return WorkspaceResources{}, err
+		}
+		codeDownloaderSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: identity.Namespace,
+				Labels:    labels,
+			},
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{aionedownloader.SecretKey: data},
+		}
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "code-downloader",
+			Image:           aionedownloader.Image(cfg.DownloaderImage),
+			ImagePullPolicy: corev1.PullNever,
+			Env:             []corev1.EnvVar{aionedownloader.EnvVar(secretName)},
+			VolumeMounts:    downloadMounts,
+		})
+	}
+	var datasetDownloaderSecret *corev1.Secret
+	if len(cfg.Datasets) > 0 {
+		secretName := resourceName + "-dataset-downloader"
+		params := aionedownloader.Params{OSSDatas: make([]aionedownloader.OSSData, 0, len(cfg.Datasets))}
+		downloadMounts := make([]corev1.VolumeMount, 0, len(cfg.Datasets))
+		for i, dataset := range cfg.Datasets {
+			volumeName := fmt.Sprintf("dataset-%d", i)
+			volumes = append(volumes, corev1.Volume{
+				Name:         volumeName,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			})
+			mount := corev1.VolumeMount{Name: volumeName, MountPath: dataset.TargetPath}
+			downloadMounts = append(downloadMounts, mount)
+			container.VolumeMounts = append(container.VolumeMounts, mount)
+			params.OSSDatas = append(params.OSSDatas, aionedownloader.OSSData{
+				EndPoint:   dataset.EndPoint,
+				Port:       dataset.Port,
+				AccessKey:  dataset.AccessKey,
+				SecretKey:  dataset.SecretKey,
+				TargetPath: dataset.TargetPath,
+				Bucket:     dataset.Bucket,
+				BucketPath: dataset.BucketPath,
+			})
+		}
+		data, err := aionedownloader.SecretValue(params)
+		if err != nil {
+			return WorkspaceResources{}, err
+		}
+		datasetDownloaderSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: identity.Namespace,
+				Labels:    labels,
+			},
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{aionedownloader.SecretKey: data},
+		}
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "dataset-downloader",
+			Image:           aionedownloader.Image(cfg.DownloaderImage),
+			ImagePullPolicy: corev1.PullNever,
+			Env:             []corev1.EnvVar{aionedownloader.EnvVar(secretName)},
+			VolumeMounts:    downloadMounts,
+		})
 	}
 	if !cpu.IsZero() {
 		if container.Resources.Requests == nil {
@@ -300,8 +370,9 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: labels, Annotations: annotations},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{container},
-					Volumes:    volumes,
+					InitContainers: initContainers,
+					Containers:     []corev1.Container{container},
+					Volumes:        volumes,
 				},
 			},
 		},
@@ -398,13 +469,15 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}
 
 	return WorkspaceResources{
-		Secret:            secret,
-		PVC:               pvc,
-		CloudStoragePVCs:  cloudPVCs,
-		StatefulSet:       sts,
-		CodeServerService: codeServerService,
-		SSHService:        sshService,
-		CodeServerIngress: ingress,
+		Secret:                  secret,
+		CodeDownloaderSecret:    codeDownloaderSecret,
+		DatasetDownloaderSecret: datasetDownloaderSecret,
+		PVC:                     pvc,
+		CloudStoragePVCs:        cloudPVCs,
+		StatefulSet:             sts,
+		CodeServerService:       codeServerService,
+		SSHService:              sshService,
+		CodeServerIngress:       ingress,
 	}, nil
 }
 

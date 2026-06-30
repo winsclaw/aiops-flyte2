@@ -5,6 +5,7 @@ package flyteidl2.developmentinstance;
 import "buf/validate/validate.proto";
 import "flyteidl2/aione/cloudstorage/cloud_storage_definition.proto";
 import "flyteidl2/aione/coderepository/code_repository_definition.proto";
+import "flyteidl2/aione/dataset/dataset_definition.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/developmentinstance";
@@ -88,6 +89,8 @@ message DevelopmentInstance {
   string base_image_mount_path = 25;
   repeated DevelopmentInstanceCodeRepositoryDetail code_repository_details = 26;
   bool enable_ssh = 27;
+  repeated aione.dataset.RuntimeDataset datasets = 28;
+  repeated aione.dataset.DatasetMount dataset_mounts = 29;
 }
 
 message DevelopmentInstanceRun {

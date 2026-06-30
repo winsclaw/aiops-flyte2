@@ -28,6 +28,10 @@ import {
 } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
 import { CodeRepositoryMountSchema } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
 import {
+  DatasetMountSchema,
+  RuntimeDatasetSchema,
+} from "@/gen/flyteidl2/aione/dataset/dataset_definition_pb";
+import {
   DevelopmentInstance,
   type DevelopmentInstanceAccessInfo,
   DevelopmentInstanceCodeRepositoryDetailSchema,
@@ -516,6 +520,7 @@ async function createTrainingTaskRun(payload: unknown) {
         gpuCount: values.gpuCount,
         gpuModel: values.gpuModel,
         bandwidth: values.bandwidth,
+        datasets: values.datasets,
       }),
       creator: values.sourceOrg || "external-api",
       trainingTaskId: values.sourceId,
@@ -1007,6 +1012,7 @@ function buildExternalTrainingTaskValues(payload: unknown) {
   }
   const image = resolveTrainingTaskImage(object);
   const resources = getPayloadObject(object.resourceDefinition);
+  const datasets = parseExternalRuntimeDatasets(object.datasets);
   return {
     internalOrg,
     sourceOrg,
@@ -1027,7 +1033,71 @@ function buildExternalTrainingTaskValues(payload: unknown) {
     ),
     gpuModel: stringField(resources, "gpuModel"),
     bandwidth: stringField(resources, "bandwidth"),
+    datasets,
   };
+}
+
+function parseExternalRuntimeDatasets(value: unknown) {
+  if (value == null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw statusError("datasets must be an array", 400);
+  }
+  return value.map((item, index) => {
+    const dataset = getPayloadObject(item);
+    if (Object.prototype.hasOwnProperty.call(dataset, "endpoint")) {
+      throw statusError(`datasets[${index}].endPoint is required`, 400);
+    }
+    const endPoint = requiredStringField(
+      dataset,
+      "endPoint",
+      `datasets[${index}].endPoint`,
+    );
+    if (endPoint.includes("://")) {
+      throw statusError(`datasets[${index}].endPoint must not include scheme`, 400);
+    }
+    const portValue = dataset.port;
+    const port =
+      typeof portValue === "number" || typeof portValue === "string"
+        ? String(portValue).trim()
+        : "";
+    if (!port) {
+      throw statusError(`datasets[${index}].port is required`, 400);
+    }
+    const bucketPath = stringField(dataset, "bucketPath");
+    if (
+      bucketPath.includes("..") ||
+      bucketPath.includes("\\") ||
+      bucketPath.includes("://")
+    ) {
+      throw statusError(
+        `datasets[${index}].bucketPath cannot contain .., backslash, or URL scheme`,
+        400,
+      );
+    }
+    return create(RuntimeDatasetSchema, {
+      endPoint,
+      port,
+      accessKey: requiredStringField(
+        dataset,
+        "accessKey",
+        `datasets[${index}].accessKey`,
+      ),
+      secretKey: requiredStringField(
+        dataset,
+        "secretKey",
+        `datasets[${index}].secretKey`,
+      ),
+      targetPath: requiredAbsolutePathField(
+        dataset,
+        "targetPath",
+        `datasets[${index}].targetPath`,
+      ),
+      bucket: requiredStringField(dataset, "bucket", `datasets[${index}].bucket`),
+      bucketPath,
+    });
+  });
 }
 
 function buildAioneCreateTaskResponse({
@@ -1429,6 +1499,24 @@ function buildDevelopmentInstanceInput(values: DevelopmentInstanceFormValues) {
         repoUrl: repo.repoUrl,
         branch: repo.branch,
         mountPath: repo.mountPath,
+        token: repo.token ?? "",
+      }),
+    ),
+    datasets: (values.datasets ?? []).map((dataset) =>
+      create(RuntimeDatasetSchema, {
+        endPoint: dataset.endPoint,
+        port: dataset.port,
+        accessKey: dataset.accessKey,
+        secretKey: dataset.secretKey,
+        targetPath: dataset.targetPath,
+        bucket: dataset.bucket,
+        bucketPath: dataset.bucketPath ?? "",
+      }),
+    ),
+    datasetMounts: (values.datasetMounts ?? []).map((mount) =>
+      create(DatasetMountSchema, {
+        datasetId: mount.datasetId,
+        targetPath: mount.targetPath,
       }),
     ),
     imagePullSecretName: values.imagePullSecretName ?? "",
@@ -2068,6 +2156,18 @@ function requiredStringField(
   const value = stringField(object, field);
   if (!value) {
     throw statusError(`${label} is required`, 400);
+  }
+  return value;
+}
+
+function requiredAbsolutePathField(
+  object: Record<string, unknown>,
+  field: string,
+  label = field,
+) {
+  const value = requiredStringField(object, field, label);
+  if (!value.startsWith("/")) {
+    throw statusError(`${label} must be an absolute path`, 400);
   }
   return value;
 }

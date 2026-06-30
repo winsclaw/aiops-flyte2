@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS development_instances (
     code_server_workspace_url TEXT NOT NULL DEFAULT '',
     cloud_storage_mounts_json TEXT NOT NULL DEFAULT '[]',
     code_repository_mounts_json TEXT NOT NULL DEFAULT '[]',
+    datasets_json TEXT NOT NULL DEFAULT '[]',
+    dataset_mounts_json TEXT NOT NULL DEFAULT '[]',
     deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

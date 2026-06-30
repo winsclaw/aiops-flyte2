@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -57,6 +59,22 @@ func BuildTrainingTaskSpec(trainingTask *models.TrainingTask) (*task.TaskSpec, e
 		})
 	}
 
+	datasets := make([]any, 0, len(trainingTask.SelectedDatasets()))
+	for _, dataset := range trainingTask.SelectedDatasets() {
+		if dataset.EndPoint == "" || dataset.Port == "" || dataset.AccessKey == "" || dataset.SecretKeyCiphertext == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
+			return nil, fmt.Errorf("dataset mount %q is incomplete", dataset.TargetPath)
+		}
+		datasets = append(datasets, map[string]any{
+			"endPoint":            dataset.EndPoint,
+			"port":                dataset.Port,
+			"accessKey":           dataset.AccessKey,
+			"secretKeyCiphertext": dataset.SecretKeyCiphertext,
+			"targetPath":          dataset.TargetPath,
+			"bucket":              dataset.Bucket,
+			"bucketPath":          dataset.BucketPath,
+		})
+	}
+
 	customPayload := map[string]any{
 		"image":             trainingTask.ImageURI,
 		"command":           trainingTask.Command,
@@ -70,12 +88,16 @@ func BuildTrainingTaskSpec(trainingTask *models.TrainingTask) (*task.TaskSpec, e
 		"trainingTaskName":  trainingTask.Name,
 		"resourceSpecId":    trainingTask.ResourceSpecID,
 		"resourceSpecLabel": trainingTask.ResourceDisplay,
+		"downloaderImage":   downloaderImage(),
 	}
 	if len(cloudStorageMounts) > 0 {
 		customPayload["cloudStorageMounts"] = cloudStorageMounts
 	}
 	if len(codeRepositoryMounts) > 0 {
 		customPayload["codeRepositories"] = codeRepositoryMounts
+	}
+	if len(datasets) > 0 {
+		customPayload["datasets"] = datasets
 	}
 
 	custom, err := structpb.NewStruct(customPayload)
@@ -109,4 +131,12 @@ func BuildTrainingTaskSpec(trainingTask *models.TrainingTask) (*task.TaskSpec, e
 		},
 		ShortName: trainingTask.Name,
 	}, nil
+}
+
+func downloaderImage() string {
+	image := strings.TrimSpace(os.Getenv("AIONE_DOWNLOADER_IMAGE"))
+	if image == "" {
+		return "aione-downloader:latest"
+	}
+	return image
 }

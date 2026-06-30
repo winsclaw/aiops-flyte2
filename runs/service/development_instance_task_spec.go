@@ -63,6 +63,22 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 		})
 	}
 
+	datasets := make([]any, 0, len(instance.SelectedDatasets()))
+	for _, dataset := range instance.SelectedDatasets() {
+		if dataset.EndPoint == "" || dataset.Port == "" || dataset.AccessKey == "" || dataset.SecretKeyCiphertext == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
+			return nil, fmt.Errorf("dataset mount %q is incomplete", dataset.TargetPath)
+		}
+		datasets = append(datasets, map[string]any{
+			"endPoint":            dataset.EndPoint,
+			"port":                dataset.Port,
+			"accessKey":           dataset.AccessKey,
+			"secretKeyCiphertext": dataset.SecretKeyCiphertext,
+			"targetPath":          dataset.TargetPath,
+			"bucket":              dataset.Bucket,
+			"bucketPath":          dataset.BucketPath,
+		})
+	}
+
 	customPayload := map[string]any{
 		"image":                    instance.ImageURI,
 		"imageType":                instance.ImageType,
@@ -88,9 +104,10 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 		"sourceName":               instance.Name,
 		"sourceSystem":             instance.SourceSystem,
 		"baseImageMountPath":       instance.BaseImageMountPath,
+		"downloaderImage":          downloaderImage(),
+		"sshUser":                  defaultString(instance.SSHUser, "flytekit"),
 	}
 	if instance.EnableSSH {
-		customPayload["sshUser"] = defaultString(instance.SSHUser, "flytekit")
 		customPayload["authorizedKeys"] = authorizedKeyValues
 		customPayload["serviceType"] = "NodePort"
 		if instance.NodePort > 0 {
@@ -102,6 +119,9 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 	}
 	if len(codeRepositories) > 0 {
 		customPayload["codeRepositories"] = codeRepositories
+	}
+	if len(datasets) > 0 {
+		customPayload["datasets"] = datasets
 	}
 	custom, err := structpb.NewStruct(customPayload)
 	if err != nil {

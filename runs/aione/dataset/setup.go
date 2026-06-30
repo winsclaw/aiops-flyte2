@@ -11,8 +11,8 @@ import (
 	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 )
 
-func Setup(ctx context.Context, sc *app.SetupContext, datasetRepo interfaces.DatasetRepo, cloudStorageRepo interfaces.CloudStorageRepo, interceptor connect.Interceptor) {
-	svc := NewService(datasetRepo, cloudStorageRepo)
+func Setup(ctx context.Context, sc *app.SetupContext, datasetRepo interfaces.DatasetRepo, interceptor connect.Interceptor) {
+	svc := NewService(datasetRepo)
 	path, handler := datasetconnect.NewDatasetServiceHandler(svc, connect.WithInterceptors(interceptor))
 	sc.Mux.Handle(path, handler)
 	logger.Infof(ctx, "Mounted Aione DatasetService at %s", path)

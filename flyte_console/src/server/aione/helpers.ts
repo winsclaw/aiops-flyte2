@@ -50,6 +50,16 @@ type ExternalInstancePayload = {
     path?: string;
     size?: number;
   }[];
+  datasets?: {
+    endPoint?: string;
+    endpoint?: string;
+    port?: number | string;
+    accessKey?: string;
+    secretKey?: string;
+    targetPath?: string;
+    bucket?: string;
+    bucketPath?: string;
+  }[];
   resourceDefinition?: {
     cpu?: string;
     memory?: string;
@@ -244,6 +254,33 @@ export function buildAioneInstanceValues({
         storageClass: defaultStorageClass,
         size: `${positiveNumber(datastore.size, 1, "datastores.size")}Gi`,
         mountPath: requiredAbsolutePath(datastore.path, "datastores.path"),
+      };
+    }),
+    datasets: (payload.datasets ?? []).map((dataset) => {
+      if (dataset.endpoint) {
+        throw new Error("datasets.endPoint is required");
+      }
+      const bucketPath = dataset.bucketPath?.trim() || "";
+      if (
+        bucketPath.includes("..") ||
+        bucketPath.includes("\\") ||
+        bucketPath.includes("://")
+      ) {
+        throw new Error(
+          "datasets.bucketPath cannot contain .., backslash, or URL scheme",
+        );
+      }
+      return {
+        endPoint: requiredString(dataset.endPoint, "datasets.endPoint"),
+        port: String(requiredString(String(dataset.port ?? ""), "datasets.port")),
+        accessKey: requiredString(dataset.accessKey, "datasets.accessKey"),
+        secretKey: requiredString(dataset.secretKey, "datasets.secretKey"),
+        targetPath: requiredAbsolutePath(
+          dataset.targetPath,
+          "datasets.targetPath",
+        ),
+        bucket: requiredString(dataset.bucket, "datasets.bucket"),
+        bucketPath,
       };
     }),
     codeRepositories: codeRepositoriesWithTokens.map(

@@ -28,11 +28,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { formatTimestamp } from "../TrainingTasks/utils";
-import {
-  buildDatasetEditHref,
-  datasetVisibilityText,
-  decodeDatasetId,
-} from "./utils";
+import { buildDatasetEditHref, decodeDatasetId } from "./utils";
 
 type DetailParams = {
   domain?: string;
@@ -43,7 +39,13 @@ type DetailParams = {
 const buttonClass =
   "inline-flex h-9 items-center justify-center gap-2 border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
 
-function InfoSection({ title, children }: { title: string; children: ReactNode }) {
+function InfoSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <section className="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
       <div className="border-b border-zinc-200 px-5 py-3 text-sm font-semibold dark:border-zinc-800">
@@ -170,13 +172,14 @@ export function DatasetDetailPage() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <button className={buttonClass} onClick={loadDataset} title="刷新">
+                <button
+                  className={buttonClass}
+                  onClick={loadDataset}
+                  title="刷新"
+                >
                   <ArrowPathIcon className="size-5" />
                 </button>
-                <Link
-                  href={editHref}
-                  className={buttonClass}
-                >
+                <Link href={editHref} className={buttonClass}>
                   <PencilSquareIcon className="size-4" />
                   编辑
                 </Link>
@@ -200,12 +203,13 @@ export function DatasetDetailPage() {
                   ["名称", dataset?.name],
                   ["数据集 ID", dataset?.id?.id],
                   ["描述", dataset?.description || "-"],
-                  [
-                    "可见范围",
-                    dataset ? datasetVisibilityText(dataset.projectPublic) : "-",
-                  ],
-                  ["存储桶", dataset?.cloudStorageId],
-                  ["文件夹路径", dataset?.folderPath || "-"],
+                  ["EndPoint", dataset?.endPoint],
+                  ["Port", dataset?.port],
+                  ["AccessKey", dataset?.accessKey],
+                  ["SecretKey", dataset ? "已加密保存" : "-"],
+                  ["TargetPath", dataset?.targetPath],
+                  ["Bucket", dataset?.bucket],
+                  ["BucketPath", dataset?.bucketPath || "-"],
                   ["创建人", dataset?.creator || "-"],
                   ["创建时间", formatTimestamp(dataset?.createdAt)],
                   ["更新时间", formatTimestamp(dataset?.updatedAt)],

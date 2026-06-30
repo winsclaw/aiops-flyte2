@@ -3,6 +3,8 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"testing"
 
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
@@ -20,13 +22,25 @@ import (
 //	    }))
 //	}
 func RunTestMain(m *testing.M, port uint32, dbName string, db **sqlx.DB, migrate func(*sqlx.DB) error) int {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Printf("failed to determine working directory for embedded postgres: %v", err)
+		return 1
+	}
+	runtimePath := filepath.ToSlash(filepath.Join(wd, ".tmp", fmt.Sprintf("embedded-postgres-%d-%d", port, os.Getpid())))
+	defer func() {
+		if err := os.RemoveAll(runtimePath); err != nil {
+			log.Printf("warning: failed to clean embedded postgres runtime path %s: %v", runtimePath, err)
+		}
+	}()
+
 	pg := embeddedpostgres.NewDatabase(
 		embeddedpostgres.DefaultConfig().
 			Port(port).
 			Database(dbName).
 			Username("postgres").
 			Password("postgres").
-			RuntimePath(fmt.Sprintf("/tmp/embedded-postgres-%d", port)),
+			RuntimePath(runtimePath),
 	)
 	if err := pg.Start(); err != nil {
 		log.Printf("failed to start embedded postgres on port %d: %v", port, err)

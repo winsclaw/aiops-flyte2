@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file flyteidl2/aione/dataset/dataset_definition.proto.
  */
 export const file_flyteidl2_aione_dataset_dataset_definition: GenFile = /*@__PURE__*/
-  fileDesc("CjBmbHl0ZWlkbDIvYWlvbmUvZGF0YXNldC9kYXRhc2V0X2RlZmluaXRpb24ucHJvdG8SF2ZseXRlaWRsMi5haW9uZS5kYXRhc2V0InEKEURhdGFzZXRJZGVudGlmaWVyEhQKA29yZxgBIAEoCUIHukgEcgIQARIYCgdwcm9qZWN0GAIgASgJQge6SARyAhABEhcKBmRvbWFpbhgDIAEoCUIHukgEcgIQARITCgJpZBgEIAEoCUIHukgEcgIQASLDAgoHRGF0YXNldBI+CgJpZBgBIAEoCzIqLmZseXRlaWRsMi5haW9uZS5kYXRhc2V0LkRhdGFzZXRJZGVudGlmaWVyQga6SAPIAQESGAoEbmFtZRgCIAEoCUIKukgHcgUQARiAARIdCgtkZXNjcmlwdGlvbhgDIAEoCUIIukgFcgMY/wESIQoQY2xvdWRfc3RvcmFnZV9pZBgEIAEoCUIHukgEcgIQARITCgtmb2xkZXJfcGF0aBgFIAEoCRIWCg5wcm9qZWN0X3B1YmxpYxgGIAEoCBIPCgdjcmVhdG9yGAcgASgJEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQvIBChtjb20uZmx5dGVpZGwyLmFpb25lLmRhdGFzZXRCFkRhdGFzZXREZWZpbml0aW9uUHJvdG9IAlABWjtnaXRodWIuY29tL2ZseXRlb3JnL2ZseXRlL3YyL2dlbi9nby9mbHl0ZWlkbDIvYWlvbmUvZGF0YXNldKICA0ZBRKoCF0ZseXRlaWRsMi5BaW9uZS5EYXRhc2V0ygIXRmx5dGVpZGwyXEFpb25lXERhdGFzZXTiAiNGbHl0ZWlkbDJcQWlvbmVcRGF0YXNldFxHUEJNZXRhZGF0YeoCGUZseXRlaWRsMjo6QWlvbmU6OkRhdGFzZXRiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CjBmbHl0ZWlkbDIvYWlvbmUvZGF0YXNldC9kYXRhc2V0X2RlZmluaXRpb24ucHJvdG8SF2ZseXRlaWRsMi5haW9uZS5kYXRhc2V0InEKEURhdGFzZXRJZGVudGlmaWVyEhQKA29yZxgBIAEoCUIHukgEcgIQARIYCgdwcm9qZWN0GAIgASgJQge6SARyAhABEhcKBmRvbWFpbhgDIAEoCUIHukgEcgIQARITCgJpZBgEIAEoCUIHukgEcgIQASL2AgoHRGF0YXNldBI+CgJpZBgBIAEoCzIqLmZseXRlaWRsMi5haW9uZS5kYXRhc2V0LkRhdGFzZXRJZGVudGlmaWVyQga6SAPIAQESGAoEbmFtZRgCIAEoCUIKukgHcgUQARiAARIdCgtkZXNjcmlwdGlvbhgDIAEoCUIIukgFcgMY/wESEQoJZW5kX3BvaW50GAQgASgJEgwKBHBvcnQYBSABKAkSEgoKYWNjZXNzX2tleRgGIAEoCRISCgpzZWNyZXRfa2V5GAcgASgJEhMKC3RhcmdldF9wYXRoGAggASgJEg4KBmJ1Y2tldBgJIAEoCRITCgtidWNrZXRfcGF0aBgKIAEoCRIPCgdjcmVhdG9yGAsgASgJEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpMBCg5SdW50aW1lRGF0YXNldBIRCgllbmRfcG9pbnQYASABKAkSDAoEcG9ydBgCIAEoCRISCgphY2Nlc3Nfa2V5GAMgASgJEhIKCnNlY3JldF9rZXkYBCABKAkSEwoLdGFyZ2V0X3BhdGgYBSABKAkSDgoGYnVja2V0GAYgASgJEhMKC2J1Y2tldF9wYXRoGAcgASgJIjcKDERhdGFzZXRNb3VudBISCgpkYXRhc2V0X2lkGAEgASgJEhMKC3RhcmdldF9wYXRoGAIgASgJQvIBChtjb20uZmx5dGVpZGwyLmFpb25lLmRhdGFzZXRCFkRhdGFzZXREZWZpbml0aW9uUHJvdG9IAlABWjtnaXRodWIuY29tL2ZseXRlb3JnL2ZseXRlL3YyL2dlbi9nby9mbHl0ZWlkbDIvYWlvbmUvZGF0YXNldKICA0ZBRKoCF0ZseXRlaWRsMi5BaW9uZS5EYXRhc2V0ygIXRmx5dGVpZGwyXEFpb25lXERhdGFzZXTiAiNGbHl0ZWlkbDJcQWlvbmVcRGF0YXNldFxHUEJNZXRhZGF0YeoCGUZseXRlaWRsMjo6QWlvbmU6OkRhdGFzZXRiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message flyteidl2.aione.dataset.DatasetIdentifier
@@ -67,32 +67,52 @@ export type Dataset = Message<"flyteidl2.aione.dataset.Dataset"> & {
   description: string;
 
   /**
-   * @generated from field: string cloud_storage_id = 4;
+   * @generated from field: string end_point = 4;
    */
-  cloudStorageId: string;
+  endPoint: string;
 
   /**
-   * @generated from field: string folder_path = 5;
+   * @generated from field: string port = 5;
    */
-  folderPath: string;
+  port: string;
 
   /**
-   * @generated from field: bool project_public = 6;
+   * @generated from field: string access_key = 6;
    */
-  projectPublic: boolean;
+  accessKey: string;
 
   /**
-   * @generated from field: string creator = 7;
+   * @generated from field: string secret_key = 7;
+   */
+  secretKey: string;
+
+  /**
+   * @generated from field: string target_path = 8;
+   */
+  targetPath: string;
+
+  /**
+   * @generated from field: string bucket = 9;
+   */
+  bucket: string;
+
+  /**
+   * @generated from field: string bucket_path = 10;
+   */
+  bucketPath: string;
+
+  /**
+   * @generated from field: string creator = 11;
    */
   creator: string;
 
   /**
-   * @generated from field: google.protobuf.Timestamp created_at = 8;
+   * @generated from field: google.protobuf.Timestamp created_at = 12;
    */
   createdAt?: Timestamp;
 
   /**
-   * @generated from field: google.protobuf.Timestamp updated_at = 9;
+   * @generated from field: google.protobuf.Timestamp updated_at = 13;
    */
   updatedAt?: Timestamp;
 };
@@ -103,4 +123,73 @@ export type Dataset = Message<"flyteidl2.aione.dataset.Dataset"> & {
  */
 export const DatasetSchema: GenMessage<Dataset> = /*@__PURE__*/
   messageDesc(file_flyteidl2_aione_dataset_dataset_definition, 1);
+
+/**
+ * @generated from message flyteidl2.aione.dataset.RuntimeDataset
+ */
+export type RuntimeDataset = Message<"flyteidl2.aione.dataset.RuntimeDataset"> & {
+  /**
+   * @generated from field: string end_point = 1;
+   */
+  endPoint: string;
+
+  /**
+   * @generated from field: string port = 2;
+   */
+  port: string;
+
+  /**
+   * @generated from field: string access_key = 3;
+   */
+  accessKey: string;
+
+  /**
+   * @generated from field: string secret_key = 4;
+   */
+  secretKey: string;
+
+  /**
+   * @generated from field: string target_path = 5;
+   */
+  targetPath: string;
+
+  /**
+   * @generated from field: string bucket = 6;
+   */
+  bucket: string;
+
+  /**
+   * @generated from field: string bucket_path = 7;
+   */
+  bucketPath: string;
+};
+
+/**
+ * Describes the message flyteidl2.aione.dataset.RuntimeDataset.
+ * Use `create(RuntimeDatasetSchema)` to create a new message.
+ */
+export const RuntimeDatasetSchema: GenMessage<RuntimeDataset> = /*@__PURE__*/
+  messageDesc(file_flyteidl2_aione_dataset_dataset_definition, 2);
+
+/**
+ * @generated from message flyteidl2.aione.dataset.DatasetMount
+ */
+export type DatasetMount = Message<"flyteidl2.aione.dataset.DatasetMount"> & {
+  /**
+   * @generated from field: string dataset_id = 1;
+   */
+  datasetId: string;
+
+  /**
+   * @generated from field: string target_path = 2;
+   */
+  targetPath: string;
+};
+
+/**
+ * Describes the message flyteidl2.aione.dataset.DatasetMount.
+ * Use `create(DatasetMountSchema)` to create a new message.
+ */
+export const DatasetMountSchema: GenMessage<DatasetMount> = /*@__PURE__*/
+  messageDesc(file_flyteidl2_aione_dataset_dataset_definition, 3);
 

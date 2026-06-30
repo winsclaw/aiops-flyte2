@@ -24,14 +24,17 @@ func NewDatasetRepo(db *sqlx.DB) interfaces.DatasetRepo {
 func (r *datasetRepo) Create(ctx context.Context, dataset *models.Dataset) error {
 	_, err := r.db.ExecContext(ctx, `
 INSERT INTO aione_datasets (
-	id, org, project, domain, name, description, cloud_storage_id, folder_path,
-	project_public, creator
+	id, org, project, domain, name, description,
+	end_point, port, access_key, secret_key_ciphertext,
+	target_path, bucket, bucket_path, creator
 ) VALUES (
-	$1, $2, $3, $4, $5, $6, $7, $8,
-	$9, $10
+	$1, $2, $3, $4, $5, $6,
+	$7, $8, $9, $10,
+	$11, $12, $13, $14
 )`,
-		dataset.ID, dataset.Org, dataset.Project, dataset.Domain, dataset.Name, dataset.Description, dataset.CloudStorageID, dataset.FolderPath,
-		dataset.ProjectPublic, dataset.Creator)
+		dataset.ID, dataset.Org, dataset.Project, dataset.Domain, dataset.Name, dataset.Description,
+		dataset.EndPoint, dataset.Port, dataset.AccessKey, dataset.SecretKeyCiphertext,
+		dataset.TargetPath, dataset.Bucket, dataset.BucketPath, dataset.Creator)
 	if err != nil {
 		return fmt.Errorf("failed to create dataset %s/%s/%s/%s: %w", dataset.Org, dataset.Project, dataset.Domain, dataset.ID, err)
 	}
@@ -59,12 +62,17 @@ func (r *datasetRepo) Update(ctx context.Context, dataset *models.Dataset) error
 UPDATE aione_datasets
 SET name = $5,
     description = $6,
-    cloud_storage_id = $7,
-    folder_path = $8,
-    project_public = $9,
+    end_point = $7,
+    port = $8,
+    access_key = $9,
+    secret_key_ciphertext = $10,
+    target_path = $11,
+    bucket = $12,
+    bucket_path = $13,
     updated_at = NOW()
 WHERE org = $1 AND project = $2 AND domain = $3 AND id = $4`,
-		dataset.Org, dataset.Project, dataset.Domain, dataset.ID, dataset.Name, dataset.Description, dataset.CloudStorageID, dataset.FolderPath, dataset.ProjectPublic)
+		dataset.Org, dataset.Project, dataset.Domain, dataset.ID, dataset.Name, dataset.Description,
+		dataset.EndPoint, dataset.Port, dataset.AccessKey, dataset.SecretKeyCiphertext, dataset.TargetPath, dataset.Bucket, dataset.BucketPath)
 	if err != nil {
 		return fmt.Errorf("failed to update dataset %s/%s/%s/%s: %w", dataset.Org, dataset.Project, dataset.Domain, dataset.ID, err)
 	}
@@ -95,7 +103,14 @@ func (r *datasetRepo) List(ctx context.Context, input models.DatasetListInput) (
 	args := []any{input.Org, input.Project, input.Domain}
 	if strings.TrimSpace(input.Search) != "" {
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(input.Search))+"%")
-		where = append(where, fmt.Sprintf("(LOWER(name) LIKE $%d OR LOWER(description) LIKE $%d)", len(args), len(args)))
+		where = append(where, fmt.Sprintf(`(
+LOWER(name) LIKE $%d OR
+LOWER(description) LIKE $%d OR
+LOWER(end_point) LIKE $%d OR
+LOWER(target_path) LIKE $%d OR
+LOWER(bucket) LIKE $%d OR
+LOWER(bucket_path) LIKE $%d
+)`, len(args), len(args), len(args), len(args), len(args), len(args)))
 	}
 	args = append(args, limit, input.Offset)
 	query := fmt.Sprintf(`

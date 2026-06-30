@@ -6,6 +6,7 @@ import "flyteidl2/common/identifier.proto";
 import "flyteidl2/common/list.proto";
 import "flyteidl2/aione/cloudstorage/cloud_storage_definition.proto";
 import "flyteidl2/aione/coderepository/code_repository_definition.proto";
+import "flyteidl2/aione/dataset/dataset_definition.proto";
 import "flyteidl2/trainingtask/training_task_definition.proto";
 
 option go_package = "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/trainingtask";
@@ -50,6 +51,8 @@ message TrainingTaskInput {
   uint32 gpu_count = 14;
   string gpu_model = 15;
   string bandwidth = 16;
+  repeated aione.dataset.RuntimeDataset datasets = 17;
+  repeated aione.dataset.DatasetMount dataset_mounts = 18;
 }
 
 message ListTrainingTasksRequest {

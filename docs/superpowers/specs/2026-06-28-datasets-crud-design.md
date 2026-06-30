@@ -71,9 +71,13 @@ Persist datasets in a project-scoped table:
 - `id`
 - `name`
 - `description`
-- `cloud_storage_id`
-- `folder_path`
-- `project_public`
+- `end_point`
+- `port`
+- `access_key`
+- `secret_key_ciphertext`
+- `target_path`
+- `bucket`
+- `bucket_path`
 - `creator`
 - `created_at`
 - `updated_at`
@@ -88,17 +92,17 @@ Indexes:
 
 - `(org, project, domain, created_at DESC)` for list pages.
 - `(org, project, domain, name)` for search and future uniqueness checks.
-- `(org, project, domain, cloud_storage_id)` for object-storage dependency lookups.
+- `(org, project, domain, bucket)` for object-storage filtering.
 
 Validation:
 
 - `name` is required, trimmed, 1-128 characters.
 - `description` is optional, trimmed, max 255 characters.
-- `cloud_storage_id` is required and must refer to an existing cloud storage in the same project scope.
-- `folder_path` is optional. If supplied, trim leading `/` because it is a path inside the storage bucket, not an absolute container path.
-- `folder_path` must not contain `..`, backslashes, or a URI scheme.
-- `project_public` defaults to `false`.
-- Once a dataset has `project_public = true`, update requests must reject changing it back to `false`.
+- `end_point`, `port`, `access_key`, `target_path`, and `bucket` are required.
+- `secret_key` is required on create, encrypted by the backend into `secret_key_ciphertext`, and never returned in plaintext.
+- `secret_key` is optional on update; an empty update value keeps the existing ciphertext.
+- `bucket_path` is optional. If supplied, trim leading `/` because it is a path inside the storage bucket, not an absolute container path.
+- `bucket_path` must not contain `..`, backslashes, or a URI scheme.
 
 Deletion semantics:
 
@@ -267,7 +271,7 @@ Full deployment verification, after implementation is committed and pushed, foll
 - Deleting physical files or PVCs.
 - Attaching datasets to training tasks or development instances.
 - External `/v2/api/aione/dataset` REST endpoints.
-- Cross-project sharing beyond the stored `project_public` metadata.
+- Cross-project sharing.
 
 ## Merge Strategy
 

@@ -164,6 +164,19 @@ export type DevelopmentInstanceFormValues = {
     mountPath: string;
     token?: string;
   }[];
+  datasets?: {
+    endPoint: string;
+    port: string;
+    accessKey: string;
+    secretKey: string;
+    targetPath: string;
+    bucket: string;
+    bucketPath?: string;
+  }[];
+  datasetMounts?: {
+    datasetId: string;
+    targetPath: string;
+  }[];
 };
 
 export type DevelopmentInstance = {
@@ -374,6 +387,8 @@ export function buildCreateDevelopmentInstanceRequest(
     baseImageMountPath: values.baseImageMountPath?.trim() ?? "",
     cloudStorageMounts,
     codeRepositories: values.codeRepositories ?? [],
+    datasets: values.datasets ?? [],
+    datasetMounts: values.datasetMounts ?? [],
   };
   if (values.enableSsh) {
     Object.assign(custom, {

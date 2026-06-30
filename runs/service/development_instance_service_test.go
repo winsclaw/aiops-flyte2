@@ -74,6 +74,40 @@ func TestBuildDevelopmentInstanceSpecDefaultsToIngressOnlyCodeServer(t *testing.
 	require.Equal(t, "https://ins-abc-r1-code.ops.fzyun.io", custom["codeServerUrl"].GetStringValue())
 }
 
+func TestBuildDevelopmentInstanceSpecIncludesDatasetsWithoutPlainSecret(t *testing.T) {
+	spec, err := BuildDevelopmentInstanceSpec(&models.DevelopmentInstance{
+		DevelopmentInstanceKey: models.DevelopmentInstanceKey{ID: "ins-dataset"},
+		Org:                    "testorg",
+		Project:                "flytesnacks",
+		Domain:                 "development",
+		Name:                   "开发实例-数据集",
+		ImageURI:               "docker.fzyun.io/founder/aione.ide:1.0.0.60",
+		CPU:                    "2",
+		Memory:                 "4Gi",
+		WorkspaceSize:          "20Gi",
+		MaxHours:               24,
+		WorkspacePVCName:       "ins-dataset-workspace",
+		Datasets: []models.RuntimeDataset{{
+			EndPoint:            "1.2.3.4",
+			Port:                "9000",
+			AccessKey:           "ak",
+			SecretKeyCiphertext: "v1:ciphertext",
+			TargetPath:          "/data/set1",
+			Bucket:              "mybucket1",
+		}},
+	})
+
+	require.NoError(t, err)
+	fields := spec.GetTaskTemplate().GetCustom().GetFields()
+	require.Equal(t, "aione-downloader:latest", fields["downloaderImage"].GetStringValue())
+	values := fields["datasets"].GetListValue().GetValues()
+	require.Len(t, values, 1)
+	dataset := values[0].GetStructValue().GetFields()
+	require.Equal(t, "1.2.3.4", dataset["endPoint"].GetStringValue())
+	require.Equal(t, "v1:ciphertext", dataset["secretKeyCiphertext"].GetStringValue())
+	require.Nil(t, dataset["secretKey"])
+}
+
 func TestBuildDevelopmentInstanceSpecPassesSSHOnlyWhenEnabled(t *testing.T) {
 	spec, err := BuildDevelopmentInstanceSpec(&models.DevelopmentInstance{
 		DevelopmentInstanceKey: models.DevelopmentInstanceKey{ID: "ins-ssh"},

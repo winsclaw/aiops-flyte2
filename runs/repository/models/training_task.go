@@ -49,8 +49,12 @@ type TrainingTask struct {
 	LatestRunName            string                            `db:"latest_run_name"`
 	CloudStorageMountsJSON   string                            `db:"cloud_storage_mounts_json"`
 	CodeRepositoryMountsJSON string                            `db:"code_repository_mounts_json"`
+	DatasetsJSON             string                            `db:"datasets_json"`
+	DatasetMountsJSON        string                            `db:"dataset_mounts_json"`
 	CloudStorageMounts       []TrainingTaskCloudStorageMount   `db:"-"`
 	CodeRepositoryMounts     []TrainingTaskCodeRepositoryMount `db:"-"`
+	Datasets                 []RuntimeDataset                  `db:"-"`
+	DatasetMounts            []DatasetMount                    `db:"-"`
 	CreatedAt                time.Time                         `db:"created_at"`
 	UpdatedAt                time.Time                         `db:"updated_at"`
 }
@@ -90,6 +94,28 @@ func (t *TrainingTask) SelectedCodeRepositoryMounts() []TrainingTaskCodeReposito
 		return t.CodeRepositoryMounts
 	}
 	mounts, _ := DecodeTrainingTaskCodeRepositoryMounts(t.CodeRepositoryMountsJSON)
+	return mounts
+}
+
+func (t *TrainingTask) SelectedDatasets() []RuntimeDataset {
+	if t == nil {
+		return nil
+	}
+	if len(t.Datasets) > 0 {
+		return t.Datasets
+	}
+	datasets, _ := DecodeRuntimeDatasets(t.DatasetsJSON)
+	return datasets
+}
+
+func (t *TrainingTask) SelectedDatasetMounts() []DatasetMount {
+	if t == nil {
+		return nil
+	}
+	if len(t.DatasetMounts) > 0 {
+		return t.DatasetMounts
+	}
+	mounts, _ := DecodeDatasetMounts(t.DatasetMountsJSON)
 	return mounts
 }
 

@@ -22,7 +22,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatTimestamp } from "../TrainingTasks/utils";
-import { buildDatasetDetailHref, datasetVisibilityText } from "./utils";
+import { buildDatasetDetailHref } from "./utils";
 
 type ProjectDomainParams = {
   domain?: string;
@@ -89,7 +89,7 @@ export function DatasetsListPage() {
     () =>
       items.filter((item) =>
         searchTerm
-          ? `${item.name} ${item.description} ${item.cloudStorageId} ${item.folderPath}`
+          ? `${item.name} ${item.description} ${item.endPoint} ${item.bucket} ${item.bucketPath}`
               .toLowerCase()
               .includes(searchTerm.toLowerCase())
           : true,
@@ -203,7 +203,8 @@ export function DatasetsListPage() {
                   </th>
                   <th className="px-4 py-4">名称</th>
                   <th className="px-4 py-4">描述</th>
-                  <th className="px-4 py-4">可见范围</th>
+                  <th className="px-4 py-4">Bucket</th>
+                  <th className="px-4 py-4">BucketPath</th>
                   <th className="px-4 py-4">创建人</th>
                   <th className="px-4 py-4">创建时间</th>
                 </tr>
@@ -246,9 +247,8 @@ export function DatasetsListPage() {
                     <td className="max-w-72 px-4 py-4 text-zinc-700 dark:text-zinc-300">
                       {item.description || "-"}
                     </td>
-                    <td className="px-4 py-4">
-                      {datasetVisibilityText(item.projectPublic)}
-                    </td>
+                    <td className="px-4 py-4">{item.bucket || "-"}</td>
+                    <td className="px-4 py-4">{item.bucketPath || "-"}</td>
                     <td className="px-4 py-4">{item.creator || "-"}</td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       {formatTimestamp(item.createdAt)}
@@ -258,7 +258,7 @@ export function DatasetsListPage() {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-8 py-12 text-center text-sm text-zinc-500"
                     >
                       暂无数据集

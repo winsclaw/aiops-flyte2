@@ -16,6 +16,11 @@ import {
   CloudStorageService,
   ListCloudStoragesRequestSchema,
 } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_service_pb";
+import { Dataset } from "@/gen/flyteidl2/aione/dataset/dataset_definition_pb";
+import {
+  DatasetService,
+  ListDatasetsRequestSchema,
+} from "@/gen/flyteidl2/aione/dataset/dataset_service_pb";
 import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
 import {
   ImageType,
@@ -70,6 +75,7 @@ function emptyValues(): TrainingTaskFormValues {
     imageUri: DEFAULT_CUSTOM_IMAGE,
     cloudStorageMounts: [],
     codeRepositoryMounts: [],
+    datasetMounts: [],
   };
 }
 
@@ -95,6 +101,10 @@ function valuesFromTask(
       codeRepositoryId: mount.codeRepositoryId,
       mountPath: mount.mountPath,
     })),
+    datasetMounts: (task.datasetMounts ?? []).map((mount) => ({
+      datasetId: mount.datasetId,
+      targetPath: mount.targetPath,
+    })),
   };
 }
 
@@ -114,6 +124,7 @@ export function TrainingTaskFormPage() {
   const client = useConnectRpcClient(TrainingTaskService);
   const cloudStorageClient = useConnectRpcClient(CloudStorageService);
   const codeRepositoryClient = useConnectRpcClient(CodeRepositoryService);
+  const datasetClient = useConnectRpcClient(DatasetService);
   const [values, setValues] = useState<TrainingTaskFormValues>(emptyValues);
   const [resourceSpecs, setResourceSpecs] = useState<ResourceSpec[]>([]);
   const [officialImages, setOfficialImages] = useState<OfficialImage[]>([]);
@@ -121,6 +132,7 @@ export function TrainingTaskFormPage() {
   const [codeRepositories, setCodeRepositories] = useState<CodeRepository[]>(
     [],
   );
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -225,6 +237,29 @@ export function TrainingTaskFormPage() {
       cancelled = true;
     };
   }, [codeRepositoryClient, projectId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId) {
+      return;
+    }
+    const loadDatasets = async () => {
+      try {
+        const response = await datasetClient.listDatasets(
+          create(ListDatasetsRequestSchema, { project: projectId }),
+        );
+        if (!cancelled) {
+          setDatasets(response.datasets ?? []);
+        }
+      } catch (loadError) {
+        console.error("Error loading datasets", loadError);
+      }
+    };
+    loadDatasets();
+    return () => {
+      cancelled = true;
+    };
+  }, [datasetClient, projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -664,6 +699,88 @@ export function TrainingTaskFormPage() {
                               }))
                             }
                             placeholder="/mnt/storage"
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
+
+              <section className="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="border-b border-zinc-200 px-5 py-3 text-sm font-semibold dark:border-zinc-800">
+                  数据集
+                </div>
+                <div className="space-y-3 p-5">
+                  {datasets.length === 0 ? (
+                    <div className="text-sm text-zinc-500">暂无数据集</div>
+                  ) : (
+                    datasets.map((dataset) => {
+                      const datasetId = dataset.id?.id ?? "";
+                      const selectedMount = values.datasetMounts.find(
+                        (mount) => mount.datasetId === datasetId,
+                      );
+                      return (
+                        <div
+                          key={datasetId}
+                          className="grid gap-3 border border-zinc-200 p-3 dark:border-zinc-800 md:grid-cols-[1fr_280px]"
+                        >
+                          <label className="flex items-start gap-3 text-sm">
+                            <input
+                              className="mt-1"
+                              type="checkbox"
+                              checked={Boolean(selectedMount)}
+                              onChange={(event) =>
+                                setValues((current) => ({
+                                  ...current,
+                                  datasetMounts: event.target.checked
+                                    ? [
+                                        ...current.datasetMounts,
+                                        {
+                                          datasetId,
+                                          targetPath:
+                                            dataset.targetPath ||
+                                            "/data/dataset",
+                                        },
+                                      ]
+                                    : current.datasetMounts.filter(
+                                        (mount) =>
+                                          mount.datasetId !== datasetId,
+                                      ),
+                                }))
+                              }
+                            />
+                            <span>
+                              <span className="block font-medium text-zinc-900 dark:text-zinc-100">
+                                {dataset.name}
+                              </span>
+                              <span className="block text-zinc-500">
+                                {dataset.bucket}
+                                {dataset.bucketPath
+                                  ? `/${dataset.bucketPath}`
+                                  : ""}
+                              </span>
+                            </span>
+                          </label>
+                          <input
+                            className={fieldClass}
+                            disabled={!selectedMount}
+                            value={selectedMount?.targetPath ?? ""}
+                            onChange={(event) =>
+                              setValues((current) => ({
+                                ...current,
+                                datasetMounts: current.datasetMounts.map(
+                                  (mount) =>
+                                    mount.datasetId === datasetId
+                                      ? {
+                                          ...mount,
+                                          targetPath: event.target.value,
+                                        }
+                                      : mount,
+                                ),
+                              }))
+                            }
+                            placeholder="/data/dataset"
                           />
                         </div>
                       );

@@ -48,8 +48,11 @@ func (p *Plugin) Handle(ctx context.Context, tCtx pluginsCore.TaskExecutionConte
 		return pluginsCore.DoTransition(pluginsCore.PhaseInfoFailure("BadTaskSpecification", err.Error(), nil)), nil
 	}
 
-	if resources.CodeRepositorySecret != nil {
-		if _, err := p.ensureSecret(ctx, resources.CodeRepositorySecret); err != nil {
+	for _, secret := range []*corev1.Secret{resources.CodeRepositorySecret, resources.CodeDownloaderSecret, resources.DatasetDownloaderSecret} {
+		if secret == nil {
+			continue
+		}
+		if _, err := p.ensureSecret(ctx, secret); err != nil {
 			return pluginsCore.UnknownTransition, err
 		}
 	}
@@ -113,8 +116,11 @@ func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContex
 	if err != nil {
 		return nil
 	}
-	if resources.CodeRepositorySecret != nil {
-		if err := ignoreNotFound(p.kubeClient.Delete(ctx, resources.CodeRepositorySecret)); err != nil {
+	for _, secret := range []*corev1.Secret{resources.CodeRepositorySecret, resources.CodeDownloaderSecret, resources.DatasetDownloaderSecret} {
+		if secret == nil {
+			continue
+		}
+		if err := ignoreNotFound(p.kubeClient.Delete(ctx, secret)); err != nil {
 			return err
 		}
 	}

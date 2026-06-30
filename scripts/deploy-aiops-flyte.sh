@@ -6,6 +6,7 @@ REMOTE_DIR="${REMOTE_DIR:-flyte-work}"
 NAMESPACE="${NAMESPACE:-flyte}"
 RELEASE="${RELEASE:-flyte-devbox}"
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-flyte-binary-v2}"
+DOWNLOADER_IMAGE_REPOSITORY="${DOWNLOADER_IMAGE_REPOSITORY:-aione-downloader}"
 IMAGE_TAG_PREFIX="${IMAGE_TAG_PREFIX:-main-}"
 IMAGE_TAG_KEEP="${IMAGE_TAG_KEEP:-3}"
 IMAGE_TAG="${IMAGE_TAG:-${IMAGE_TAG_PREFIX}$(git rev-parse --short HEAD)}"
@@ -18,12 +19,13 @@ shell_quote() {
 }
 
 remote_env() {
-  printf "REMOTE_HOST=%s REMOTE_DIR=%s NAMESPACE=%s RELEASE=%s IMAGE_REPOSITORY=%s IMAGE_TAG=%s IMAGE_TAG_PREFIX=%s IMAGE_TAG_KEEP=%s NERDCTL_VERSION=%s PROXY_URL=%s" \
+  printf "REMOTE_HOST=%s REMOTE_DIR=%s NAMESPACE=%s RELEASE=%s IMAGE_REPOSITORY=%s DOWNLOADER_IMAGE_REPOSITORY=%s IMAGE_TAG=%s IMAGE_TAG_PREFIX=%s IMAGE_TAG_KEEP=%s NERDCTL_VERSION=%s PROXY_URL=%s" \
     "$(shell_quote "$REMOTE_HOST")" \
     "$(shell_quote "$REMOTE_DIR")" \
     "$(shell_quote "$NAMESPACE")" \
     "$(shell_quote "$RELEASE")" \
     "$(shell_quote "$IMAGE_REPOSITORY")" \
+    "$(shell_quote "$DOWNLOADER_IMAGE_REPOSITORY")" \
     "$(shell_quote "$IMAGE_TAG")" \
     "$(shell_quote "$IMAGE_TAG_PREFIX")" \
     "$(shell_quote "$IMAGE_TAG_KEEP")" \
@@ -187,6 +189,7 @@ if [[ -n "${PROXY_URL:-}" ]]; then
   )
 fi
 "${NERDCTL[@]}" build "${build_proxy_args[@]}" -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" -f Dockerfile .
+"${NERDCTL[@]}" build "${build_proxy_args[@]}" -t "${DOWNLOADER_IMAGE_REPOSITORY}:${IMAGE_TAG}" -f flyteplugins/aione/downloader/Dockerfile flyteplugins/aione/downloader
 
 prune_old_release_images() {
   if [[ "$IMAGE_TAG" != "$IMAGE_TAG_PREFIX"* ]]; then
@@ -332,6 +335,8 @@ helm upgrade --install "$RELEASE" charts/flyte-devbox \
   --set flyte-binary.deployment.image.repository="$IMAGE_REPOSITORY" \
   --set flyte-binary.deployment.image.tag="$IMAGE_TAG" \
   --set flyte-binary.deployment.image.pullPolicy=Never \
+  --set flyte-binary.deployment.extraEnvVars[0].name=AIONE_DOWNLOADER_IMAGE \
+  --set flyte-binary.deployment.extraEnvVars[0].value="${DOWNLOADER_IMAGE_REPOSITORY}:${IMAGE_TAG}" \
   --set flyte-binary.deployment.waitForDB.image.repository=postgres \
   --set-string flyte-binary.deployment.waitForDB.image.tag=17 \
   --set flyte-binary.deployment.waitForDB.image.pullPolicy=Never \

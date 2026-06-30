@@ -6,6 +6,7 @@ import (
 
 	aionecoderepository "github.com/flyteorg/flyte/v2/flyteplugins/aione/coderepository"
 	idlcore "github.com/flyteorg/flyte/v2/gen/go/flyteidl2/core"
+	"github.com/flyteorg/flyte/v2/runs/aione/datasetsecret"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -14,6 +15,7 @@ const TaskType = "training_task"
 type TrainingConfig struct {
 	Image              string
 	Command            string
+	DownloaderImage    string
 	CPU                string
 	Memory             string
 	GPUCount           int32
@@ -22,6 +24,7 @@ type TrainingConfig struct {
 	MaxRuntimeHours    int32
 	CloudStorageMounts []CloudStorageMount
 	CodeRepositories   []CodeRepositoryMount
+	Datasets           []RuntimeDataset
 }
 
 type CloudStorageMount struct {
@@ -33,6 +36,17 @@ type CloudStorageMount struct {
 }
 
 type CodeRepositoryMount = aionecoderepository.Mount
+
+type RuntimeDataset struct {
+	EndPoint            string
+	Port                string
+	AccessKey           string
+	SecretKey           string
+	SecretKeyCiphertext string
+	TargetPath          string
+	Bucket              string
+	BucketPath          string
+}
 
 func ParseConfig(taskTemplate *idlcore.TaskTemplate) (TrainingConfig, error) {
 	if taskTemplate == nil {
@@ -51,6 +65,7 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (TrainingConfig, error) {
 		Memory:          stringValue(values, "memory", ""),
 		GPUModel:        stringValue(values, "gpuModel", ""),
 		Bandwidth:       stringValue(values, "bandwidth", ""),
+		DownloaderImage: stringValue(values, "downloaderImage", ""),
 		MaxRuntimeHours: 1,
 	}
 	if cfg.Image == "" {
@@ -85,6 +100,11 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (TrainingConfig, error) {
 		return TrainingConfig{}, err
 	}
 	cfg.CodeRepositories = codeRepositories
+	datasets, err := datasetsValue(custom)
+	if err != nil {
+		return TrainingConfig{}, err
+	}
+	cfg.Datasets = datasets
 
 	return cfg, nil
 }
@@ -138,4 +158,54 @@ func cloudStorageMountsValue(custom *structpb.Struct) ([]CloudStorageMount, erro
 		mounts = append(mounts, mount)
 	}
 	return mounts, nil
+}
+
+func datasetsValue(custom *structpb.Struct) ([]RuntimeDataset, error) {
+	raw := custom.GetFields()["datasets"]
+	if raw == nil {
+		return nil, nil
+	}
+	list := raw.GetListValue()
+	if list == nil {
+		return nil, fmt.Errorf("datasets must be an array")
+	}
+	datasets := make([]RuntimeDataset, 0, len(list.Values))
+	for _, item := range list.Values {
+		fields := item.GetStructValue().GetFields()
+		dataset := RuntimeDataset{
+			EndPoint:            strings.TrimSpace(fields["endPoint"].GetStringValue()),
+			Port:                strings.TrimSpace(valueToString(fields["port"])),
+			AccessKey:           strings.TrimSpace(fields["accessKey"].GetStringValue()),
+			SecretKey:           strings.TrimSpace(fields["secretKey"].GetStringValue()),
+			SecretKeyCiphertext: strings.TrimSpace(fields["secretKeyCiphertext"].GetStringValue()),
+			TargetPath:          strings.TrimSpace(fields["targetPath"].GetStringValue()),
+			Bucket:              strings.TrimSpace(fields["bucket"].GetStringValue()),
+			BucketPath:          strings.TrimSpace(fields["bucketPath"].GetStringValue()),
+		}
+		if dataset.SecretKey == "" && dataset.SecretKeyCiphertext != "" {
+			secretKey, err := datasetsecret.Decrypt(dataset.SecretKeyCiphertext)
+			if err != nil {
+				return nil, err
+			}
+			dataset.SecretKey = secretKey
+		}
+		if dataset.EndPoint == "" || dataset.Port == "" || dataset.AccessKey == "" || dataset.SecretKey == "" || dataset.TargetPath == "" || dataset.Bucket == "" {
+			return nil, fmt.Errorf("datasets entries require endPoint, port, accessKey, secretKey, targetPath, and bucket")
+		}
+		datasets = append(datasets, dataset)
+	}
+	return datasets, nil
+}
+
+func valueToString(value *structpb.Value) string {
+	if value == nil {
+		return ""
+	}
+	if s := value.GetStringValue(); s != "" {
+		return s
+	}
+	if n := value.GetNumberValue(); n != 0 {
+		return fmt.Sprintf("%.0f", n)
+	}
+	return ""
 }

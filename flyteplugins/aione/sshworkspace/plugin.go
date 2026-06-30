@@ -118,6 +118,14 @@ func (p *Plugin) Abort(ctx context.Context, tCtx pluginsCore.TaskExecutionContex
 			return err
 		}
 	}
+	for _, secret := range []*corev1.Secret{resources.CodeDownloaderSecret, resources.DatasetDownloaderSecret} {
+		if secret == nil {
+			continue
+		}
+		if err := ignoreNotFound(p.kubeClient.Delete(ctx, secret)); err != nil {
+			return err
+		}
+	}
 	if err := p.deleteLegacyCombinedService(ctx, resources.StatefulSet.Namespace, kubernetesNameBase(identity.Name)+"-ssh"); err != nil {
 		return err
 	}
@@ -185,6 +193,16 @@ func (p *Plugin) ensureResources(ctx context.Context, resources WorkspaceResourc
 	created := false
 	if resources.Secret != nil {
 		if ok, err := p.ensureObject(ctx, resources.Secret); err != nil {
+			return false, err
+		} else if ok {
+			created = true
+		}
+	}
+	for _, secret := range []*corev1.Secret{resources.CodeDownloaderSecret, resources.DatasetDownloaderSecret} {
+		if secret == nil {
+			continue
+		}
+		if ok, err := p.ensureObject(ctx, secret); err != nil {
 			return false, err
 		} else if ok {
 			created = true

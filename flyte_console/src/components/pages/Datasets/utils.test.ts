@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildDatasetDetailHref,
   buildDatasetEditHref,
-  normalizeDatasetFolderPath,
-  validateDatasetFolderPath,
+  normalizeDatasetBucketPath,
+  validateDatasetBucketPath,
 } from "./utils";
 
 describe("Dataset UI utils", () => {
@@ -16,23 +16,23 @@ describe("Dataset UI utils", () => {
     );
   });
 
-  it("normalizes bucket-relative folder paths", () => {
-    expect(normalizeDatasetFolderPath(" /data/sub-path/ ")).toBe(
+  it("normalizes bucket-relative paths", () => {
+    expect(normalizeDatasetBucketPath(" /data/sub-path/ ")).toBe(
       "data/sub-path/",
     );
-    expect(normalizeDatasetFolderPath("")).toBe("");
+    expect(normalizeDatasetBucketPath("")).toBe("");
   });
 
-  it("rejects unsafe folder paths", () => {
-    expect(validateDatasetFolderPath("data/sub-path/")).toBe("");
-    expect(validateDatasetFolderPath("../data")).toBe(
-      "文件夹路径不能包含 ..、反斜杠或 URL",
+  it("rejects unsafe bucket paths", () => {
+    expect(validateDatasetBucketPath("data/sub-path/")).toBe("");
+    expect(validateDatasetBucketPath("../data")).toBe(
+      "BucketPath 不能包含 ..、反斜杠或 URL",
     );
-    expect(validateDatasetFolderPath("https://example.test/data")).toBe(
-      "文件夹路径不能包含 ..、反斜杠或 URL",
+    expect(validateDatasetBucketPath("https://example.test/data")).toBe(
+      "BucketPath 不能包含 ..、反斜杠或 URL",
     );
-    expect(validateDatasetFolderPath("data\\speech")).toBe(
-      "文件夹路径不能包含 ..、反斜杠或 URL",
+    expect(validateDatasetBucketPath("data\\speech")).toBe(
+      "BucketPath 不能包含 ..、反斜杠或 URL",
     );
   });
 });

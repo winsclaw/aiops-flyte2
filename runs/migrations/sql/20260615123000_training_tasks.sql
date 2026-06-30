@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS training_tasks (
   image_uri TEXT NOT NULL,
   creator TEXT NOT NULL DEFAULT '',
   latest_run_name TEXT NOT NULL DEFAULT '',
+  datasets_json TEXT NOT NULL DEFAULT '[]',
+  dataset_mounts_json TEXT NOT NULL DEFAULT '[]',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (org, project, domain, id)

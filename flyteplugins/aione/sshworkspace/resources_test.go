@@ -1,6 +1,7 @@
 package sshworkspace
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 
@@ -340,6 +341,8 @@ func TestBuildResourcesUsesExternalSecretsAndGPUNodeLabel(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Nil(t, resources.Secret)
+	require.NotNil(t, resources.CodeDownloaderSecret)
+	assert.Equal(t, "run-abc-code-downloader", resources.CodeDownloaderSecret.Name)
 	podSpec := resources.StatefulSet.Spec.Template.Spec
 	require.Len(t, podSpec.ImagePullSecrets, 1)
 	assert.Equal(t, "workspace-image-pull", podSpec.ImagePullSecrets[0].Name)
@@ -351,9 +354,10 @@ func TestBuildResourcesUsesExternalSecretsAndGPUNodeLabel(t *testing.T) {
 	assert.Equal(t, "nvidia.com/gpu.present", terms[0].MatchExpressions[0].Key)
 	assert.Equal(t, corev1.NodeSelectorOpExists, terms[0].MatchExpressions[0].Operator)
 	container := podSpec.Containers[0]
-	require.Len(t, container.Env, 1)
-	assert.Equal(t, "AIONE_CODE_REPOSITORIES", container.Env[0].Name)
-	assert.Equal(t, "workspace-code-repos", container.Env[0].ValueFrom.SecretKeyRef.Name)
+	assert.Empty(t, container.Env)
+	require.Len(t, podSpec.InitContainers, 1)
+	assert.Equal(t, "code-downloader", podSpec.InitContainers[0].Name)
+	assert.Equal(t, "run-abc-code-downloader", podSpec.InitContainers[0].Env[0].ValueFrom.SecretKeyRef.Name)
 }
 
 func TestBuildResourcesAddsCloudStoragePVCMounts(t *testing.T) {
@@ -400,10 +404,11 @@ func TestBuildResourcesAddsCloudStoragePVCMounts(t *testing.T) {
 
 func TestBuildResourcesAddsCodeRepositoryDownloader(t *testing.T) {
 	cfg := WorkspaceConfig{
-		Image:          "ubuntu:22.04",
-		SSHUser:        "dev",
-		AuthorizedKeys: []string{"ssh-rsa AAAA user@example"},
-		ServiceType:    corev1.ServiceTypeClusterIP,
+		Image:           "ubuntu:22.04",
+		SSHUser:         "dev",
+		AuthorizedKeys:  []string{"ssh-rsa AAAA user@example"},
+		ServiceType:     corev1.ServiceTypeClusterIP,
+		DownloaderImage: "aione-downloader:main-abc1234",
 		CodeRepositories: []CodeRepositoryMount{{
 			ID:        "repo-1",
 			RepoURL:   "https://git.fzyun.io/serverless/aione.git",
@@ -425,10 +430,69 @@ func TestBuildResourcesAddsCodeRepositoryDownloader(t *testing.T) {
 	resources, err := BuildResources(identity, cfg)
 
 	require.NoError(t, err)
-	assert.Contains(t, string(resources.Secret.Data["code_repositories"]), "secret-token")
-	container := resources.StatefulSet.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "AIONE_CODE_REPOSITORIES", envName(container.Env, "AIONE_CODE_REPOSITORIES"))
-	assert.Contains(t, container.Args[0], "download GitLab archive repositories")
+	require.NotNil(t, resources.CodeDownloaderSecret)
+	assert.Equal(t, "run-abc-code-downloader", resources.CodeDownloaderSecret.Name)
+	secretPayload := decodedDownloaderSecret(t, resources.CodeDownloaderSecret)
+	assert.NotContains(t, string(resources.CodeDownloaderSecret.Data["aione_params"]), "secret-token")
+	assert.Contains(t, secretPayload, "secret-token")
+	podSpec := resources.StatefulSet.Spec.Template.Spec
+	require.Len(t, podSpec.InitContainers, 1)
+	initContainer := podSpec.InitContainers[0]
+	assert.Equal(t, "code-downloader", initContainer.Name)
+	assert.Equal(t, "aione-downloader:main-abc1234", initContainer.Image)
+	assert.Equal(t, corev1.PullNever, initContainer.ImagePullPolicy)
+	assert.Equal(t, "AIONE_PARAMS", initContainer.Env[0].Name)
+	assert.True(t, hasEmptyDirVolume(podSpec.Volumes, "code-repository-0"))
+	assert.True(t, hasVolumeMount(initContainer.VolumeMounts, "code-repository-0", "/workspace/aione"))
+
+	container := podSpec.Containers[0]
+	assert.Empty(t, envName(container.Env, "AIONE_PARAMS"))
+	assert.NotContains(t, container.Args[0], "download GitLab archive repositories")
+	assert.True(t, hasVolumeMount(container.VolumeMounts, "code-repository-0", "/workspace/aione"))
+}
+
+func TestBuildResourcesAddsDatasetDownloader(t *testing.T) {
+	cfg := WorkspaceConfig{
+		Image:           "ubuntu:22.04",
+		SSHUser:         "dev",
+		AuthorizedKeys:  []string{"ssh-rsa AAAA user@example"},
+		ServiceType:     corev1.ServiceTypeClusterIP,
+		DownloaderImage: "aione-downloader:main-abc1234",
+		Datasets: []RuntimeDataset{{
+			EndPoint:   "1.2.3.4",
+			Port:       "9000",
+			AccessKey:  "ak",
+			SecretKey:  "sk",
+			TargetPath: "/data/set1",
+			Bucket:     "mybucket1",
+			BucketPath: "",
+		}},
+	}
+	identity := WorkspaceIdentity{
+		Namespace:  "flyte",
+		Name:       "run-abc",
+		RunName:    "run-abc",
+		Project:    "flytesnacks",
+		Domain:     "development",
+		Org:        "testorg",
+		ActionName: "main",
+	}
+
+	resources, err := BuildResources(identity, cfg)
+
+	require.NoError(t, err)
+	require.NotNil(t, resources.DatasetDownloaderSecret)
+	secretPayload := decodedDownloaderSecret(t, resources.DatasetDownloaderSecret)
+	assert.Contains(t, secretPayload, "mybucket1")
+	podSpec := resources.StatefulSet.Spec.Template.Spec
+	require.Len(t, podSpec.InitContainers, 1)
+	initContainer := podSpec.InitContainers[0]
+	assert.Equal(t, "dataset-downloader", initContainer.Name)
+	assert.True(t, hasEmptyDirVolume(podSpec.Volumes, "dataset-0"))
+	assert.True(t, hasVolumeMount(initContainer.VolumeMounts, "dataset-0", "/data/set1"))
+
+	container := podSpec.Containers[0]
+	assert.True(t, hasVolumeMount(container.VolumeMounts, "dataset-0", "/data/set1"))
 }
 
 func TestBuildResourcesUsesValidKubernetesNamesWhenRunStartsWithDigit(t *testing.T) {
@@ -469,6 +533,22 @@ func hasPVCVolume(volumes []corev1.Volume, name, claimName string) bool {
 		}
 	}
 	return false
+}
+
+func hasEmptyDirVolume(volumes []corev1.Volume, name string) bool {
+	for _, volume := range volumes {
+		if volume.Name == name && volume.EmptyDir != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func decodedDownloaderSecret(t *testing.T, secret *corev1.Secret) string {
+	t.Helper()
+	decoded, err := base64.StdEncoding.DecodeString(string(secret.Data["aione_params"]))
+	require.NoError(t, err)
+	return string(decoded)
 }
 
 func hasVolumeMount(mounts []corev1.VolumeMount, name, mountPath string) bool {

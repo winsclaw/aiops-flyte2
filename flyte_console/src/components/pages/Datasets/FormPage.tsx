@@ -6,11 +6,6 @@
 
 import { Header } from "@/components/Header";
 import { NavPanelLayout } from "@/components/NavPanel/NavPanelLayout";
-import { CloudStorage } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
-import {
-  CloudStorageService,
-  ListCloudStoragesRequestSchema,
-} from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_service_pb";
 import { DatasetIdentifierSchema } from "@/gen/flyteidl2/aione/dataset/dataset_definition_pb";
 import {
   CreateDatasetRequestSchema,
@@ -23,15 +18,20 @@ import { ProjectIdentifierSchema } from "@/gen/flyteidl2/common/identifier_pb";
 import { useConnectRpcClient } from "@/hooks/useConnectRpc";
 import { useOrg } from "@/hooks/useOrg";
 import { create } from "@bufbuild/protobuf";
-import { ArrowLeftIcon, PlusIcon } from "@heroicons/react/20/solid";
+import {
+  ArrowLeftIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  PlusIcon,
+} from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   buildDatasetDetailHref,
   decodeDatasetId,
-  normalizeDatasetFolderPath,
-  validateDatasetFolderPath,
+  normalizeDatasetBucketPath,
+  validateDatasetBucketPath,
 } from "./utils";
 
 type DatasetFormParams = {
@@ -46,27 +46,25 @@ const fieldClass =
   "mt-1 w-full border border-zinc-400 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-zinc-100 disabled:text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:disabled:bg-zinc-800";
 const labelClass = "block text-sm font-medium text-zinc-900 dark:text-zinc-100";
 
-function storageId(storage: CloudStorage) {
-  return storage.id?.id ?? "";
-}
-
-function storageLabel(storage: CloudStorage) {
-  return storage.name || storageId(storage);
-}
-
-export function DatasetFormPage({ mode = "create" }: { mode?: DatasetFormMode }) {
+export function DatasetFormPage({
+  mode = "create",
+}: {
+  mode?: DatasetFormMode;
+}) {
   const params = useParams<DatasetFormParams>();
   const router = useRouter();
   const org = useOrg();
   const datasetClient = useConnectRpcClient(DatasetService);
-  const cloudStorageClient = useConnectRpcClient(CloudStorageService);
-  const [cloudStorages, setCloudStorages] = useState<CloudStorage[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [cloudStorageId, setCloudStorageId] = useState("");
-  const [folderPath, setFolderPath] = useState("");
-  const [projectPublic, setProjectPublic] = useState(false);
-  const [publicLocked, setPublicLocked] = useState(false);
+  const [endPoint, setEndPoint] = useState("");
+  const [port, setPort] = useState("");
+  const [accessKey, setAccessKey] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [secretVisible, setSecretVisible] = useState(false);
+  const [targetPath, setTargetPath] = useState("");
+  const [bucket, setBucket] = useState("");
+  const [bucketPath, setBucketPath] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -106,25 +104,6 @@ export function DatasetFormPage({ mode = "create" }: { mode?: DatasetFormMode })
     [datasetId, projectId],
   );
 
-  const loadCloudStorages = useCallback(async () => {
-    if (!projectId) {
-      return;
-    }
-    try {
-      const response = await cloudStorageClient.listCloudStorages(
-        create(ListCloudStoragesRequestSchema, { project: projectId }),
-      );
-      const storages = response.cloudStorages ?? [];
-      setCloudStorages(storages);
-      if (!cloudStorageId && storages[0]) {
-        setCloudStorageId(storageId(storages[0]));
-      }
-    } catch (loadError) {
-      console.error("Error loading cloud storages", loadError);
-      setError("加载存储桶失败");
-    }
-  }, [cloudStorageClient, cloudStorageId, projectId]);
-
   const loadDataset = useCallback(async () => {
     if (mode !== "edit" || !datasetIdentifier) {
       return;
@@ -140,19 +119,18 @@ export function DatasetFormPage({ mode = "create" }: { mode?: DatasetFormMode })
       }
       setName(dataset.name);
       setDescription(dataset.description);
-      setCloudStorageId(dataset.cloudStorageId);
-      setFolderPath(dataset.folderPath);
-      setProjectPublic(dataset.projectPublic);
-      setPublicLocked(dataset.projectPublic);
+      setEndPoint(dataset.endPoint);
+      setPort(dataset.port);
+      setAccessKey(dataset.accessKey);
+      setSecretKey("");
+      setTargetPath(dataset.targetPath);
+      setBucket(dataset.bucket);
+      setBucketPath(dataset.bucketPath);
     } catch (loadError) {
       console.error("Error loading dataset", loadError);
       setError("加载数据集失败");
     }
   }, [datasetClient, datasetIdentifier, mode]);
-
-  useEffect(() => {
-    loadCloudStorages();
-  }, [loadCloudStorages]);
 
   useEffect(() => {
     loadDataset();
@@ -171,15 +149,27 @@ export function DatasetFormPage({ mode = "create" }: { mode?: DatasetFormMode })
     if (description.trim().length > 255) {
       return "描述不能超过 255 个字符";
     }
-    if (!cloudStorageId) {
-      return "请选择存储桶";
+    if (!endPoint.trim()) {
+      return "请输入 EndPoint";
     }
-    const pathError = validateDatasetFolderPath(folderPath);
+    if (!port.trim()) {
+      return "请输入 Port";
+    }
+    if (!accessKey.trim()) {
+      return "请输入 AccessKey";
+    }
+    if (mode === "create" && !secretKey.trim()) {
+      return "请输入 SecretKey";
+    }
+    if (!targetPath.trim()) {
+      return "请输入 TargetPath";
+    }
+    if (!bucket.trim()) {
+      return "请输入 Bucket";
+    }
+    const pathError = validateDatasetBucketPath(bucketPath);
     if (pathError) {
       return pathError;
-    }
-    if (publicLocked && !projectPublic) {
-      return "数据集公开后不可转为私有";
     }
     return "";
   };
@@ -200,9 +190,13 @@ export function DatasetFormPage({ mode = "create" }: { mode?: DatasetFormMode })
       const datasetInput = create(DatasetInputSchema, {
         name: name.trim(),
         description: description.trim(),
-        cloudStorageId,
-        folderPath: normalizeDatasetFolderPath(folderPath),
-        projectPublic,
+        endPoint: endPoint.trim(),
+        port: port.trim(),
+        accessKey: accessKey.trim(),
+        secretKey,
+        targetPath: targetPath.trim(),
+        bucket: bucket.trim(),
+        bucketPath: normalizeDatasetBucketPath(bucketPath),
       });
       if (mode === "edit") {
         if (!datasetIdentifier) {
@@ -288,49 +282,105 @@ export function DatasetFormPage({ mode = "create" }: { mode?: DatasetFormMode })
                       最多 255 个字符。
                     </span>
                   </label>
+                </div>
+              </section>
+
+              <section className="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="border-b border-zinc-200 px-5 py-5 text-xl font-semibold dark:border-zinc-800">
+                  对象存储信息
+                </div>
+                <div className="grid gap-5 p-5 md:grid-cols-2">
                   <label className={labelClass}>
-                    存储桶
-                    <select
+                    EndPoint
+                    <input
                       className={fieldClass}
-                      value={cloudStorageId}
-                      onChange={(event) => setCloudStorageId(event.target.value)}
-                    >
-                      <option value="">请选择存储桶</option>
-                      {cloudStorages.map((storage) => (
-                        <option key={storageId(storage)} value={storageId(storage)}>
-                          {storageLabel(storage)}
-                        </option>
-                      ))}
-                    </select>
+                      value={endPoint}
+                      onChange={(event) => setEndPoint(event.target.value)}
+                      placeholder="请输入 EndPoint"
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    Port
+                    <input
+                      className={fieldClass}
+                      value={port}
+                      onChange={(event) => setPort(event.target.value)}
+                      placeholder="请输入 Port"
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    AccessKey
+                    <input
+                      className={fieldClass}
+                      value={accessKey}
+                      onChange={(event) => setAccessKey(event.target.value)}
+                      placeholder="请输入 AccessKey"
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    SecretKey
+                    <span className="mt-1 flex border border-zinc-400 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+                      <input
+                        className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm outline-none disabled:bg-zinc-100 disabled:text-zinc-500 dark:disabled:bg-zinc-800"
+                        type={secretVisible ? "text" : "password"}
+                        value={secretKey}
+                        onChange={(event) => setSecretKey(event.target.value)}
+                        placeholder={
+                          mode === "edit"
+                            ? "留空则保持已保存密钥"
+                            : "请输入 SecretKey"
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="inline-flex w-10 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                        onClick={() => setSecretVisible((visible) => !visible)}
+                        title={
+                          secretVisible ? "隐藏 SecretKey" : "显示 SecretKey"
+                        }
+                        aria-label={
+                          secretVisible ? "隐藏 SecretKey" : "显示 SecretKey"
+                        }
+                      >
+                        {secretVisible ? (
+                          <EyeSlashIcon className="size-5" />
+                        ) : (
+                          <EyeIcon className="size-5" />
+                        )}
+                      </button>
+                    </span>
                     <span className="mt-1 block text-xs font-normal text-zinc-500">
-                      选择“对象存储”中的存储桶。
+                      SecretKey 不会在编辑页回显；保存后由后端加密存储。
                     </span>
                   </label>
                   <label className={labelClass}>
-                    文件夹路径 - 可选
+                    TargetPath
                     <input
                       className={fieldClass}
-                      value={folderPath}
-                      onChange={(event) => setFolderPath(event.target.value)}
-                      placeholder="请输入文件夹路径"
+                      value={targetPath}
+                      onChange={(event) => setTargetPath(event.target.value)}
+                      placeholder="请输入 TargetPath"
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    Bucket
+                    <input
+                      className={fieldClass}
+                      value={bucket}
+                      onChange={(event) => setBucket(event.target.value)}
+                      placeholder="请输入 Bucket"
+                    />
+                  </label>
+                  <label className={`${labelClass} md:col-span-2`}>
+                    BucketPath - 可选
+                    <input
+                      className={fieldClass}
+                      value={bucketPath}
+                      onChange={(event) => setBucketPath(event.target.value)}
+                      placeholder="请输入 BucketPath"
                     />
                     <span className="mt-1 block text-xs font-normal text-zinc-500">
-                      输入对应存储桶内的文件夹，如 data/sub-path/。
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={projectPublic}
-                      disabled={publicLocked}
-                      onChange={(event) => setProjectPublic(event.target.checked)}
-                    />
-                    <span>
-                      项目内公开
-                      <span className="mt-1 block text-xs font-normal text-zinc-500">
-                        数据集默认其他项目成员不可见。如果开启项目内公开，则其他项目成员都可以访问。数据集公开后，不可转为私有。
-                      </span>
+                      输入对应 Bucket 内的路径，如 data/sub-path/。
                     </span>
                   </label>
                 </div>

@@ -4,6 +4,7 @@ package flyteidl2.developmentinstance;
 
 import "flyteidl2/aione/cloudstorage/cloud_storage_definition.proto";
 import "flyteidl2/aione/coderepository/code_repository_definition.proto";
+import "flyteidl2/aione/dataset/dataset_definition.proto";
 import "flyteidl2/common/identifier.proto";
 import "flyteidl2/common/list.proto";
 import "flyteidl2/developmentinstance/development_instance_definition.proto";
@@ -55,6 +56,8 @@ message DevelopmentInstanceInput {
   string base_image_mount_path = 23;
   repeated DevelopmentInstanceCodeRepositoryDetail code_repository_details = 24;
   bool enable_ssh = 25;
+  repeated aione.dataset.RuntimeDataset datasets = 26;
+  repeated aione.dataset.DatasetMount dataset_mounts = 27;
 }
 
 message ListDevelopmentInstancesRequest {
