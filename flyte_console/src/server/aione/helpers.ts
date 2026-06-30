@@ -19,6 +19,19 @@ export const DEFAULT_EXTERNAL_API_PUBLIC_HOST = "172.19.65.230";
 
 type ExternalImageType = "BASE" | "OWN";
 
+type ExternalOssData = {
+  endPoint?: string;
+  Endpoint?: string;
+  end_point?: string;
+  endpoint?: string;
+  port?: number | string;
+  accessKey?: string;
+  secretKey?: string;
+  targetPath?: string;
+  bucket?: string;
+  bucketPath?: string;
+};
+
 type ExternalInstancePayload = {
   org?: string;
   project?: string;
@@ -50,18 +63,8 @@ type ExternalInstancePayload = {
     path?: string;
     size?: number;
   }[];
-  datasets?: {
-    endPoint?: string;
-    Endpoint?: string;
-    end_point?: string;
-    endpoint?: string;
-    port?: number | string;
-    accessKey?: string;
-    secretKey?: string;
-    targetPath?: string;
-    bucket?: string;
-    bucketPath?: string;
-  }[];
+  datasets?: unknown;
+  ossDatas?: ExternalOssData[];
   resourceDefinition?: {
     cpu?: string;
     memory?: string;
@@ -258,11 +261,11 @@ export function buildAioneInstanceValues({
         mountPath: requiredAbsolutePath(datastore.path, "datastores.path"),
       };
     }),
-    datasets: (payload.datasets ?? []).map((dataset, index) => {
+    datasets: (payload.ossDatas ?? []).map((dataset, index) => {
       for (const field of ["endPoint", "Endpoint", "end_point"]) {
         if (Object.prototype.hasOwnProperty.call(dataset, field)) {
           throw new Error(
-            `datasets[${index}].${field} is not supported; use endpoint`,
+            `ossDatas[${index}].${field} is not supported; use endpoint`,
           );
         }
       }
@@ -273,27 +276,27 @@ export function buildAioneInstanceValues({
         bucketPath.includes("://")
       ) {
         throw new Error(
-          `datasets[${index}].bucketPath cannot contain .., backslash, or URL scheme`,
+          `ossDatas[${index}].bucketPath cannot contain .., backslash, or URL scheme`,
         );
       }
       return {
-        endpoint: requiredString(dataset.endpoint, `datasets[${index}].endpoint`),
+        endpoint: requiredString(dataset.endpoint, `ossDatas[${index}].endpoint`),
         port: String(
-          requiredString(String(dataset.port ?? ""), `datasets[${index}].port`),
+          requiredString(String(dataset.port ?? ""), `ossDatas[${index}].port`),
         ),
         accessKey: requiredString(
           dataset.accessKey,
-          `datasets[${index}].accessKey`,
+          `ossDatas[${index}].accessKey`,
         ),
         secretKey: requiredString(
           dataset.secretKey,
-          `datasets[${index}].secretKey`,
+          `ossDatas[${index}].secretKey`,
         ),
         targetPath: requiredAbsolutePath(
           dataset.targetPath,
-          `datasets[${index}].targetPath`,
+          `ossDatas[${index}].targetPath`,
         ),
-        bucket: requiredString(dataset.bucket, `datasets[${index}].bucket`),
+        bucket: requiredString(dataset.bucket, `ossDatas[${index}].bucket`),
         bucketPath,
       };
     }),

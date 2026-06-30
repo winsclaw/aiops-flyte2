@@ -183,11 +183,11 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.maxHours).toBe(1);
   });
 
-  it("maps external runtime datasets from endpoint", () => {
+  it("maps external runtime datasets from ossDatas", () => {
     const mapped = buildAioneInstanceValues({
       payload: {
         ...basePayload,
-        datasets: [
+        ossDatas: [
           {
             endpoint: "1.2.3.4",
             port: 111,
@@ -217,12 +217,68 @@ describe("aione external instance helpers", () => {
     });
   });
 
-  it("rejects legacy endPoint on external runtime datasets", () => {
+  it("ignores noisy datasets when ossDatas is provided", () => {
+    const mapped = buildAioneInstanceValues({
+      payload: {
+        ...basePayload,
+        datasets: [
+          {
+            Endpoint: "wrong-field",
+          },
+        ],
+        ossDatas: [
+          {
+            endpoint: "1.2.3.4",
+            port: 111,
+            accessKey: "ak",
+            secretKey: "sk",
+            targetPath: "/data/set1",
+            bucket: "mybucket1",
+          },
+        ],
+      } as never,
+      nodePort: 31000,
+      internalOrg: "aione",
+      defaultStorageClass: "bj1-ebs",
+      defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+      runNameSuffix: "r1",
+    });
+
+    expect(mapped.values.datasets).toHaveLength(1);
+    expect(mapped.values.datasets?.[0]?.endpoint).toBe("1.2.3.4");
+  });
+
+  it("ignores external datasets when ossDatas is omitted", () => {
+    const mapped = buildAioneInstanceValues({
+      payload: {
+        ...basePayload,
+        datasets: [
+          {
+            endpoint: "1.2.3.4",
+            port: 111,
+            accessKey: "ak",
+            secretKey: "sk",
+            targetPath: "/data/set1",
+            bucket: "mybucket1",
+          },
+        ],
+      },
+      nodePort: 31000,
+      internalOrg: "aione",
+      defaultStorageClass: "bj1-ebs",
+      defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+      runNameSuffix: "r1",
+    });
+
+    expect(mapped.values.datasets).toEqual([]);
+  });
+
+  it("rejects legacy endPoint on external ossDatas", () => {
     expect(() =>
       buildAioneInstanceValues({
         payload: {
           ...basePayload,
-          datasets: [
+          ossDatas: [
             {
               endPoint: "1.2.3.4",
               port: 111,
@@ -239,15 +295,15 @@ describe("aione external instance helpers", () => {
         defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
         runNameSuffix: "r1",
       }),
-    ).toThrow("datasets[0].endPoint is not supported; use endpoint");
+    ).toThrow("ossDatas[0].endPoint is not supported; use endpoint");
   });
 
-  it("rejects capitalized Endpoint on external runtime datasets", () => {
+  it("rejects capitalized Endpoint on external ossDatas", () => {
     expect(() =>
       buildAioneInstanceValues({
         payload: {
           ...basePayload,
-          datasets: [
+          ossDatas: [
             {
               Endpoint: "1.2.3.4",
               port: 111,
@@ -264,7 +320,56 @@ describe("aione external instance helpers", () => {
         defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
         runNameSuffix: "r1",
       }),
-    ).toThrow("datasets[0].Endpoint is not supported; use endpoint");
+    ).toThrow("ossDatas[0].Endpoint is not supported; use endpoint");
+  });
+
+  it("rejects snake case end_point on external ossDatas", () => {
+    expect(() =>
+      buildAioneInstanceValues({
+        payload: {
+          ...basePayload,
+          ossDatas: [
+            {
+              end_point: "1.2.3.4",
+              port: 111,
+              accessKey: "ak",
+              secretKey: "sk",
+              targetPath: "/data/set1",
+              bucket: "mybucket1",
+            } as never,
+          ],
+        },
+        nodePort: 31000,
+        internalOrg: "aione",
+        defaultStorageClass: "bj1-ebs",
+        defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+        runNameSuffix: "r1",
+      }),
+    ).toThrow("ossDatas[0].end_point is not supported; use endpoint");
+  });
+
+  it("reports missing endpoint on external ossDatas", () => {
+    expect(() =>
+      buildAioneInstanceValues({
+        payload: {
+          ...basePayload,
+          ossDatas: [
+            {
+              port: 111,
+              accessKey: "ak",
+              secretKey: "sk",
+              targetPath: "/data/set1",
+              bucket: "mybucket1",
+            },
+          ],
+        },
+        nodePort: 31000,
+        internalOrg: "aione",
+        defaultStorageClass: "bj1-ebs",
+        defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+        runNameSuffix: "r1",
+      }),
+    ).toThrow("ossDatas[0].endpoint is required");
   });
 
   it("rejects SSH payloads without any SSH public key source", () => {

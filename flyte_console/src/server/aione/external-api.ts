@@ -1012,7 +1012,7 @@ function buildExternalTrainingTaskValues(payload: unknown) {
   }
   const image = resolveTrainingTaskImage(object);
   const resources = getPayloadObject(object.resourceDefinition);
-  const datasets = parseExternalRuntimeDatasets(object.datasets);
+  const datasets = parseExternalRuntimeDatasets(object.ossDatas, "ossDatas");
   return {
     internalOrg,
     sourceOrg,
@@ -1037,28 +1037,33 @@ function buildExternalTrainingTaskValues(payload: unknown) {
   };
 }
 
-function parseExternalRuntimeDatasets(value: unknown) {
+function parseExternalRuntimeDatasets(value: unknown, fieldName: string) {
   if (value == null) {
     return [];
   }
   if (!Array.isArray(value)) {
-    throw statusError("datasets must be an array", 400);
+    throw statusError(`${fieldName} must be an array`, 400);
   }
   return value.map((item, index) => {
     const dataset = getPayloadObject(item);
-    if (Object.prototype.hasOwnProperty.call(dataset, "endPoint")) {
-      throw statusError(
-        `datasets[${index}].endPoint is not supported; use endpoint`,
-        400,
-      );
+    for (const field of ["endPoint", "Endpoint", "end_point"]) {
+      if (Object.prototype.hasOwnProperty.call(dataset, field)) {
+        throw statusError(
+          `${fieldName}[${index}].${field} is not supported; use endpoint`,
+          400,
+        );
+      }
     }
     const endpoint = requiredStringField(
       dataset,
       "endpoint",
-      `datasets[${index}].endpoint`,
+      `${fieldName}[${index}].endpoint`,
     );
     if (endpoint.includes("://")) {
-      throw statusError(`datasets[${index}].endpoint must not include scheme`, 400);
+      throw statusError(
+        `${fieldName}[${index}].endpoint must not include scheme`,
+        400,
+      );
     }
     const portValue = dataset.port;
     const port =
@@ -1066,7 +1071,7 @@ function parseExternalRuntimeDatasets(value: unknown) {
         ? String(portValue).trim()
         : "";
     if (!port) {
-      throw statusError(`datasets[${index}].port is required`, 400);
+      throw statusError(`${fieldName}[${index}].port is required`, 400);
     }
     const bucketPath = stringField(dataset, "bucketPath");
     if (
@@ -1075,7 +1080,7 @@ function parseExternalRuntimeDatasets(value: unknown) {
       bucketPath.includes("://")
     ) {
       throw statusError(
-        `datasets[${index}].bucketPath cannot contain .., backslash, or URL scheme`,
+        `${fieldName}[${index}].bucketPath cannot contain .., backslash, or URL scheme`,
         400,
       );
     }
@@ -1085,19 +1090,23 @@ function parseExternalRuntimeDatasets(value: unknown) {
       accessKey: requiredStringField(
         dataset,
         "accessKey",
-        `datasets[${index}].accessKey`,
+        `${fieldName}[${index}].accessKey`,
       ),
       secretKey: requiredStringField(
         dataset,
         "secretKey",
-        `datasets[${index}].secretKey`,
+        `${fieldName}[${index}].secretKey`,
       ),
       targetPath: requiredAbsolutePathField(
         dataset,
         "targetPath",
-        `datasets[${index}].targetPath`,
+        `${fieldName}[${index}].targetPath`,
       ),
-      bucket: requiredStringField(dataset, "bucket", `datasets[${index}].bucket`),
+      bucket: requiredStringField(
+        dataset,
+        "bucket",
+        `${fieldName}[${index}].bucket`,
+      ),
       bucketPath,
     });
   });

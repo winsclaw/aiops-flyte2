@@ -268,6 +268,13 @@ describe("aione external typed run route", () => {
             ...instancePayload,
             authorizedKey: "ssh-ed25519 AAAA debug-key",
             imageSecret: "registry-secret",
+            content: JSON.stringify({
+              codes: [
+                {
+                  token: "content-token",
+                },
+              ],
+            }),
             codes: [
               {
                 id: "code-1",
@@ -276,7 +283,7 @@ describe("aione external typed run route", () => {
                 token: "code-token",
               },
             ],
-            datasets: [
+            ossDatas: [
               {
                 endpoint: "minio.flyte.svc",
                 port: "9000",
@@ -312,7 +319,7 @@ describe("aione external typed run route", () => {
                 token: "[REDACTED]",
               }),
             ],
-            datasets: [
+            ossDatas: [
               expect.objectContaining({
                 endpoint: "minio.flyte.svc",
                 accessKey: "[REDACTED]",
@@ -328,6 +335,7 @@ describe("aione external typed run route", () => {
       expect(serializedLog).not.toContain("debug-key");
       expect(serializedLog).not.toContain("registry-secret");
       expect(serializedLog).not.toContain("code-token");
+      expect(serializedLog).not.toContain("content-token");
       expect(serializedLog).not.toContain("dataset-access-key");
       expect(serializedLog).not.toContain("dataset-secret-key");
     } finally {
@@ -341,7 +349,31 @@ describe("aione external typed run route", () => {
       new NextRequest("http://localhost/v2/api/aione/instance/run", {
         method: "POST",
         headers: { authorization: "Bearer external-key" },
-        body: JSON.stringify({ ...instancePayload, type: "TASK" }),
+        body: JSON.stringify({
+          ...instancePayload,
+          type: "TASK",
+          datasets: [
+            {
+              endpoint: "ignored.dataset.svc",
+              port: "9000",
+              accessKey: "ignored",
+              secretKey: "ignored",
+              targetPath: "/ignored",
+              bucket: "ignored",
+            },
+          ],
+          ossDatas: [
+            {
+              endpoint: "minio.flyte.svc",
+              port: 9000,
+              accessKey: "dataset-access-key",
+              secretKey: "dataset-secret-key",
+              targetPath: "/workspace/data",
+              bucket: "style-transfer",
+              bucketPath: "inputs",
+            },
+          ],
+        }),
       }),
       { params: Promise.resolve({ type: "instance" }) },
     );
@@ -354,6 +386,17 @@ describe("aione external typed run route", () => {
         developmentInstanceId: "ins-contract-1",
         developmentInstance: expect.objectContaining({
           name: "开发实例一",
+          datasets: [
+            expect.objectContaining({
+              endpoint: "minio.flyte.svc",
+              port: "9000",
+              accessKey: "dataset-access-key",
+              secretKey: "dataset-secret-key",
+              targetPath: "/workspace/data",
+              bucket: "style-transfer",
+              bucketPath: "inputs",
+            }),
+          ],
         }),
       }),
     );
@@ -433,7 +476,30 @@ describe("aione external typed run route", () => {
       new NextRequest("http://localhost/v2/api/aione/task/run", {
         method: "POST",
         headers: { authorization: "Bearer external-key" },
-        body: JSON.stringify(taskPayload),
+        body: JSON.stringify({
+          ...taskPayload,
+          datasets: [
+            {
+              endpoint: "ignored.dataset.svc",
+              port: "9000",
+              accessKey: "ignored",
+              secretKey: "ignored",
+              targetPath: "/ignored",
+              bucket: "ignored",
+            },
+          ],
+          ossDatas: [
+            {
+              endpoint: "minio.flyte.svc",
+              port: 9000,
+              accessKey: "dataset-access-key",
+              secretKey: "dataset-secret-key",
+              targetPath: "/workspace/data",
+              bucket: "style-transfer",
+              bucketPath: "inputs",
+            },
+          ],
+        }),
       }),
       { params: Promise.resolve({ type: "task" }) },
     );
@@ -454,6 +520,17 @@ describe("aione external typed run route", () => {
         trainingTask: expect.objectContaining({
           name: "外部训练任务",
           command: "python train.py",
+          datasets: [
+            expect.objectContaining({
+              endpoint: "minio.flyte.svc",
+              port: "9000",
+              accessKey: "dataset-access-key",
+              secretKey: "dataset-secret-key",
+              targetPath: "/workspace/data",
+              bucket: "style-transfer",
+              bucketPath: "inputs",
+            }),
+          ],
         }),
       }),
     );

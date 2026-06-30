@@ -56,6 +56,10 @@ export function isAioneApiDebugEnabled() {
 }
 
 export function redactAioneApiPayload(value: unknown): unknown {
+  if (typeof value === "string") {
+    return redactJsonString(value);
+  }
+
   if (Array.isArray(value)) {
     return value.map((item) => redactAioneApiPayload(item));
   }
@@ -107,6 +111,18 @@ function stripQuotes(value: string) {
     return value.slice(1, -1);
   }
   return value;
+}
+
+function redactJsonString(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+    return value;
+  }
+  try {
+    return JSON.stringify(redactAioneApiPayload(JSON.parse(value)));
+  } catch {
+    return value;
+  }
 }
 
 function isEnabledValue(value: string | undefined) {
