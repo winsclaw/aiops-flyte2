@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ActionPhase } from "@/gen/flyteidl2/common/phase_pb";
@@ -36,16 +39,16 @@ vi.mock("@connectrpc/connect", async () => {
               createDevelopmentInstance: createDevelopmentInstanceMock,
               startDevelopmentInstance: startDevelopmentInstanceMock,
             }
-        : service.typeName ===
-            "flyteidl2.aione.cloudstorage.CloudStorageService"
-          ? {
-              ensureCloudStorage: ensureCloudStorageMock,
-              materializeCloudStorage: materializeCloudStorageMock,
-            }
-          : {
-            createRun: createRunMock,
-            getRunDetails: getRunDetailsMock,
-            },
+          : service.typeName ===
+              "flyteidl2.aione.cloudstorage.CloudStorageService"
+            ? {
+                ensureCloudStorage: ensureCloudStorageMock,
+                materializeCloudStorage: materializeCloudStorageMock,
+              }
+            : {
+                createRun: createRunMock,
+                getRunDetails: getRunDetailsMock,
+              },
     ),
   };
 });
@@ -103,10 +106,23 @@ const existingTrainingTask = {
   latestRunName: "old-run",
 };
 
+let cleanupApiDebugEnvFile: (() => void) | undefined;
+
+function useApiDebugEnvFile(content: string) {
+  cleanupApiDebugEnvFile?.();
+  const directory = mkdtempSync(join(tmpdir(), "aione-api-debug-"));
+  const envPath = join(directory, ".env");
+  writeFileSync(envPath, content);
+  cleanupApiDebugEnvFile = () =>
+    rmSync(directory, { recursive: true, force: true });
+  vi.stubEnv("API_DEBUG_ENV_FILE", envPath);
+}
+
 describe("aione external typed run route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.stubEnv("EXTERNAL_API_KEYS", "external-key");
+    useApiDebugEnvFile("API_DEBUG=False\n");
     vi.stubEnv("EXTERNAL_API_DEFAULT_AUTHORIZED_KEY", "ssh-ed25519 AAAA test");
     getKubernetesClientConfigMock.mockResolvedValue({
       apiOrigin: "https://kubernetes.default.svc",
@@ -191,6 +207,12 @@ describe("aione external typed run route", () => {
     });
   });
 
+  afterEach(() => {
+    cleanupApiDebugEnvFile?.();
+    cleanupApiDebugEnvFile = undefined;
+    vi.unstubAllEnvs();
+  });
+
   it("rejects requests without an external API key using the public envelope", async () => {
     const { POST } = await import("./route");
     const response = await POST(
@@ -204,6 +226,113 @@ describe("aione external typed run route", () => {
 
     expect(response.status).toBe(401);
     expect(body).toEqual({ status: 401, message: "unauthorized" });
+  });
+
+  it("does not print external API requests when .env API_DEBUG is not True", async () => {
+    vi.stubEnv("API_DEBUG", "True");
+    const consoleInfoSpy = vi
+      .spyOn(console, "info")
+      .mockImplementation(() => undefined);
+
+    try {
+      const { POST } = await import("./route");
+      const response = await POST(
+        new NextRequest("http://localhost/v2/api/aione/instance/run", {
+          method: "POST",
+          headers: { authorization: "Bearer external-key" },
+          body: JSON.stringify(instancePayload),
+        }),
+        { params: Promise.resolve({ type: "instance" }) },
+      );
+
+      expect(response.status).toBe(200);
+      expect(consoleInfoSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleInfoSpy.mockRestore();
+    }
+  });
+
+  it("prints a redacted external API request when .env API_DEBUG is True", async () => {
+    useApiDebugEnvFile("API_DEBUG=True\n");
+    const consoleInfoSpy = vi
+      .spyOn(console, "info")
+      .mockImplementation(() => undefined);
+
+    try {
+      const { POST } = await import("./route");
+      const response = await POST(
+        new NextRequest("http://localhost/v2/api/aione/instance/run?trace=1", {
+          method: "POST",
+          headers: { authorization: "Bearer external-key" },
+          body: JSON.stringify({
+            ...instancePayload,
+            authorizedKey: "ssh-ed25519 AAAA debug-key",
+            imageSecret: "registry-secret",
+            codes: [
+              {
+                id: "code-1",
+                branch: "main",
+                path: "/workspace/code",
+                token: "code-token",
+              },
+            ],
+            datasets: [
+              {
+                endpoint: "minio.flyte.svc",
+                port: "9000",
+                accessKey: "dataset-access-key",
+                secretKey: "dataset-secret-key",
+                targetPath: "/workspace/data",
+                bucket: "style-transfer",
+                bucketPath: "inputs",
+              },
+            ],
+          }),
+        }),
+        { params: Promise.resolve({ type: "instance" }) },
+      );
+
+      expect(response.status).toBe(200);
+      expect(consoleInfoSpy).toHaveBeenCalledTimes(1);
+      expect(consoleInfoSpy.mock.calls[0][0]).toBe(
+        "[aione-api-debug] external request",
+      );
+      const debugRequest = JSON.parse(String(consoleInfoSpy.mock.calls[0][1]));
+      expect(debugRequest).toEqual(
+        expect.objectContaining({
+          method: "POST",
+          pathname: "/v2/api/aione/instance/run",
+          search: "?trace=1",
+          type: "instance",
+          payload: expect.objectContaining({
+            authorizedKey: "[REDACTED]",
+            imageSecret: "[REDACTED]",
+            codes: [
+              expect.objectContaining({
+                token: "[REDACTED]",
+              }),
+            ],
+            datasets: [
+              expect.objectContaining({
+                endpoint: "minio.flyte.svc",
+                accessKey: "[REDACTED]",
+                secretKey: "[REDACTED]",
+                bucket: "style-transfer",
+              }),
+            ],
+          }),
+        }),
+      );
+      const serializedLog = JSON.stringify(consoleInfoSpy.mock.calls[0]);
+      expect(serializedLog).not.toContain("Bearer external-key");
+      expect(serializedLog).not.toContain("debug-key");
+      expect(serializedLog).not.toContain("registry-secret");
+      expect(serializedLog).not.toContain("code-token");
+      expect(serializedLog).not.toContain("dataset-access-key");
+      expect(serializedLog).not.toContain("dataset-secret-key");
+    } finally {
+      consoleInfoSpy.mockRestore();
+    }
   });
 
   it("creates an instance run from the instance path and ignores body type", async () => {
@@ -290,12 +419,12 @@ describe("aione external typed run route", () => {
         pvcName: "ins-contract-1-stg-external-1",
       }),
     );
-    expect(
-      ensureCloudStorageMock.mock.invocationCallOrder[0],
-    ).toBeLessThan(startDevelopmentInstanceMock.mock.invocationCallOrder[0]);
-    expect(startDevelopmentInstanceMock.mock.invocationCallOrder[0]).toBeLessThan(
-      materializeCloudStorageMock.mock.invocationCallOrder[0],
+    expect(ensureCloudStorageMock.mock.invocationCallOrder[0]).toBeLessThan(
+      startDevelopmentInstanceMock.mock.invocationCallOrder[0],
     );
+    expect(
+      startDevelopmentInstanceMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(materializeCloudStorageMock.mock.invocationCallOrder[0]);
   });
 
   it("creates and starts a task run from the task path using the external id", async () => {

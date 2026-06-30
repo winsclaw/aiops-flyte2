@@ -3,13 +3,12 @@
  */
 
 import { NextRequest } from "next/server";
-import {
-  authenticateAioneRequest,
-} from "@/server/aione/helpers";
+import { authenticateAioneRequest } from "@/server/aione/helpers";
 import {
   createAioneExternalRun,
   parseAioneExternalType,
 } from "@/server/aione/external-api";
+import { logAioneExternalApiRequest } from "@/server/aione/debug";
 import { errorEnvelope, okEnvelope, statusError } from "@/server/http/response";
 
 export const runtime = "nodejs";
@@ -27,10 +26,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const { type } = await context.params;
-    const result = await createAioneExternalRun(
-      parseAioneExternalType(type ?? ""),
-      await request.json(),
-    );
+    const externalType = parseAioneExternalType(type ?? "");
+    const payload = await request.json();
+    logAioneExternalApiRequest({
+      request,
+      type: externalType,
+      payload,
+    });
+    const result = await createAioneExternalRun(externalType, payload);
     return okEnvelope(result);
   } catch (error) {
     return errorEnvelope(error);
