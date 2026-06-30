@@ -239,6 +239,20 @@ prune_old_release_images() {
 
 pull_containerd_image() {
   local image="$1"
+  local image_refs
+  image_refs="$(sudo k3s ctr -n k8s.io images ls -q || true)"
+  if printf '%s\n' "$image_refs" | grep -Fxq "$image"; then
+    printf 'Image already present: %s\n' "$image"
+    return
+  fi
+  if [[ "$image" != */* ]] && printf '%s\n' "$image_refs" | grep -Fxq "docker.io/library/$image"; then
+    printf 'Image already present: %s\n' "$image"
+    return
+  fi
+  if [[ "$image" == */* && "$image" != *.*/* && "$image" != localhost/* ]] && printf '%s\n' "$image_refs" | grep -Fxq "docker.io/$image"; then
+    printf 'Image already present: %s\n' "$image"
+    return
+  fi
   "${NERDCTL[@]}" pull "$image"
 }
 
