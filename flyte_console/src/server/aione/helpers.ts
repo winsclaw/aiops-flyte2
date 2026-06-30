@@ -52,6 +52,8 @@ type ExternalInstancePayload = {
   }[];
   datasets?: {
     endPoint?: string;
+    Endpoint?: string;
+    end_point?: string;
     endpoint?: string;
     port?: number | string;
     accessKey?: string;
@@ -256,9 +258,13 @@ export function buildAioneInstanceValues({
         mountPath: requiredAbsolutePath(datastore.path, "datastores.path"),
       };
     }),
-    datasets: (payload.datasets ?? []).map((dataset) => {
-      if (Object.prototype.hasOwnProperty.call(dataset, "endPoint")) {
-        throw new Error("datasets.endPoint is not supported; use endpoint");
+    datasets: (payload.datasets ?? []).map((dataset, index) => {
+      for (const field of ["endPoint", "Endpoint", "end_point"]) {
+        if (Object.prototype.hasOwnProperty.call(dataset, field)) {
+          throw new Error(
+            `datasets[${index}].${field} is not supported; use endpoint`,
+          );
+        }
       }
       const bucketPath = dataset.bucketPath?.trim() || "";
       if (
@@ -267,19 +273,27 @@ export function buildAioneInstanceValues({
         bucketPath.includes("://")
       ) {
         throw new Error(
-          "datasets.bucketPath cannot contain .., backslash, or URL scheme",
+          `datasets[${index}].bucketPath cannot contain .., backslash, or URL scheme`,
         );
       }
       return {
-        endpoint: requiredString(dataset.endpoint, "datasets.endpoint"),
-        port: String(requiredString(String(dataset.port ?? ""), "datasets.port")),
-        accessKey: requiredString(dataset.accessKey, "datasets.accessKey"),
-        secretKey: requiredString(dataset.secretKey, "datasets.secretKey"),
+        endpoint: requiredString(dataset.endpoint, `datasets[${index}].endpoint`),
+        port: String(
+          requiredString(String(dataset.port ?? ""), `datasets[${index}].port`),
+        ),
+        accessKey: requiredString(
+          dataset.accessKey,
+          `datasets[${index}].accessKey`,
+        ),
+        secretKey: requiredString(
+          dataset.secretKey,
+          `datasets[${index}].secretKey`,
+        ),
         targetPath: requiredAbsolutePath(
           dataset.targetPath,
-          "datasets.targetPath",
+          `datasets[${index}].targetPath`,
         ),
-        bucket: requiredString(dataset.bucket, "datasets.bucket"),
+        bucket: requiredString(dataset.bucket, `datasets[${index}].bucket`),
         bucketPath,
       };
     }),

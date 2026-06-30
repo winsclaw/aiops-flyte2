@@ -239,7 +239,32 @@ describe("aione external instance helpers", () => {
         defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
         runNameSuffix: "r1",
       }),
-    ).toThrow("datasets.endPoint is not supported; use endpoint");
+    ).toThrow("datasets[0].endPoint is not supported; use endpoint");
+  });
+
+  it("rejects capitalized Endpoint on external runtime datasets", () => {
+    expect(() =>
+      buildAioneInstanceValues({
+        payload: {
+          ...basePayload,
+          datasets: [
+            {
+              Endpoint: "1.2.3.4",
+              port: 111,
+              accessKey: "ak",
+              secretKey: "sk",
+              targetPath: "/data/set1",
+              bucket: "mybucket1",
+            } as never,
+          ],
+        },
+        nodePort: 31000,
+        internalOrg: "aione",
+        defaultStorageClass: "bj1-ebs",
+        defaultAuthorizedKey: "ssh-ed25519 AAAA user@example",
+        runNameSuffix: "r1",
+      }),
+    ).toThrow("datasets[0].Endpoint is not supported; use endpoint");
   });
 
   it("rejects SSH payloads without any SSH public key source", () => {
