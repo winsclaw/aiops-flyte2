@@ -10,8 +10,9 @@ if [[ ! -f "$SCRIPT" ]]; then
 fi
 
 short_head="$(git -C "$ROOT_DIR" rev-parse --short HEAD)"
+full_head="$(git -C "$ROOT_DIR" rev-parse HEAD)"
 output="$(
-  env -u IMAGE_TAG -u IMAGE_TAG_PREFIX -u IMAGE_TAG_KEEP \
+  env -u IMAGE_TAG -u IMAGE_TAG_PREFIX -u IMAGE_TAG_KEEP -u REMOTE_DIR -u REMOTE_BRANCH \
     DRY_RUN=1 REMOTE_HOST=aione-flyte2 PROXY_URL=http://172.19.210.24:7890 \
     bash "$SCRIPT"
 )"
@@ -34,11 +35,14 @@ assert_not_contains() {
   fi
 }
 
-assert_contains 'git archive --format=tar HEAD -o'
-assert_contains 'scp'
+assert_contains "REMOTE_DIR='/opt/aiops-flyte2'"
+assert_contains "REMOTE_BRANCH='main'"
+assert_contains "EXPECTED_COMMIT='$full_head'"
 assert_contains 'aione-flyte2'
-assert_contains 'REMOTE_ARCHIVE='
-assert_contains 'tar -xf "$REMOTE_ARCHIVE"'
+assert_contains 'cd "$REMOTE_DIR"'
+assert_contains 'git pull --ff-only origin "$REMOTE_BRANCH"'
+assert_contains 'actual_commit="$(git rev-parse HEAD)"'
+assert_contains 'Expected remote checkout at'
 assert_contains "PROXY_URL='http://172.19.210.24:7890'"
 assert_contains 'export HTTP_PROXY="$PROXY_URL"'
 assert_contains '--build-arg HTTP_PROXY="$PROXY_URL"'
@@ -83,6 +87,11 @@ assert_contains 'kubectl -n "$NAMESPACE" rollout status deploy/flyte-binary'
 assert_contains 'Ingress access:'
 assert_contains 'Web UI: http://%s:%s/v2'
 assert_contains 'API endpoint: http://%s:%s'
+assert_not_contains 'git archive --format=tar HEAD -o'
+assert_not_contains 'scp'
+assert_not_contains 'REMOTE_ARCHIVE='
+assert_not_contains 'tar -xf "$REMOTE_ARCHIVE"'
+assert_not_contains 'rm -rf "$REMOTE_DIR"'
 
 dockerfile="$(cat "$ROOT_DIR/Dockerfile")"
 if [[ "$dockerfile" != *'FROM --platform=${BUILDPLATFORM} docker.fzyun.io/library/golang:1.26.3-bookworm AS flytebuilder'* ]]; then

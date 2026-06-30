@@ -2,7 +2,8 @@
 set -euo pipefail
 
 REMOTE_HOST="${REMOTE_HOST:-aione-flyte2}"
-REMOTE_DIR="${REMOTE_DIR:-flyte-work}"
+REMOTE_DIR="${REMOTE_DIR:-/opt/aiops-flyte2}"
+REMOTE_BRANCH="${REMOTE_BRANCH:-main}"
 NAMESPACE="${NAMESPACE:-flyte}"
 RELEASE="${RELEASE:-flyte-devbox}"
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-flyte-binary-v2}"
@@ -10,6 +11,7 @@ DOWNLOADER_IMAGE_REPOSITORY="${DOWNLOADER_IMAGE_REPOSITORY:-aione-downloader}"
 IMAGE_TAG_PREFIX="${IMAGE_TAG_PREFIX:-main-}"
 IMAGE_TAG_KEEP="${IMAGE_TAG_KEEP:-3}"
 IMAGE_TAG="${IMAGE_TAG:-${IMAGE_TAG_PREFIX}$(git rev-parse --short HEAD)}"
+EXPECTED_COMMIT="${EXPECTED_COMMIT:-$(git rev-parse HEAD)}"
 NERDCTL_VERSION="${NERDCTL_VERSION:-2.3.3}"
 PROXY_URL="${PROXY_URL:-}"
 DRY_RUN="${DRY_RUN:-0}"
@@ -19,9 +21,10 @@ shell_quote() {
 }
 
 remote_env() {
-  printf "REMOTE_HOST=%s REMOTE_DIR=%s NAMESPACE=%s RELEASE=%s IMAGE_REPOSITORY=%s DOWNLOADER_IMAGE_REPOSITORY=%s IMAGE_TAG=%s IMAGE_TAG_PREFIX=%s IMAGE_TAG_KEEP=%s NERDCTL_VERSION=%s PROXY_URL=%s" \
+  printf "REMOTE_HOST=%s REMOTE_DIR=%s REMOTE_BRANCH=%s NAMESPACE=%s RELEASE=%s IMAGE_REPOSITORY=%s DOWNLOADER_IMAGE_REPOSITORY=%s IMAGE_TAG=%s IMAGE_TAG_PREFIX=%s IMAGE_TAG_KEEP=%s EXPECTED_COMMIT=%s NERDCTL_VERSION=%s PROXY_URL=%s" \
     "$(shell_quote "$REMOTE_HOST")" \
     "$(shell_quote "$REMOTE_DIR")" \
+    "$(shell_quote "$REMOTE_BRANCH")" \
     "$(shell_quote "$NAMESPACE")" \
     "$(shell_quote "$RELEASE")" \
     "$(shell_quote "$IMAGE_REPOSITORY")" \
@@ -29,22 +32,15 @@ remote_env() {
     "$(shell_quote "$IMAGE_TAG")" \
     "$(shell_quote "$IMAGE_TAG_PREFIX")" \
     "$(shell_quote "$IMAGE_TAG_KEEP")" \
+    "$(shell_quote "$EXPECTED_COMMIT")" \
     "$(shell_quote "$NERDCTL_VERSION")" \
     "$(shell_quote "$PROXY_URL")"
 }
 
-if command -v scp.exe >/dev/null 2>&1 && command -v ssh.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
+if command -v ssh.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
   SSH_BIN=ssh.exe
-  SCP_BIN=scp.exe
-  local_path_for_transport() {
-    wslpath -w "$1"
-  }
 else
   SSH_BIN=ssh
-  SCP_BIN=scp
-  local_path_for_transport() {
-    printf '%s' "$1"
-  }
 fi
 
 remote_script="$(cat <<'REMOTE_SCRIPT'
@@ -56,12 +52,7 @@ fi
 if [[ "$REMOTE_DIR" != /* ]]; then
   REMOTE_DIR="$HOME/$REMOTE_DIR"
 fi
-if [[ -n "${REMOTE_ARCHIVE:-}" ]]; then
-  rm -rf "$REMOTE_DIR"
-  mkdir -p "$REMOTE_DIR"
-  tar -xf "$REMOTE_ARCHIVE" -C "$REMOTE_DIR"
-  rm -f "$REMOTE_ARCHIVE"
-fi
+REMOTE_BRANCH="${REMOTE_BRANCH:-main}"
 
 if [[ -n "${PROXY_URL:-}" ]]; then
   export HTTP_PROXY="$PROXY_URL"
@@ -70,6 +61,18 @@ if [[ -n "${PROXY_URL:-}" ]]; then
   export https_proxy="$PROXY_URL"
   export NO_PROXY="${NO_PROXY:-127.0.0.1,localhost,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local}"
   export no_proxy="$NO_PROXY"
+fi
+
+cd "$REMOTE_DIR"
+if [[ ! -d .git ]]; then
+  printf 'Remote directory is not a git checkout: %s\n' "$REMOTE_DIR" >&2
+  exit 1
+fi
+git pull --ff-only origin "$REMOTE_BRANCH"
+actual_commit="$(git rev-parse HEAD)"
+if [[ -n "${EXPECTED_COMMIT:-}" && "$actual_commit" != "$EXPECTED_COMMIT" ]]; then
+  printf 'Expected remote checkout at %s after git pull, got %s\n' "$EXPECTED_COMMIT" "$actual_commit" >&2
+  exit 1
 fi
 
 if ! command -v k3s >/dev/null 2>&1; then
@@ -174,7 +177,6 @@ EOF
 
 ensure_buildkit_k3s
 
-cd "$REMOTE_DIR"
 export BUILDKIT_HOST="${BUILDKIT_HOST:-unix:///run/buildkit/buildkitd.sock}"
 NERDCTL=(sudo env HTTP_PROXY="${HTTP_PROXY:-}" HTTPS_PROXY="${HTTPS_PROXY:-}" http_proxy="${http_proxy:-}" https_proxy="${https_proxy:-}" NO_PROXY="${NO_PROXY:-}" no_proxy="${no_proxy:-}" /usr/local/bin/nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io)
 build_proxy_args=()
@@ -361,24 +363,11 @@ REMOTE_SCRIPT
 )"
 
 ssh_env="$(remote_env)"
-archive_name="flyte-work-$(date +%s)-$$.tar"
-local_archive="${TMPDIR:-/tmp}/$archive_name"
-local_runner="${TMPDIR:-/tmp}/flyte-deploy-$(date +%s)-$$.sh"
-remote_archive="/tmp/$archive_name"
-remote_runner="/tmp/flyte-deploy-$(date +%s)-$$.sh"
 
 if [[ "$DRY_RUN" == "1" ]]; then
-  printf 'git archive --format=tar HEAD -o %s\n' "$local_archive"
-  printf '%s %s %s:%s\n' "$SCP_BIN" "$(local_path_for_transport "$local_archive")" "$REMOTE_HOST" "$remote_archive"
-  printf '%s %s %s:%s\n' "$SCP_BIN" "$(local_path_for_transport "$local_runner")" "$REMOTE_HOST" "$remote_runner"
-  printf '%s %s %s REMOTE_ARCHIVE=%s bash %s\n' "$SSH_BIN" "$REMOTE_HOST" "$ssh_env" "$(shell_quote "$remote_archive")" "$(shell_quote "$remote_runner")"
+  printf '%s %s %s bash -s\n' "$SSH_BIN" "$REMOTE_HOST" "$ssh_env"
   printf '%s\n' "$remote_script"
   exit 0
 fi
 
-trap 'rm -f "$local_archive" "$local_runner"' EXIT
-git archive --format=tar HEAD -o "$local_archive"
-printf '%s\n' "$remote_script" > "$local_runner"
-"$SCP_BIN" "$(local_path_for_transport "$local_archive")" "$REMOTE_HOST:$remote_archive"
-"$SCP_BIN" "$(local_path_for_transport "$local_runner")" "$REMOTE_HOST:$remote_runner"
-"$SSH_BIN" "$REMOTE_HOST" "$ssh_env REMOTE_ARCHIVE=$(shell_quote "$remote_archive") bash $(shell_quote "$remote_runner")"
+"$SSH_BIN" "$REMOTE_HOST" "$ssh_env bash -s" <<<"$remote_script"
