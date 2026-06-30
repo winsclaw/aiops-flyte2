@@ -350,7 +350,14 @@ spec:
             name: postgresql-init
 POSTGRES_MANIFEST
 kubectl -n "$NAMESPACE" rollout status deploy/postgresql --timeout=5m
-helm dependency update charts/flyte-devbox
+if ! helm dependency update charts/flyte-devbox; then
+  if compgen -G "charts/flyte-devbox/charts/*.tgz" >/dev/null; then
+    printf 'Helm dependency update failed; using existing packaged dependencies.\n'
+  else
+    printf 'Helm dependency update failed and no packaged dependencies exist.\n' >&2
+    exit 1
+  fi
+fi
 helm upgrade --install "$RELEASE" charts/flyte-devbox \
   --namespace "$NAMESPACE" \
   --set docker-registry.enabled=false \
