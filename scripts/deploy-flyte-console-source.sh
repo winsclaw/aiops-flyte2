@@ -154,6 +154,18 @@ EOF
   wait_for_buildkit
 }
 
+curl_with_retries() {
+  local url="$1"
+  local attempt
+  for attempt in {1..10}; do
+    if curl -I "$url"; then
+      return 0
+    fi
+    sleep 2
+  done
+  curl -I "$url"
+}
+
 cd "$REMOTE_DIR"
 git pull --ff-only origin main
 COMMIT="$(git rev-parse --short HEAD)"
@@ -181,7 +193,7 @@ kubectl -n "$NAMESPACE" rollout restart deploy/flyte-console-extracted
 kubectl -n "$NAMESPACE" rollout status deploy/flyte-console-extracted --timeout=180s
 kubectl -n "$NAMESPACE" get pod -l app=flyte-console-extracted -o wide
 kubectl -n "$NAMESPACE" logs deploy/flyte-console-extracted --tail=80
-curl -I "$CONSOLE_URL"
+curl_with_retries "$CONSOLE_URL"
 REMOTE_SCRIPT
 )"
 
