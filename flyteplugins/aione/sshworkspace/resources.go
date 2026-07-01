@@ -597,9 +597,6 @@ if command -v usermod >/dev/null 2>&1 && [ -x /bin/bash ]; then
   usermod -s /bin/bash %[1]s || true
 fi
 mkdir -p /home/%[1]s/.local/share/code-server /workspace
-chown -R %[1]s:%[1]s /home/%[1]s
-chown -R %[1]s:%[1]s /workspace
-chmod -R u+rwX,g+rwX /workspace
 CODE_SERVER_BIN=""
 if command -v code-server >/dev/null 2>&1; then
   CODE_SERVER_BIN="$(command -v code-server)"
@@ -636,10 +633,6 @@ if command -v usermod >/dev/null 2>&1 && [ -x /bin/bash ]; then
 fi
 mkdir -p /home/%[1]s/.ssh /home/%[2]s/.local/share/code-server /workspace /run/sshd /etc/ssh/sshd_config.d
 cp /flyte-ssh/authorized_keys /home/%[1]s/.ssh/authorized_keys
-chown -R %[1]s:%[1]s /home/%[1]s
-chown -R %[2]s:%[2]s /home/%[2]s
-chown -R %[2]s:%[1]s /workspace
-chmod -R u+rwX,g+rwX /workspace
 chmod 700 /home/%[1]s/.ssh
 chmod 600 /home/%[1]s/.ssh/authorized_keys
 printf 'PasswordAuthentication no\nPermitRootLogin no\nPubkeyAuthentication yes\n' > /etc/ssh/sshd_config.d/flyte-workspace.conf
