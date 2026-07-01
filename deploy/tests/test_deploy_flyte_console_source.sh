@@ -56,7 +56,7 @@ assert_not_contains 'docker save'
 assert_not_contains 'k3s ctr images import'
 
 dockerfile="$(cat "$ROOT_DIR/flyte_console/Dockerfile")"
-if [[ "$dockerfile" != *'--mount=type=cache,target=/pnpm/store'* ]]; then
+if [[ "$dockerfile" != *'--mount=type=cache,id=flyte-console-pnpm-store,target=/pnpm/store'* ]]; then
   printf 'expected frontend Dockerfile to cache the pnpm store\n' >&2
   exit 1
 fi
@@ -68,7 +68,7 @@ if [[ "$dockerfile" != *'pnpm config set store-dir /pnpm/store'* ]]; then
   printf 'expected frontend Dockerfile to set the pnpm store cache path\n' >&2
   exit 1
 fi
-if [[ "$dockerfile" != *'--mount=type=cache,target=/app/.next/cache'* ]]; then
+if [[ "$dockerfile" != *'--mount=type=cache,id=flyte-console-next-cache,target=/app/.next/cache'* ]]; then
   printf 'expected frontend Dockerfile to cache the Next build cache\n' >&2
   exit 1
 fi

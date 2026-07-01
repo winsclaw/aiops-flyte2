@@ -11,7 +11,7 @@ ENV GOPROXY=https://registry-npm.fzyun.io/repository/go-proxy/|https://goproxy.c
 WORKDIR /flyteorg/build
 
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/root/go/pkg/mod go mod download
+RUN --mount=type=cache,id=flyte-go-mod,target=/root/go/pkg/mod go mod download
 
 COPY dataproxy dataproxy
 COPY executor executor
@@ -28,9 +28,9 @@ COPY cache_service cache_service
 COPY secret secret
 
 COPY manager manager
-RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/root/go/pkg/mod \
+RUN --mount=type=cache,id=flyte-go-build,target=/root/.cache/go-build --mount=type=cache,id=flyte-go-mod,target=/root/go/pkg/mod \
     go build -v -o dist/flyte ./manager/cmd/
-RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/root/go/pkg/mod \
+RUN --mount=type=cache,id=flyte-go-build,target=/root/.cache/go-build --mount=type=cache,id=flyte-go-mod,target=/root/go/pkg/mod \
     go build -v -o dist/flyte-copilot ./flytecopilot
 
 

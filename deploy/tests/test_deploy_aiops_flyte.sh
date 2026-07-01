@@ -111,7 +111,7 @@ if [[ "$dockerfile" != *'COPY go.mod go.sum ./'* ]]; then
   printf 'expected backend Dockerfile to copy go.mod/go.sum before source directories\n' >&2
   exit 1
 fi
-if [[ "$dockerfile" != *'RUN --mount=type=cache,target=/root/go/pkg/mod go mod download'* ]]; then
+if [[ "$dockerfile" != *'RUN --mount=type=cache,id=flyte-go-mod,target=/root/go/pkg/mod go mod download'* ]]; then
   printf 'expected backend Dockerfile go mod download to use the module cache mount\n' >&2
   exit 1
 fi

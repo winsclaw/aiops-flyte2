@@ -12,7 +12,7 @@ ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
 WORKDIR /app
 
 COPY package.json ./
-RUN --mount=type=cache,target=/pnpm/store \
+RUN --mount=type=cache,id=flyte-console-pnpm-store,target=/pnpm/store \
   corepack enable \
   && corepack prepare pnpm@10.20.0 --activate \
   && pnpm config set registry https://registry.npmmirror.com \
@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/pnpm/store \
   && pnpm install --no-frozen-lockfile
 
 COPY . .
-RUN --mount=type=cache,target=/app/.next/cache pnpm run build:prod
+RUN --mount=type=cache,id=flyte-console-next-cache,target=/app/.next/cache pnpm run build:prod
 
 FROM docker.fzyun.io/library/node:23.11.1-alpine3.22 AS runner
 
