@@ -133,6 +133,20 @@ wait_for_buildkit() {
   sudo /usr/local/bin/buildctl --addr unix:///run/buildkit/buildkitd.sock debug workers >/dev/null
 }
 
+restart_buildkit=0
+
+install_if_changed() {
+  local source="$1"
+  local target="$2"
+  local target_dir
+  target_dir="$(dirname "$target")"
+  if [[ ! -f "$target" ]] || ! sudo cmp -s "$source" "$target"; then
+    sudo mkdir -p "$target_dir"
+    sudo install -m 0644 "$source" "$target"
+    restart_buildkit=1
+  fi
+}
+
 ensure_buildkit_k3s() {
   if [[ ! -x /usr/local/bin/nerdctl || ! -x /usr/local/bin/buildctl || ! -x /usr/local/bin/buildkitd ]]; then
     sudo apt-get update
@@ -140,7 +154,8 @@ ensure_buildkit_k3s() {
     install_nerdctl_full
   fi
 
-  sudo tee /etc/systemd/system/buildkit-k3s.service >/dev/null <<'EOF'
+  restart_buildkit=0
+  cat >/tmp/buildkit-k3s.service.expected <<'EOF'
 [Unit]
 Description=BuildKit daemon for k3s containerd
 After=k3s.service
@@ -156,22 +171,34 @@ RestartSec=2
 [Install]
 WantedBy=multi-user.target
 EOF
+  install_if_changed /tmp/buildkit-k3s.service.expected /etc/systemd/system/buildkit-k3s.service
 
   if [[ -n "${PROXY_URL:-}" ]]; then
     sudo mkdir -p /etc/systemd/system/buildkit-k3s.service.d
-    sudo tee /etc/systemd/system/buildkit-k3s.service.d/proxy.conf >/dev/null <<EOF
+    cat >/tmp/buildkit-k3s-proxy.conf.expected <<EOF
 [Service]
 Environment="HTTP_PROXY=$PROXY_URL"
 Environment="HTTPS_PROXY=$PROXY_URL"
 Environment="NO_PROXY=$NO_PROXY"
 EOF
+    install_if_changed /tmp/buildkit-k3s-proxy.conf.expected /etc/systemd/system/buildkit-k3s.service.d/proxy.conf
   else
-    sudo rm -rf /etc/systemd/system/buildkit-k3s.service.d
+    if sudo test -e /etc/systemd/system/buildkit-k3s.service.d; then
+      sudo rm -rf /etc/systemd/system/buildkit-k3s.service.d
+      restart_buildkit=1
+    fi
   fi
 
-  sudo systemctl daemon-reload
+  if (( restart_buildkit )); then
+    sudo systemctl daemon-reload
+  fi
   sudo systemctl enable --now buildkit-k3s.service
-  sudo systemctl restart buildkit-k3s.service
+  if (( restart_buildkit )); then
+    sudo systemctl restart buildkit-k3s.service
+  fi
+  if ! wait_for_buildkit; then
+    sudo systemctl restart buildkit-k3s.service
+  fi
   wait_for_buildkit
 }
 

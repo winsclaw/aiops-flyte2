@@ -50,6 +50,11 @@ assert_contains 'curl -sfL https://get.k3s.io'
 assert_contains 'get_helm.sh'
 assert_contains 'ensure_buildkit_k3s'
 assert_contains 'wait_for_buildkit'
+assert_contains 'install_if_changed /tmp/buildkit-k3s.service.expected /etc/systemd/system/buildkit-k3s.service'
+assert_contains 'restart_buildkit=1'
+assert_contains 'if ! wait_for_buildkit; then'
+assert_contains 'sudo systemctl restart buildkit-k3s.service'
+assert_not_contains 'sudo systemctl restart buildkit-k3s.service'$'\n''  wait_for_buildkit'
 assert_contains 'NERDCTL=(sudo env HTTP_PROXY="${HTTP_PROXY:-}"'
 assert_contains '/usr/local/bin/nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io'
 assert_contains '--hosts-dir /var/lib/rancher/k3s/agent/etc/containerd/certs.d'
@@ -102,8 +107,22 @@ if [[ "$dockerfile" != *'FROM --platform=${BUILDPLATFORM} docker.fzyun.io/librar
   printf 'expected backend Dockerfile to use the docker.fzyun.io golang base image\n' >&2
   exit 1
 fi
+if [[ "$dockerfile" != *'COPY go.mod go.sum ./'* ]]; then
+  printf 'expected backend Dockerfile to copy go.mod/go.sum before source directories\n' >&2
+  exit 1
+fi
+if [[ "$dockerfile" != *'RUN --mount=type=cache,target=/root/go/pkg/mod go mod download'* ]]; then
+  printf 'expected backend Dockerfile go mod download to use the module cache mount\n' >&2
+  exit 1
+fi
 if [[ "$dockerfile" != *'FROM docker.fzyun.io/library/debian:bookworm-slim'* ]]; then
   printf 'expected backend Dockerfile to use the docker.fzyun.io debian base image\n' >&2
+  exit 1
+fi
+
+dockerignore="$(cat "$ROOT_DIR/.dockerignore")"
+if [[ "$dockerignore" != *'flyte_console/'* ]]; then
+  printf 'expected root .dockerignore to exclude flyte_console/ from backend context\n' >&2
   exit 1
 fi
 

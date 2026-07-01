@@ -10,6 +10,8 @@
 gen/python/
 gen/rust/
 gen/ts/
+output/
+flyte_console/
 
 # Dependencies
 node_modules/
@@ -18,6 +20,10 @@ target/
 *.pyc
 __pycache__/
 .kube/
+.cache/
+.playwright-cli/
+.next/
+public/monaco/
 
 # IDE
 .vscode/

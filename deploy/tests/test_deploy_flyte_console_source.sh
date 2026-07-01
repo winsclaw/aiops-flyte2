@@ -38,6 +38,11 @@ assert_contains "CONSOLE_URL='http://172.19.65.230:30081/v2/projects'"
 assert_contains 'git pull --ff-only origin main'
 assert_contains 'ensure_buildkit_k3s'
 assert_contains 'wait_for_buildkit'
+assert_contains 'install_if_changed /tmp/buildkit-k3s.service.expected /etc/systemd/system/buildkit-k3s.service'
+assert_contains 'restart_buildkit=1'
+assert_contains 'if ! wait_for_buildkit; then'
+assert_contains 'sudo systemctl restart buildkit-k3s.service'
+assert_not_contains 'sudo systemctl restart buildkit-k3s.service'$'\n''  wait_for_buildkit'
 assert_contains 'NERDCTL=(sudo env HTTP_PROXY="${HTTP_PROXY:-}"'
 assert_contains '/usr/local/bin/nerdctl --address /run/k3s/containerd/containerd.sock --namespace k8s.io)'
 assert_contains '"${NERDCTL[@]}" build "${build_proxy_args[@]}" -f flyte_console/Dockerfile -t "flyte-console-source:${COMMIT}" -t flyte-console-extracted:latest flyte_console'
@@ -49,5 +54,25 @@ assert_contains 'curl -I "$CONSOLE_URL"'
 assert_not_contains 'docker build'
 assert_not_contains 'docker save'
 assert_not_contains 'k3s ctr images import'
+
+dockerfile="$(cat "$ROOT_DIR/flyte_console/Dockerfile")"
+if [[ "$dockerfile" != *'--mount=type=cache,target=/pnpm/store'* ]]; then
+  printf 'expected frontend Dockerfile to cache the pnpm store\n' >&2
+  exit 1
+fi
+if [[ "$dockerfile" != *'pnpm config set store-dir /pnpm/store'* ]]; then
+  printf 'expected frontend Dockerfile to set the pnpm store cache path\n' >&2
+  exit 1
+fi
+if [[ "$dockerfile" != *'--mount=type=cache,target=/app/.next/cache'* ]]; then
+  printf 'expected frontend Dockerfile to cache the Next build cache\n' >&2
+  exit 1
+fi
+
+dockerignore="$(cat "$ROOT_DIR/flyte_console/.dockerignore")"
+if [[ "$dockerignore" != *'public/monaco/'* ]]; then
+  printf 'expected frontend .dockerignore to exclude generated Monaco assets\n' >&2
+  exit 1
+fi
 
 printf 'PASS tests/test_deploy_flyte_console_source.sh\n'

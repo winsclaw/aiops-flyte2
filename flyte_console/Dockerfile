@@ -11,13 +11,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
 COPY package.json ./
-RUN corepack enable \
+RUN --mount=type=cache,target=/pnpm/store \
+  corepack enable \
   && corepack prepare pnpm@10.20.0 --activate \
   && pnpm config set registry https://registry.npmmirror.com \
+  && pnpm config set store-dir /pnpm/store \
   && pnpm install --no-frozen-lockfile
 
 COPY . .
-RUN pnpm run build:prod
+RUN --mount=type=cache,target=/app/.next/cache pnpm run build:prod
 
 FROM docker.fzyun.io/library/node:23.11.1-alpine3.22 AS runner
 
