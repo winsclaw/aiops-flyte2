@@ -60,9 +60,6 @@ describe("aione external instance helpers", () => {
     expect(mapped.runName).toMatch(/-r1$/);
     expect(mapped.runName.length).toBeLessThanOrEqual(30);
     expect(mapped.sourceInstanceId).toBe("ins-og2bgwm130xq3o6uk3h4956la6");
-    expect(mapped.workspacePVCName).toBe(
-      "ins-og2bgwm130xq3o6uk3h4956la6-workspace",
-    );
     expect(mapped.values.org).toBe("aione");
     expect(mapped.values.project).toBe("aione");
     expect(mapped.values.domain).toBe("development");
@@ -78,9 +75,8 @@ describe("aione external instance helpers", () => {
     expect(mapped.values.sourceInstanceId).toBe(
       "ins-og2bgwm130xq3o6uk3h4956la6",
     );
-    expect(mapped.values.workspacePVCName).toBe(
-      "ins-og2bgwm130xq3o6uk3h4956la6-workspace",
-    );
+    expect(mapped.values).not.toHaveProperty("workspaceSize");
+    expect(mapped.values).not.toHaveProperty("workspacePVCName");
     expect(mapped.values.imagePullSecretName).toBe(
       "aione-ins-og2bgwm130xq3o6uk3h4956la6-image",
     );
@@ -127,8 +123,6 @@ describe("aione external instance helpers", () => {
     expect(first.runName).not.toBe(second.runName);
     expect(first.runName).toMatch(/-r1$/);
     expect(second.runName).toMatch(/-r2$/);
-    expect(first.workspacePVCName).toBe(second.workspacePVCName);
-    expect(first.values.workspacePVCName).toBe(second.values.workspacePVCName);
     expect(first.values.cloudStorageMounts?.[0]?.pvcName).toBe(
       second.values.cloudStorageMounts?.[0]?.pvcName,
     );
@@ -451,7 +445,6 @@ describe("aione external instance helpers", () => {
         cpu: "2",
         memory: "4Gi",
         gpuCount: 0,
-        workspaceSize: "20Gi",
         publicHost: "172.19.65.230",
         codeServerHost: "ins-5ud29xk04tmc6e4ufe8083dvn0-code.ops.fzyun.io",
       }),
@@ -470,14 +463,13 @@ describe("aione external instance helpers", () => {
         port: 443,
         url: "https://ins-5ud29xk04tmc6e4ufe8083dvn0-code.ops.fzyun.io",
         workspaceUrl:
-          "https://ins-5ud29xk04tmc6e4ufe8083dvn0-code.ops.fzyun.io/?folder=/workspace",
+          "https://ins-5ud29xk04tmc6e4ufe8083dvn0-code.ops.fzyun.io",
         available: true,
       },
       resources: {
         cpu: "2",
         memory: "4Gi",
         gpu: 0,
-        workspaceSize: "20Gi",
       },
     });
   });
@@ -492,15 +484,15 @@ describe("aione external instance helpers", () => {
       cpu: "2",
       memory: "4Gi",
       gpuCount: 0,
-      workspaceSize: "20Gi",
       codeServerHost: "ins-default-code.ops.fzyun.io",
     });
 
     expect(access.ssh).toBeUndefined();
     expect(access.codeServer.url).toBe("https://ins-default-code.ops.fzyun.io");
     expect(access.codeServer.workspaceUrl).toBe(
-      "https://ins-default-code.ops.fzyun.io/?folder=/workspace",
+      "https://ins-default-code.ops.fzyun.io",
     );
+    expect(access.resources).not.toHaveProperty("workspaceSize");
   });
 
   it("builds code-server access URLs from the workspace domain when provided", () => {
@@ -513,7 +505,6 @@ describe("aione external instance helpers", () => {
       cpu: "2",
       memory: "4Gi",
       gpuCount: 0,
-      workspaceSize: "20Gi",
       codeServerHost: "ins-domain-test-r1-code.ops.fzyun.io",
       codeServerScheme: "https",
     });
@@ -522,8 +513,7 @@ describe("aione external instance helpers", () => {
       host: "ins-domain-test-r1-code.ops.fzyun.io",
       port: 443,
       url: "https://ins-domain-test-r1-code.ops.fzyun.io",
-      workspaceUrl:
-        "https://ins-domain-test-r1-code.ops.fzyun.io/?folder=/workspace",
+      workspaceUrl: "https://ins-domain-test-r1-code.ops.fzyun.io",
       available: true,
     });
   });
@@ -538,7 +528,6 @@ describe("aione external instance helpers", () => {
       cpu: "2",
       memory: "4Gi",
       gpuCount: 0,
-      workspaceSize: "20Gi",
       publicHost: "172.19.65.230",
       codeServerHost: "ins-2024ad6h4e4x036u9u5j31ec89-code.ops.fzyun.io",
     });

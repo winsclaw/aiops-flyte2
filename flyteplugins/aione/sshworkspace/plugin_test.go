@@ -121,7 +121,7 @@ func TestPluginHandleInvalidConfigReturnsPermanentFailure(t *testing.T) {
 	assert.Contains(t, transition.Info().Err().GetMessage(), "authorizedKeys")
 }
 
-func TestPluginAbortDeletesWorkloadAndServiceButRetainsPVC(t *testing.T) {
+func TestPluginAbortDeletesWorkloadAndServicesWithoutWorkspacePVC(t *testing.T) {
 	ctx := context.Background()
 	k8sClient := newFakeClient(t)
 	plugin := NewPlugin(k8sClient, true)
@@ -157,7 +157,7 @@ func TestPluginAbortDeletesWorkloadAndServiceButRetainsPVC(t *testing.T) {
 	var deletedIngress networkingv1.Ingress
 	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-ssh"}, &deletedIngress))
 	var pvc corev1.PersistentVolumeClaim
-	assert.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-workspace"}, &pvc))
+	assert.Error(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: "flyte", Name: "run-abc-workspace"}, &pvc))
 }
 
 func validWorkspaceTemplate(t *testing.T) *core.TaskTemplate {
@@ -166,7 +166,6 @@ func validWorkspaceTemplate(t *testing.T) *core.TaskTemplate {
 		"enableSsh":      true,
 		"sshUser":        "dev",
 		"authorizedKeys": []any{"ssh-rsa AAAA user@example"},
-		"workspaceSize":  "20Gi",
 		"serviceType":    "NodePort",
 		"nodePort":       float64(30222),
 	})

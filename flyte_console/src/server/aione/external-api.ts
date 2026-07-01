@@ -443,7 +443,6 @@ async function createInstanceRun(payload: unknown) {
         cpu: mapped.values.cpu,
         memory: mapped.values.memory,
         gpuCount: mapped.values.gpuCount,
-        workspaceSize: mapped.values.workspaceSize,
         publicHost: process.env.EXTERNAL_API_PUBLIC_HOST,
         codeServerHost: mapped.values.codeServerHost,
       });
@@ -1285,8 +1284,7 @@ function applyStartedDevelopmentInstanceAccessInfo(
   const codeServerWorkspaceURL = access.codeServerWorkspaceUrl.trim();
   if (codeServerURL) {
     info.codeServer.url = codeServerURL;
-    info.codeServer.workspaceUrl =
-      codeServerWorkspaceURL || `${codeServerURL}/?folder=/workspace`;
+    info.codeServer.workspaceUrl = codeServerWorkspaceURL || codeServerURL;
     const parsed = parseURL(codeServerURL);
     if (parsed) {
       info.codeServer.host = parsed.host;
@@ -1579,7 +1577,6 @@ function buildDevelopmentInstanceInput(values: DevelopmentInstanceFormValues) {
     memory: values.memory,
     gpuCount: values.gpuCount ?? 0,
     gpuModel: values.gpuModel ?? "",
-    workspaceSize: values.workspaceSize,
     maxHours: values.maxHours,
     sourceSystem: values.sourceSystem ?? "",
     cloudStorageMounts: (values.cloudStorageMounts ?? []).map((mount) =>

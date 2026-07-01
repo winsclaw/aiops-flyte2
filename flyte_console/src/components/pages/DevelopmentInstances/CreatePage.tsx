@@ -98,7 +98,6 @@ export function DevelopmentInstanceCreatePage() {
   const [memory, setMemory] = useState("4Gi");
   const [gpuCount, setGpuCount] = useState(0);
   const [gpuModel, setGpuModel] = useState("");
-  const [workspaceSize, setWorkspaceSize] = useState("20Gi");
   const [maxHours, setMaxHours] = useState(24);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -357,7 +356,6 @@ export function DevelopmentInstanceCreatePage() {
             memory,
             gpuCount,
             gpuModel,
-            workspaceSize,
             maxHours,
             sourceSystem: "console",
             cloudStorageMounts: cloudStorageMounts.map((mount) =>
@@ -479,18 +477,16 @@ export function DevelopmentInstanceCreatePage() {
                     资源规格
                     <select
                       className={fieldClass}
-                      value={`${cpu}|${memory}|${workspaceSize}|${gpuCount}|${gpuModel}`}
+                      value={`${cpu}|${memory}|${gpuCount}|${gpuModel}`}
                       onChange={(event) => {
                         const [
                           nextCpu,
                           nextMemory,
-                          nextWorkspace,
                           nextGpuCount,
                           nextGpuModel,
                         ] = event.target.value.split("|");
                         setCpu(nextCpu);
                         setMemory(nextMemory);
-                        setWorkspaceSize(nextWorkspace);
                         setGpuCount(Number(nextGpuCount) || 0);
                         setGpuModel(nextGpuModel ?? "");
                       }}
@@ -498,7 +494,7 @@ export function DevelopmentInstanceCreatePage() {
                       {DEVELOPMENT_INSTANCE_RESOURCE_SPECS.map((spec) => (
                         <option
                           key={spec.id}
-                          value={`${spec.cpu}|${spec.memory}|${spec.workspaceSize}|${spec.gpuCount}|${spec.gpuModel ?? ""}`}
+                          value={`${spec.cpu}|${spec.memory}|${spec.gpuCount}|${spec.gpuModel ?? ""}`}
                         >
                           {spec.label}
                         </option>
@@ -553,7 +549,7 @@ export function DevelopmentInstanceCreatePage() {
                                           codeRepositoryId: repositoryId,
                                           mountPath:
                                             repository.mountPath ||
-                                            "/workspace/code",
+                                            "/home/flytekit/code",
                                         },
                                       ]
                                     : current.filter(
@@ -589,7 +585,7 @@ export function DevelopmentInstanceCreatePage() {
                                 ),
                               )
                             }
-                            placeholder="/workspace/code"
+                            placeholder="/home/flytekit/code"
                           />
                         </div>
                       );

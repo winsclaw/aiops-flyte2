@@ -36,8 +36,6 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 		"memory":                   "2Gi",
 		"gpuCount":                 float64(1),
 		"gpuModel":                 "NVIDIA T4",
-		"workspaceSize":            "20Gi",
-		"workspacePVCName":         "stable-workspace-pvc",
 		"serviceType":              "NodePort",
 		"nodePort":                 float64(30222),
 		"codeServerHost":           "run-abc-code.ops.fzyun.io",
@@ -67,8 +65,6 @@ func TestParseConfigUsesCustomPayload(t *testing.T) {
 	assert.Equal(t, "2Gi", cfg.Memory)
 	assert.Equal(t, int32(1), cfg.GPUCount)
 	assert.Equal(t, "NVIDIA T4", cfg.GPUModel)
-	assert.Equal(t, "20Gi", cfg.WorkspaceSize)
-	assert.Equal(t, "stable-workspace-pvc", cfg.WorkspacePVCName)
 	assert.Equal(t, "workspace-image-pull", cfg.ImagePullSecretName)
 	assert.Equal(t, "workspace-code-repos", cfg.CodeRepositorySecretName)
 	assert.Equal(t, "nvidia.com/gpu.present", cfg.GPUNodeLabelKey)
@@ -133,7 +129,6 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 		Memory:         "2Gi",
 		GPUCount:       1,
 		GPUModel:       "NVIDIA T4",
-		WorkspaceSize:  "20Gi",
 		ServiceType:    corev1.ServiceTypeNodePort,
 		NodePort:       &nodePort,
 		Environment:    map[string]string{"EXAMPLE": "value"},
@@ -155,8 +150,7 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, "run-abc-ssh", resources.Secret.Name)
 	assert.Equal(t, "flyte", resources.Secret.Namespace)
 	assert.Equal(t, "ssh-rsa AAAA user@example\n", string(resources.Secret.Data["authorized_keys"]))
-	assert.Equal(t, "run-abc-workspace", resources.PVC.Name)
-	assert.Equal(t, "20Gi", resources.PVC.Spec.Resources.Requests.Storage().String())
+	assert.Nil(t, resources.PVC)
 
 	sts := resources.StatefulSet
 	require.IsType(t, &appsv1.StatefulSet{}, sts)
@@ -177,6 +171,9 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Contains(t, container.Args[0], "apt-get install -y --no-install-recommends openssh-server sudo ca-certificates")
 	assert.Contains(t, container.Args[0], "useradd")
 	assert.Contains(t, container.Args[0], "su - flytekit -c")
+	assert.Contains(t, container.Args[0], "--auth none /home/flytekit")
+	assert.NotContains(t, container.Args[0], "--auth none /workspace")
+	assert.NotContains(t, container.Args[0], "mkdir -p /workspace")
 	assert.NotContains(t, container.Args[0], "su - dev -c")
 	assert.NotContains(t, container.Args[0], "chown -R dev:dev /home/dev")
 	assert.NotContains(t, container.Args[0], "chown -R flytekit:flytekit /home/flytekit")
@@ -221,12 +218,14 @@ func TestBuildResourcesCreatesSSHWorkspaceObjects(t *testing.T) {
 	assert.Equal(t, networkingv1.PathTypePrefix, *path.PathType)
 	assert.Equal(t, "run-abc-code", path.Backend.Service.Name)
 	assert.Equal(t, networkingv1.ServiceBackendPort{Name: "code-server"}, path.Backend.Service.Port)
+	assert.False(t, hasVolumeMount(container.VolumeMounts, "workspace", "/workspace"))
+	assert.False(t, hasPVCVolume(sts.Spec.Template.Spec.Volumes, "workspace", "run-abc-workspace"))
+	assert.False(t, hasEmptyDirVolume(sts.Spec.Template.Spec.Volumes, "workspace"))
 }
 
 func TestBuildResourcesDefaultsToIngressOnlyCodeServerWithoutSSH(t *testing.T) {
 	cfg := WorkspaceConfig{
-		Image:         "ubuntu:22.04",
-		WorkspaceSize: "20Gi",
+		Image: "ubuntu:22.04",
 	}
 	identity := WorkspaceIdentity{
 		Namespace:  "flyte",
@@ -256,12 +255,17 @@ func TestBuildResourcesDefaultsToIngressOnlyCodeServerWithoutSSH(t *testing.T) {
 	assert.NotContains(t, container.Args[0], "/usr/sbin/sshd")
 	assert.Contains(t, container.Args[0], "AIONE_CODE_SERVER_STATUS")
 	assert.Contains(t, container.Args[0], "CODE_SERVER_NOT_FOUND")
+	assert.Contains(t, container.Args[0], "--auth none /home/flytekit")
+	assert.NotContains(t, container.Args[0], "--auth none /workspace")
+	assert.NotContains(t, container.Args[0], "mkdir -p /workspace")
 	assert.NotContains(t, container.Args[0], "chown -R flytekit:flytekit /home/flytekit")
 	assert.NotContains(t, container.Args[0], "chown -R flytekit:flytekit /workspace")
 	assert.NotContains(t, container.Args[0], "chmod -R u+rwX,g+rwX /workspace")
 	require.NotNil(t, container.ReadinessProbe)
 	require.NotNil(t, container.ReadinessProbe.Exec)
 	assert.Contains(t, strings.Join(container.ReadinessProbe.Exec.Command, " "), "/tmp/aione-workspace-ready")
+	assert.False(t, hasVolumeMount(container.VolumeMounts, "workspace", "/workspace"))
+	assert.False(t, hasEmptyDirVolume(resources.StatefulSet.Spec.Template.Spec.Volumes, "workspace"))
 }
 
 func TestBuildResourcesCreatesBoundedCodeServerIngressHost(t *testing.T) {
@@ -291,33 +295,6 @@ func TestBuildResourcesCreatesBoundedCodeServerIngressHost(t *testing.T) {
 	assert.LessOrEqual(t, len(strings.TrimSuffix(host, ".ops.fzyun.io")), 63)
 }
 
-func TestBuildResourcesUsesConfiguredWorkspacePVCName(t *testing.T) {
-	cfg := WorkspaceConfig{
-		Image:            "ubuntu:22.04",
-		SSHUser:          "dev",
-		AuthorizedKeys:   []string{"ssh-rsa AAAA user@example"},
-		WorkspaceSize:    "20Gi",
-		WorkspacePVCName: "stable-workspace-pvc",
-		ServiceType:      corev1.ServiceTypeClusterIP,
-	}
-	identity := WorkspaceIdentity{
-		Namespace:  "flyte",
-		Name:       "run-abc-20260617",
-		RunName:    "run-abc-20260617",
-		Project:    "flytesnacks",
-		Domain:     "development",
-		Org:        "testorg",
-		ActionName: "main",
-	}
-
-	resources, err := BuildResources(identity, cfg)
-
-	require.NoError(t, err)
-	require.NotNil(t, resources.PVC)
-	assert.Equal(t, "stable-workspace-pvc", resources.PVC.Name)
-	assert.True(t, hasPVCVolume(resources.StatefulSet.Spec.Template.Spec.Volumes, "workspace", "stable-workspace-pvc"))
-}
-
 func TestBuildResourcesUsesExternalSecretsAndGPUNodeLabel(t *testing.T) {
 	cfg := WorkspaceConfig{
 		Image:                    "docker.fzyun.io/founder/aione.ide:1.0.0.60",
@@ -331,7 +308,7 @@ func TestBuildResourcesUsesExternalSecretsAndGPUNodeLabel(t *testing.T) {
 			ID:        "repo-1",
 			RepoURL:   "https://git.fzyun.io/serverless/aione.git",
 			Branch:    "main",
-			MountPath: "/workspace/aione",
+			MountPath: "/home/flytekit/aione",
 		}},
 	}
 	identity := WorkspaceIdentity{
@@ -420,7 +397,7 @@ func TestBuildResourcesAddsCodeRepositoryDownloader(t *testing.T) {
 			ID:        "repo-1",
 			RepoURL:   "https://git.fzyun.io/serverless/aione.git",
 			Branch:    "main",
-			MountPath: "/workspace/aione",
+			MountPath: "/home/flytekit/aione",
 			Token:     "secret-token",
 		}},
 	}
@@ -450,12 +427,12 @@ func TestBuildResourcesAddsCodeRepositoryDownloader(t *testing.T) {
 	assert.Equal(t, corev1.PullNever, initContainer.ImagePullPolicy)
 	assert.Equal(t, "AIONE_PARAMS", initContainer.Env[0].Name)
 	assert.True(t, hasEmptyDirVolume(podSpec.Volumes, "code-repository-0"))
-	assert.True(t, hasVolumeMount(initContainer.VolumeMounts, "code-repository-0", "/workspace/aione"))
+	assert.True(t, hasVolumeMount(initContainer.VolumeMounts, "code-repository-0", "/home/flytekit/aione"))
 
 	container := podSpec.Containers[0]
 	assert.Empty(t, envName(container.Env, "AIONE_PARAMS"))
 	assert.NotContains(t, container.Args[0], "download GitLab archive repositories")
-	assert.True(t, hasVolumeMount(container.VolumeMounts, "code-repository-0", "/workspace/aione"))
+	assert.True(t, hasVolumeMount(container.VolumeMounts, "code-repository-0", "/home/flytekit/aione"))
 }
 
 func TestBuildResourcesAddsDatasetDownloader(t *testing.T) {
@@ -508,7 +485,6 @@ func TestBuildResourcesUsesValidKubernetesNamesWhenRunStartsWithDigit(t *testing
 		Image:          "ubuntu:22.04",
 		SSHUser:        "dev",
 		AuthorizedKeys: []string{"ssh-rsa AAAA user@example"},
-		WorkspaceSize:  "20Gi",
 		ServiceType:    corev1.ServiceTypeNodePort,
 		NodePort:       &nodePort,
 	}
@@ -527,7 +503,7 @@ func TestBuildResourcesUsesValidKubernetesNamesWhenRunStartsWithDigit(t *testing
 	require.NoError(t, err)
 	assert.Empty(t, validation.IsDNS1035Label(resources.CodeServerService.Name))
 	assert.Empty(t, validation.IsDNS1123Subdomain(resources.StatefulSet.Name))
-	assert.Empty(t, validation.IsDNS1123Subdomain(resources.PVC.Name))
+	assert.Nil(t, resources.PVC)
 	assert.Equal(t, "1111-a0-0", resources.CodeServerService.Spec.Selector[labelWorkspaceName])
 	assert.Equal(t, "1111-a0-0", resources.StatefulSet.Spec.Selector.MatchLabels[labelWorkspaceName])
 	assert.Equal(t, "1111-a0-0", resources.StatefulSet.Spec.Template.Labels[labelWorkspaceName])

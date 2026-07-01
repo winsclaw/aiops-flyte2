@@ -35,26 +35,29 @@ import {
 } from "@/gen/flyteidl2/common/identity_pb";
 
 describe("development instance helpers", () => {
-  it("offers small 1c2g resource specs with and without T4", () => {
+  it("offers resource specs without workspace capacity", () => {
     expect(DEVELOPMENT_INSTANCE_RESOURCE_SPECS).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           cpu: "1",
           memory: "2Gi",
-          workspaceSize: "20Gi",
           gpuCount: 0,
-          label: "1vCPU, 2GiB RAM, 20Gi 工作区",
+          label: "1vCPU, 2GiB RAM",
         }),
         expect.objectContaining({
           cpu: "1",
           memory: "2Gi",
-          workspaceSize: "20Gi",
           gpuCount: 1,
           gpuModel: "NVIDIA T4",
-          label: "1vCPU, 2GiB RAM, 1*NVIDIA T4, 20Gi 工作区",
+          label: "1vCPU, 2GiB RAM, 1*NVIDIA T4",
         }),
       ]),
     );
+    expect(
+      DEVELOPMENT_INSTANCE_RESOURCE_SPECS.some((spec) =>
+        spec.label.includes("工作区"),
+      ),
+    ).toBe(false);
   });
 
   it("allocates the first unused default NodePort", () => {
@@ -91,8 +94,6 @@ describe("development instance helpers", () => {
       authorizedKey: "ssh-rsa AAAA user@example",
       cpu: "2",
       memory: "4Gi",
-      workspaceSize: "20Gi",
-      workspacePVCName: "stable-workspace-pvc",
       gpuCount: 1,
       gpuModel: "NVIDIA T4",
       nodePort: 31022,
@@ -111,7 +112,7 @@ describe("development instance helpers", () => {
           id: "repo-1",
           repoUrl: "https://git.fzyun.io/serverless/aione.git",
           branch: "main",
-          mountPath: "/workspace/aione",
+          mountPath: "/home/flytekit/aione",
           token: "",
         },
       ],
@@ -130,16 +131,13 @@ describe("development instance helpers", () => {
       authorizedKeys: ["ssh-rsa AAAA user@example"],
       cpu: "2",
       memory: "4Gi",
-      workspaceSize: "20Gi",
-      workspacePVCName: "stable-workspace-pvc",
       gpuCount: 1,
       gpuModel: "NVIDIA T4",
       serviceType: "NodePort",
       nodePort: 31022,
       codeServerHost: "devbox-a-code.ops.fzyun.io",
       codeServerUrl: "https://devbox-a-code.ops.fzyun.io",
-      codeServerWorkspaceUrl:
-        "https://devbox-a-code.ops.fzyun.io/?folder=/workspace",
+      codeServerWorkspaceUrl: "https://devbox-a-code.ops.fzyun.io",
       description: "for notebooks",
       owner: "ljgong",
       maxHours: 24,
@@ -157,11 +155,17 @@ describe("development instance helpers", () => {
           id: "repo-1",
           repoUrl: "https://git.fzyun.io/serverless/aione.git",
           branch: "main",
-          mountPath: "/workspace/aione",
+          mountPath: "/home/flytekit/aione",
           token: "",
         },
       ],
     });
+    expect(request.task.value.taskTemplate?.custom).not.toHaveProperty(
+      "workspaceSize",
+    );
+    expect(request.task.value.taskTemplate?.custom).not.toHaveProperty(
+      "workspacePVCName",
+    );
     expect(request.task.value.taskTemplate?.metadata?.timeout?.seconds).toBe(
       86400n,
     );
@@ -189,8 +193,6 @@ describe("development instance helpers", () => {
       authorizedKey: "ssh-rsa AAAA user@example",
       cpu: "2",
       memory: "4Gi",
-      workspaceSize: "20Gi",
-      workspacePVCName: `${sourceInstanceId}-workspace`,
       gpuCount: 0,
       nodePort: 31022,
       maxHours: 24,
@@ -209,8 +211,10 @@ describe("development instance helpers", () => {
       sourceName: "中文实例",
       sourceInstanceId,
       description: "用于调试",
-      workspacePVCName: `${sourceInstanceId}-workspace`,
     });
+    expect(request.task.value.taskTemplate?.custom).not.toHaveProperty(
+      "workspacePVCName",
+    );
   });
 
   it("uses the official IDE image by default", () => {
@@ -238,7 +242,6 @@ describe("development instance helpers", () => {
       authorizedKey: "ssh-rsa AAAA user@example",
       cpu: "2",
       memory: "4Gi",
-      workspaceSize: "20Gi",
       gpuCount: 0,
       nodePort: 31022,
       maxHours: 24,
@@ -405,7 +408,7 @@ describe("development instance helpers", () => {
     ).toBe(3);
   });
 
-  it("shows requested GPU count even when the model is omitted", () => {
+  it("shows requested GPU count without workspace capacity", () => {
     const run = create(RunSchema, {
       action: create(ActionSchema, {
         id: {
@@ -437,7 +440,7 @@ describe("development instance helpers", () => {
 
     const instance = formatDevelopmentInstance(run, actionDetails);
 
-    expect(instance?.resourceSummary).toBe("1vCPU, 2Gi, 1*GPU, 20Gi");
+    expect(instance?.resourceSummary).toBe("1vCPU, 2Gi, 1*GPU");
   });
 
   it("hides runs marked as deleted by the development instance console", () => {

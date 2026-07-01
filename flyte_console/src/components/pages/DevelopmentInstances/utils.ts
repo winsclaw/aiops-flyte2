@@ -66,7 +66,6 @@ export type DevelopmentInstanceResourceSpec = {
   label: string;
   cpu: string;
   memory: string;
-  workspaceSize: string;
   gpuCount: number;
   gpuModel?: string;
 };
@@ -74,44 +73,39 @@ export type DevelopmentInstanceResourceSpec = {
 export const DEVELOPMENT_INSTANCE_RESOURCE_SPECS: DevelopmentInstanceResourceSpec[] =
   [
     {
-      id: "cpu-1c-2g-20g",
-      label: "1vCPU, 2GiB RAM, 20Gi 工作区",
+      id: "cpu-1c-2g",
+      label: "1vCPU, 2GiB RAM",
       cpu: "1",
       memory: "2Gi",
-      workspaceSize: "20Gi",
       gpuCount: 0,
     },
     {
-      id: "t4-1c-2g-20g",
-      label: "1vCPU, 2GiB RAM, 1*NVIDIA T4, 20Gi 工作区",
+      id: "t4-1c-2g",
+      label: "1vCPU, 2GiB RAM, 1*NVIDIA T4",
       cpu: "1",
       memory: "2Gi",
-      workspaceSize: "20Gi",
       gpuCount: 1,
       gpuModel: "NVIDIA T4",
     },
     {
-      id: "cpu-2c-4g-20g",
-      label: "2vCPU, 4GiB RAM, 20Gi 工作区",
+      id: "cpu-2c-4g",
+      label: "2vCPU, 4GiB RAM",
       cpu: "2",
       memory: "4Gi",
-      workspaceSize: "20Gi",
       gpuCount: 0,
     },
     {
-      id: "cpu-4c-8g-50g",
-      label: "4vCPU, 8GiB RAM, 50Gi 工作区",
+      id: "cpu-4c-8g",
+      label: "4vCPU, 8GiB RAM",
       cpu: "4",
       memory: "8Gi",
-      workspaceSize: "50Gi",
       gpuCount: 0,
     },
     {
-      id: "cpu-8c-16g-100g",
-      label: "8vCPU, 16GiB RAM, 100Gi 工作区",
+      id: "cpu-8c-16g",
+      label: "8vCPU, 16GiB RAM",
       cpu: "8",
       memory: "16Gi",
-      workspaceSize: "100Gi",
       gpuCount: 0,
     },
   ];
@@ -135,8 +129,6 @@ export type DevelopmentInstanceFormValues = {
   memory: string;
   gpuCount?: number;
   gpuModel?: string;
-  workspaceSize: string;
-  workspacePVCName?: string;
   nodePort: number;
   codeServerHost?: string;
   codeServerUrl?: string;
@@ -332,7 +324,7 @@ export function buildCodeServerWorkspaceUrl(
   host: string,
   scheme = DEFAULT_CODE_SERVER_SCHEME,
 ) {
-  return `${buildCodeServerUrl(host, scheme)}/?folder=/workspace`;
+  return buildCodeServerUrl(host, scheme);
 }
 
 export function buildCreateDevelopmentInstanceRequest(
@@ -369,8 +361,6 @@ export function buildCreateDevelopmentInstanceRequest(
     memory: values.memory.trim(),
     gpuCount: values.gpuCount ?? 0,
     gpuModel: values.gpuModel?.trim() ?? "",
-    workspaceSize: values.workspaceSize.trim(),
-    workspacePVCName: values.workspacePVCName?.trim() ?? "",
     codeServerHost,
     codeServerUrl,
     codeServerWorkspaceUrl,
@@ -551,8 +541,6 @@ export function formatDevelopmentInstance(
   const gpuCount =
     typeof custom.gpuCount === "number" ? Number(custom.gpuCount) : 0;
   const gpuModel = typeof custom.gpuModel === "string" ? custom.gpuModel : "";
-  const workspaceSize =
-    typeof custom.workspaceSize === "string" ? custom.workspaceSize : "";
   const gpuSummary = gpuCount > 0 ? `${gpuCount}*${gpuModel || "GPU"}` : "";
   const sourceName =
     typeof custom.sourceName === "string" && custom.sourceName.trim()
@@ -567,7 +555,6 @@ export function formatDevelopmentInstance(
     cpu && `${cpu}vCPU`,
     memory,
     gpuSummary,
-    workspaceSize,
   ]
     .filter(Boolean)
     .join(", ");

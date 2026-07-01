@@ -29,8 +29,6 @@ type WorkspaceConfig struct {
 	GPUCount                 int32
 	GPUModel                 string
 	GPUNodeLabelKey          string
-	WorkspaceSize            string
-	WorkspacePVCName         string
 	ServiceType              corev1.ServiceType
 	NodePort                 *int32
 	CodeServerHost           string
@@ -82,8 +80,6 @@ func ParseConfig(taskTemplate *idlcore.TaskTemplate) (WorkspaceConfig, error) {
 		Memory:              stringValue(values, "memory", ""),
 		GPUModel:            stringValue(values, "gpuModel", ""),
 		GPUNodeLabelKey:     stringValue(values, "gpuNodeLabelKey", ""),
-		WorkspaceSize:       stringValue(values, "workspaceSize", ""),
-		WorkspacePVCName:    stringValue(values, "workspacePVCName", ""),
 		CodeServerHost:      stringValue(values, "codeServerHost", ""),
 		DownloaderImage:     stringValue(values, "downloaderImage", ""),
 		ServiceType:         corev1.ServiceTypeClusterIP,

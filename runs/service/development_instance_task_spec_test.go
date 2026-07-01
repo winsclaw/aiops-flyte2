@@ -18,11 +18,12 @@ func TestBuildDevelopmentInstanceSpecDefaultsSSHUserToFlytekit(t *testing.T) {
 		ImageURI:               "docker.fzyun.io/founder/aione.ide:1.0.0.60",
 		CPU:                    "2",
 		Memory:                 "4Gi",
-		WorkspaceSize:          "20Gi",
 		MaxHours:               24,
 	})
 
 	require.NoError(t, err)
 	custom := spec.GetTaskTemplate().GetCustom().GetFields()
 	require.Equal(t, "flytekit", custom["sshUser"].GetStringValue())
+	require.Nil(t, custom["workspaceSize"])
+	require.Nil(t, custom["workspacePVCName"])
 }

@@ -5,7 +5,6 @@
 import {
   buildCodeServerHost,
   buildCodeServerUrl,
-  buildCodeServerWorkspaceUrl,
   DEFAULT_NODE_PORT_RANGE,
   DevelopmentInstanceFormValues,
   normalizeRunName,
@@ -105,7 +104,6 @@ export type BuildAioneInstanceAccessInfoInput = {
   cpu: string;
   memory: string;
   gpuCount: number;
-  workspaceSize: string;
   publicHost?: string;
   codeServerScheme?: string;
   codeServerHost?: string;
@@ -168,10 +166,9 @@ export function buildAioneInstanceValues({
     throw new Error("id or name must produce a valid run name");
   }
   const runName = buildRestartableRunName(sourceBaseName, runNameSuffix);
-  const workspacePVCName = buildStablePVCName(sourceBaseName, "workspace");
   const codeServerHost = buildCodeServerHost(sourceBaseName);
   const codeServerUrl = buildCodeServerUrl(codeServerHost);
-  const codeServerWorkspaceUrl = buildCodeServerWorkspaceUrl(codeServerHost);
+  const codeServerWorkspaceUrl = codeServerUrl;
   const enableSsh = payload.enableSsh === true;
 
   const authorizedKey =
@@ -236,8 +233,6 @@ export function buildAioneInstanceValues({
     memory: payload.resourceDefinition?.memory?.trim() || "4Gi",
     gpuCount: payload.resourceDefinition?.gpu ?? 0,
     gpuModel: "",
-    workspaceSize: "20Gi",
-    workspacePVCName,
     nodePort,
     codeServerHost,
     codeServerUrl,
@@ -306,7 +301,6 @@ export function buildAioneInstanceValues({
   return {
     runName,
     sourceInstanceId,
-    workspacePVCName,
     values,
     registryCredentials,
     codeRepositoriesWithTokens,
@@ -339,7 +333,6 @@ export function buildAioneInstanceAccessInfo({
   cpu,
   memory,
   gpuCount,
-  workspaceSize,
   publicHost = DEFAULT_EXTERNAL_API_PUBLIC_HOST,
   codeServerScheme = "https",
   codeServerHost,
@@ -376,7 +369,6 @@ export function buildAioneInstanceAccessInfo({
       cpu: string;
       memory: string;
       gpu: number;
-      workspaceSize: string;
     };
   } = {
     id: runName,
@@ -386,7 +378,7 @@ export function buildAioneInstanceAccessInfo({
       host: resolvedCodeServerHost || "",
       port: resolvedCodeServerPort,
       url: resolvedCodeServerUrl,
-      workspaceUrl: `${resolvedCodeServerUrl}/?folder=/workspace`,
+      workspaceUrl: resolvedCodeServerUrl,
       available: codeServerAvailable,
       reason: codeServerReason || undefined,
       message: codeServerMessage || undefined,
@@ -395,7 +387,6 @@ export function buildAioneInstanceAccessInfo({
       cpu,
       memory,
       gpu: gpuCount,
-      workspaceSize,
     },
   };
   if (enableSsh) {

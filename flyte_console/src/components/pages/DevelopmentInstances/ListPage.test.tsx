@@ -78,7 +78,7 @@ describe("DevelopmentInstancesListPage", () => {
           owner: "ljgong",
           status: DevelopmentInstanceStatus.RUNNING,
           latestRunName: runName,
-          resourceSpec: { displayLabel: "2vCPU, 4GiB RAM, 20Gi 工作区" },
+          resourceSpec: { displayLabel: "2vCPU, 4GiB RAM" },
           access: { sshUser: "dev", nodePort: 31000 },
           createdAt: { seconds: 1781254800n, nanos: 0 },
         },

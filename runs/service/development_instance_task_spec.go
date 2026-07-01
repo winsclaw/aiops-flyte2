@@ -25,9 +25,6 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 	if instance.CPU == "" || instance.Memory == "" {
 		return nil, fmt.Errorf("cpu and memory are required")
 	}
-	if instance.WorkspaceSize == "" {
-		return nil, fmt.Errorf("workspace size is required")
-	}
 	if instance.MaxHours == 0 {
 		return nil, fmt.Errorf("max hours is required")
 	}
@@ -89,8 +86,6 @@ func BuildDevelopmentInstanceSpec(instance *models.DevelopmentInstance) (*task.T
 		"memory":                   instance.Memory,
 		"gpuCount":                 instance.GPUCount,
 		"gpuModel":                 instance.GPUModel,
-		"workspaceSize":            instance.WorkspaceSize,
-		"workspacePVCName":         instance.WorkspacePVCName,
 		"codeServerUrl":            instance.CodeServerURL,
 		"codeServerWorkspaceUrl":   instance.CodeServerWorkspaceURL,
 		"description":              instance.Description,

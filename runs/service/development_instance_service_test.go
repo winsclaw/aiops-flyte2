@@ -14,17 +14,16 @@ func TestBuildDevelopmentInstanceModelUsesExplicitID(t *testing.T) {
 	model, err := buildDevelopmentInstanceModel(
 		&common.ProjectIdentifier{Organization: "testorg", Name: "flytesnacks", Domain: "development"},
 		&developmentinstancepb.DevelopmentInstanceInput{
-			Name:          "开发实例",
-			Owner:         "external-api",
-			ImageType:     developmentinstancepb.ImageType_IMAGE_TYPE_CUSTOM,
-			ImageName:     "custom-ide",
-			ImageUri:      "docker.fzyun.io/founder/aione.ide:1.0.0.60",
-			SshUser:       "dev",
-			Cpu:           "2",
-			Memory:        "4Gi",
-			WorkspaceSize: "20Gi",
-			MaxHours:      24,
-			SourceSystem:  "aione",
+			Name:         "开发实例",
+			Owner:        "external-api",
+			ImageType:    developmentinstancepb.ImageType_IMAGE_TYPE_CUSTOM,
+			ImageName:    "custom-ide",
+			ImageUri:     "docker.fzyun.io/founder/aione.ide:1.0.0.60",
+			SshUser:      "dev",
+			Cpu:          "2",
+			Memory:       "4Gi",
+			MaxHours:     24,
+			SourceSystem: "aione",
 		},
 		"external-api",
 		"external-instance-1",
@@ -34,10 +33,11 @@ func TestBuildDevelopmentInstanceModelUsesExplicitID(t *testing.T) {
 	require.Equal(t, "external-instance-1", model.ID)
 	require.Equal(t, "开发实例", model.Name)
 	require.Equal(t, "external-api", model.Owner)
-	require.Equal(t, "2vCPU, 4GiB RAM, 20Gi 工作区", model.ResourceDisplay)
+	require.Equal(t, "2vCPU, 4GiB RAM", model.ResourceDisplay)
 	require.Equal(t, "2", model.CPU)
 	require.Equal(t, "4Gi", model.Memory)
-	require.Equal(t, "20Gi", model.WorkspaceSize)
+	require.Empty(t, model.WorkspaceSize)
+	require.Empty(t, model.WorkspacePVCName)
 	require.Equal(t, models.DevelopmentInstanceStatusNotStarted, model.Status)
 	require.False(t, model.EnableSSH)
 }
@@ -53,11 +53,9 @@ func TestBuildDevelopmentInstanceSpecDefaultsToIngressOnlyCodeServer(t *testing.
 		SSHUser:                "dev",
 		CPU:                    "2",
 		Memory:                 "4Gi",
-		WorkspaceSize:          "20Gi",
 		MaxHours:               24,
-		WorkspacePVCName:       "ins-abc-workspace",
 		CodeServerURL:          "https://ins-abc-r1-code.ops.fzyun.io",
-		CodeServerWorkspaceURL: "https://ins-abc-r1-code.ops.fzyun.io/?folder=/workspace",
+		CodeServerWorkspaceURL: "https://ins-abc-r1-code.ops.fzyun.io",
 	})
 
 	require.NoError(t, err)
@@ -72,6 +70,9 @@ func TestBuildDevelopmentInstanceSpecDefaultsToIngressOnlyCodeServer(t *testing.
 	require.Nil(t, custom["nodePort"])
 	require.Nil(t, custom["authorizedKeys"])
 	require.Equal(t, "https://ins-abc-r1-code.ops.fzyun.io", custom["codeServerUrl"].GetStringValue())
+	require.Equal(t, "https://ins-abc-r1-code.ops.fzyun.io", custom["codeServerWorkspaceUrl"].GetStringValue())
+	require.Nil(t, custom["workspaceSize"])
+	require.Nil(t, custom["workspacePVCName"])
 }
 
 func TestBuildDevelopmentInstanceSpecIncludesDatasetsWithoutPlainSecret(t *testing.T) {
@@ -84,9 +85,7 @@ func TestBuildDevelopmentInstanceSpecIncludesDatasetsWithoutPlainSecret(t *testi
 		ImageURI:               "docker.fzyun.io/founder/aione.ide:1.0.0.60",
 		CPU:                    "2",
 		Memory:                 "4Gi",
-		WorkspaceSize:          "20Gi",
 		MaxHours:               24,
-		WorkspacePVCName:       "ins-dataset-workspace",
 		Datasets: []models.RuntimeDataset{{
 			Endpoint:            "1.2.3.4",
 			Port:                "9000",
@@ -121,9 +120,7 @@ func TestBuildDevelopmentInstanceSpecPassesSSHOnlyWhenEnabled(t *testing.T) {
 		AuthorizedKeysJSON:     `["ssh-rsa AAAA user@example"]`,
 		CPU:                    "2",
 		Memory:                 "4Gi",
-		WorkspaceSize:          "20Gi",
 		MaxHours:               24,
-		WorkspacePVCName:       "ins-ssh-workspace",
 		NodePort:               31000,
 	})
 
@@ -146,9 +143,7 @@ func TestBuildDevelopmentInstanceSpecLetsPluginOwnCodeRepositorySecret(t *testin
 		SSHUser:                  "dev",
 		CPU:                      "2",
 		Memory:                   "4Gi",
-		WorkspaceSize:            "20Gi",
 		MaxHours:                 1,
-		WorkspacePVCName:         "aione-instance-workspace",
 		CodeRepositorySecretName: "aione-aione-instance-code",
 		CodeRepositoryMounts: []models.DevelopmentInstanceCodeRepoMount{{
 			CodeRepositoryID: "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
@@ -182,11 +177,11 @@ func TestNextDevelopmentInstanceRunNameSkipsExistingFlyteRuns(t *testing.T) {
 func TestApplyDevelopmentInstanceRunAccessReplacesPreviousRunURL(t *testing.T) {
 	instance := &models.DevelopmentInstance{
 		CodeServerURL:          "https://aione-instance-r3-code.ops.fzyun.io",
-		CodeServerWorkspaceURL: "https://aione-instance-r3-code.ops.fzyun.io/?folder=/workspace",
+		CodeServerWorkspaceURL: "https://aione-instance-r3-code.ops.fzyun.io",
 	}
 
 	applyDevelopmentInstanceRunAccess(instance, "aione-instance-r4")
 
 	require.Equal(t, "https://aione-instance-r4-code.ops.fzyun.io", instance.CodeServerURL)
-	require.Equal(t, "https://aione-instance-r4-code.ops.fzyun.io/?folder=/workspace", instance.CodeServerWorkspaceURL)
+	require.Equal(t, "https://aione-instance-r4-code.ops.fzyun.io", instance.CodeServerWorkspaceURL)
 }

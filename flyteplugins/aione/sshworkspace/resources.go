@@ -72,10 +72,6 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 	}
 	resourceName := kubernetesNameBase(identity.Name)
 	secretName := resourceName + "-ssh"
-	pvcName := resourceName + "-workspace"
-	if cfg.WorkspacePVCName != "" {
-		pvcName = cfg.WorkspacePVCName
-	}
 	codeServerServiceName := resourceName + "-code"
 	sshServiceName := resourceName + "-ssh"
 
@@ -107,27 +103,6 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		}
 		if cfg.EnableSSH {
 			secret.Data["authorized_keys"] = []byte(strings.Join(cfg.AuthorizedKeys, "\n") + "\n")
-		}
-	}
-
-	var pvc *corev1.PersistentVolumeClaim
-	if cfg.WorkspaceSize != "" {
-		size, err := resource.ParseQuantity(cfg.WorkspaceSize)
-		if err != nil {
-			return WorkspaceResources{}, fmt.Errorf("invalid workspaceSize quantity: %w", err)
-		}
-		pvc = &corev1.PersistentVolumeClaim{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      pvcName,
-				Namespace: identity.Namespace,
-				Labels:    labels,
-			},
-			Spec: corev1.PersistentVolumeClaimSpec{
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				Resources: corev1.VolumeResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceStorage: size},
-				},
-			},
 		}
 	}
 
@@ -296,27 +271,6 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		container.Resources.Limits[corev1.ResourceName("nvidia.com/gpu")] = gpu
 	}
 
-	if pvc != nil {
-		volumes = append(volumes, corev1.Volume{
-			Name: "workspace",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName},
-			},
-		})
-		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
-			Name:      "workspace",
-			MountPath: "/workspace",
-		})
-	} else {
-		volumes = append(volumes, corev1.Volume{
-			Name:         "workspace",
-			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-		})
-		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
-			Name:      "workspace",
-			MountPath: "/workspace",
-		})
-	}
 	cloudPVCs := make([]*corev1.PersistentVolumeClaim, 0, len(cfg.CloudStorageMounts))
 	for i, mount := range cfg.CloudStorageMounts {
 		size, err := resource.ParseQuantity(mount.Size)
@@ -472,7 +426,6 @@ func BuildResources(identity WorkspaceIdentity, cfg WorkspaceConfig) (WorkspaceR
 		Secret:                  secret,
 		CodeDownloaderSecret:    codeDownloaderSecret,
 		DatasetDownloaderSecret: datasetDownloaderSecret,
-		PVC:                     pvc,
 		CloudStoragePVCs:        cloudPVCs,
 		StatefulSet:             sts,
 		CodeServerService:       codeServerService,
@@ -596,7 +549,7 @@ fi
 if command -v usermod >/dev/null 2>&1 && [ -x /bin/bash ]; then
   usermod -s /bin/bash %[1]s || true
 fi
-mkdir -p /home/%[1]s/.local/share/code-server /workspace
+mkdir -p /home/%[1]s/.local/share/code-server
 CODE_SERVER_BIN=""
 if command -v code-server >/dev/null 2>&1; then
   CODE_SERVER_BIN="$(command -v code-server)"
@@ -606,7 +559,7 @@ fi
 if [ -n "$CODE_SERVER_BIN" ] && [ -x "$CODE_SERVER_BIN" ]; then
   printf 'AIONE_CODE_SERVER_STATUS %%s\n' '{"available":true}'
   touch /tmp/aione-workspace-ready
-  exec su - %[1]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /workspace"
+  exec su - %[1]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /home/%[1]s"
 fi
 printf 'AIONE_CODE_SERVER_STATUS %%s\n' '{"available":false,"reason":"CODE_SERVER_NOT_FOUND","message":"code-server is not installed in the image"}'
 touch /tmp/aione-workspace-ready
@@ -631,7 +584,7 @@ if command -v usermod >/dev/null 2>&1 && [ -x /bin/bash ]; then
   usermod -s /bin/bash %[1]s || true
   usermod -s /bin/bash %[2]s || true
 fi
-mkdir -p /home/%[1]s/.ssh /home/%[2]s/.local/share/code-server /workspace /run/sshd /etc/ssh/sshd_config.d
+mkdir -p /home/%[1]s/.ssh /home/%[2]s/.local/share/code-server /run/sshd /etc/ssh/sshd_config.d
 cp /flyte-ssh/authorized_keys /home/%[1]s/.ssh/authorized_keys
 chmod 700 /home/%[1]s/.ssh
 chmod 600 /home/%[1]s/.ssh/authorized_keys
@@ -644,7 +597,7 @@ elif [ -x /opt/code-server-4.19.0-linux-amd64/bin/code-server ]; then
 fi
 if [ -n "$CODE_SERVER_BIN" ] && [ -x "$CODE_SERVER_BIN" ]; then
   printf 'AIONE_CODE_SERVER_STATUS %%s\n' '{"available":true}'
-  su - %[2]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /workspace" &
+  su - %[2]s -c "PASSWORD='' '$CODE_SERVER_BIN' --bind-addr 0.0.0.0:8080 --auth none /home/%[2]s" &
 else
   printf 'AIONE_CODE_SERVER_STATUS %%s\n' '{"available":false,"reason":"CODE_SERVER_NOT_FOUND","message":"code-server is not installed in the image"}'
 fi

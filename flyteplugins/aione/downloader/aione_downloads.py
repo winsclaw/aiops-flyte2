@@ -132,7 +132,10 @@ def _make_tree_readable(directory: str) -> None:
         for dirname in dirs:
             os.chmod(os.path.join(root, dirname), stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
         for filename in files:
-            os.chmod(os.path.join(root, filename), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+            os.chmod(
+                os.path.join(root, filename),
+                stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH,
+            )
 
 
 def _unzip(target_dir: str) -> None:

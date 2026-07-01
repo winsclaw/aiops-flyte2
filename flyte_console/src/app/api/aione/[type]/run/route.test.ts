@@ -159,7 +159,7 @@ describe("aione external typed run route", () => {
           nodePort: 31000,
           codeServerUrl: "https://ins-contract-1-r1-code.ops.fzyun.io",
           codeServerWorkspaceUrl:
-            "https://ins-contract-1-r1-code.ops.fzyun.io/?folder=/workspace",
+            "https://ins-contract-1-r1-code.ops.fzyun.io",
         },
       },
     });
@@ -441,7 +441,7 @@ describe("aione external typed run route", () => {
     expect(createTrainingTaskMock).not.toHaveBeenCalled();
     expect(body.data.id).toBe("ins-contract-1");
     expect(body.data.info.codeServer.workspaceUrl).toBe(
-      "https://ins-contract-1-r1-code.ops.fzyun.io/?folder=/workspace",
+      "https://ins-contract-1-r1-code.ops.fzyun.io",
     );
   });
 

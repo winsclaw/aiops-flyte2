@@ -17,8 +17,7 @@ const taskTemplate = {
   custom: {
     image: "flyte-ssh-workspace-code-server:4.19.0",
     sshUser: "dev",
-    codeServerWorkspaceUrl:
-      "https://run-abc-code.ops.fzyun.io/?folder=/workspace",
+    codeServerWorkspaceUrl: "https://run-abc-code.ops.fzyun.io",
   },
 };
 
@@ -33,7 +32,7 @@ describe("CodeTabContent", () => {
     const frame = screen.getByTitle("code-server");
     expect(frame).toHaveAttribute(
       "src",
-      "https://run-abc-code.ops.fzyun.io/?folder=/workspace",
+      "https://run-abc-code.ops.fzyun.io",
     );
     expect(screen.queryByText(/Task configuration/)).not.toBeInTheDocument();
     expect(
@@ -48,8 +47,7 @@ describe("CodeTabContent", () => {
           ...taskTemplate,
           custom: {
             ...taskTemplate.custom,
-            codeServerWorkspaceUrl:
-              "https://run-abc-code.ops.fzyun.io/?folder=/workspace",
+            codeServerWorkspaceUrl: "https://run-abc-code.ops.fzyun.io",
           },
         }}
       />,
@@ -57,7 +55,7 @@ describe("CodeTabContent", () => {
 
     expect(screen.getByTitle("code-server")).toHaveAttribute(
       "src",
-      "https://run-abc-code.ops.fzyun.io/?folder=/workspace",
+      "https://run-abc-code.ops.fzyun.io",
     );
   });
 

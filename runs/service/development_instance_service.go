@@ -242,7 +242,6 @@ func (s *DevelopmentInstanceService) StartDevelopmentInstance(ctx context.Contex
 	} else if !instance.EnableSSH {
 		instance.NodePort = 0
 	}
-	instance.WorkspacePVCName = defaultString(instance.WorkspacePVCName, instance.ID+"-workspace")
 	applyDevelopmentInstanceRunAccess(instance, runName)
 	if err := s.resolveDevelopmentInstanceCloudStorageMounts(ctx, instance); err != nil {
 		return nil, err
@@ -365,9 +364,6 @@ func buildDevelopmentInstanceModel(project *common.ProjectIdentifier, input *dev
 	if strings.TrimSpace(input.GetCpu()) == "" || strings.TrimSpace(input.GetMemory()) == "" {
 		return nil, fmt.Errorf("cpu and memory are required")
 	}
-	if strings.TrimSpace(input.GetWorkspaceSize()) == "" {
-		return nil, fmt.Errorf("workspace size is required")
-	}
 	imageName := strings.TrimSpace(input.GetImageName())
 	imageURI := strings.TrimSpace(input.GetImageUri())
 	imageType := "custom"
@@ -456,8 +452,7 @@ func buildDevelopmentInstanceModel(project *common.ProjectIdentifier, input *dev
 	memory := strings.TrimSpace(input.GetMemory())
 	gpuModel := strings.TrimSpace(input.GetGpuModel())
 	bandwidth := strings.TrimSpace(input.GetBandwidth())
-	workspaceSize := strings.TrimSpace(input.GetWorkspaceSize())
-	resourceDisplay := formatDevelopmentInstanceResourceDisplay(cpu, memory, input.GetGpuCount(), gpuModel, bandwidth, workspaceSize)
+	resourceDisplay := formatDevelopmentInstanceResourceDisplay(cpu, memory, input.GetGpuCount(), gpuModel, bandwidth)
 	return &models.DevelopmentInstance{
 		DevelopmentInstanceKey:   models.DevelopmentInstanceKey{ID: id},
 		Org:                      project.GetOrganization(),
@@ -473,7 +468,6 @@ func buildDevelopmentInstanceModel(project *common.ProjectIdentifier, input *dev
 		GPUCount:                 input.GetGpuCount(),
 		GPUModel:                 gpuModel,
 		Bandwidth:                bandwidth,
-		WorkspaceSize:            workspaceSize,
 		MaxHours:                 maxHours,
 		ImageType:                imageType,
 		OfficialImageID:          officialImageID,
@@ -486,7 +480,6 @@ func buildDevelopmentInstanceModel(project *common.ProjectIdentifier, input *dev
 		EnableSSH:                input.GetEnableSsh(),
 		SSHUser:                  defaultString(strings.TrimSpace(input.GetSshUser()), "flytekit"),
 		AuthorizedKeysJSON:       authorizedKeysJSON,
-		WorkspacePVCName:         id + "-workspace",
 		Status:                   models.DevelopmentInstanceStatusNotStarted,
 		CloudStorageMountsJSON:   cloudMountsJSON,
 		CodeRepositoryMountsJSON: codeMountsJSON,
@@ -530,13 +523,12 @@ func developmentInstanceModelToProto(model *models.DevelopmentInstance) *develop
 		Owner:        model.Owner,
 		SourceSystem: model.SourceSystem,
 		ResourceSpec: &developmentinstancepb.DevelopmentInstanceResourceSpec{
-			DisplayLabel:  model.ResourceDisplay,
-			Cpu:           model.CPU,
-			Memory:        model.Memory,
-			GpuCount:      model.GPUCount,
-			GpuModel:      model.GPUModel,
-			Bandwidth:     model.Bandwidth,
-			WorkspaceSize: model.WorkspaceSize,
+			DisplayLabel: model.ResourceDisplay,
+			Cpu:          model.CPU,
+			Memory:       model.Memory,
+			GpuCount:     model.GPUCount,
+			GpuModel:     model.GPUModel,
+			Bandwidth:    model.Bandwidth,
 		},
 		ImageType:                developmentInstanceImageTypeToProto(model.ImageType),
 		OfficialImageId:          model.OfficialImageID,
@@ -608,7 +600,6 @@ func developmentInstanceAccessInfoToProto(model *models.DevelopmentInstance) *de
 		NodePort:               model.NodePort,
 		CodeServerUrl:          model.CodeServerURL,
 		CodeServerWorkspaceUrl: model.CodeServerWorkspaceURL,
-		WorkspacePvcName:       model.WorkspacePVCName,
 	}
 }
 
@@ -842,7 +833,7 @@ func shortHash(value string) string {
 	return fmt.Sprintf("%08x", h.Sum32())
 }
 
-func formatDevelopmentInstanceResourceDisplay(cpu string, memory string, gpuCount uint32, gpuModel string, bandwidth string, workspaceSize string) string {
+func formatDevelopmentInstanceResourceDisplay(cpu string, memory string, gpuCount uint32, gpuModel string, bandwidth string) string {
 	parts := []string{fmt.Sprintf("%svCPU", cpu), fmt.Sprintf("%s RAM", displayMemory(memory))}
 	if gpuCount > 0 {
 		model := gpuModel
@@ -853,9 +844,6 @@ func formatDevelopmentInstanceResourceDisplay(cpu string, memory string, gpuCoun
 	}
 	if bandwidth != "" {
 		parts = append(parts, bandwidth)
-	}
-	if workspaceSize != "" {
-		parts = append(parts, fmt.Sprintf("%s 工作区", workspaceSize))
 	}
 	return strings.Join(parts, ", ")
 }
@@ -869,7 +857,7 @@ func applyDevelopmentInstanceRunAccess(instance *models.DevelopmentInstance, run
 		return
 	}
 	instance.CodeServerURL = buildDevelopmentInstanceCodeServerURL(runName)
-	instance.CodeServerWorkspaceURL = instance.CodeServerURL + "/?folder=/workspace"
+	instance.CodeServerWorkspaceURL = instance.CodeServerURL
 }
 
 func buildDevelopmentInstanceCodeServerHost(value string) string {

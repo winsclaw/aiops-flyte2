@@ -168,10 +168,6 @@ export function DevelopmentInstanceDetailPage() {
                     value={instance?.resourceSpec?.displayLabel}
                   />
                   <Field label="镜像" value={instance?.imageUri} />
-                  <Field
-                    label="工作区 PVC"
-                    value={instance?.access?.workspacePvcName}
-                  />
                 </div>
               </section>
 
