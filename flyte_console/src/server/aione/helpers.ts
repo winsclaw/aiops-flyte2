@@ -300,9 +300,7 @@ export function buildAioneInstanceValues({
         bucketPath,
       };
     }),
-    codeRepositories: codeRepositoriesWithTokens.map(
-      ({ token: _token, ...repo }) => repo,
-    ),
+    codeRepositories: codeRepositoriesWithTokens,
   };
 
   return {

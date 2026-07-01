@@ -28,6 +28,11 @@ import {
 } from "@/gen/flyteidl2/aione/cloudstorage/cloud_storage_definition_pb";
 import { CodeRepositoryMountSchema } from "@/gen/flyteidl2/aione/coderepository/code_repository_definition_pb";
 import {
+  CodeRepositoryInputSchema,
+  CodeRepositoryService,
+  CreateCodeRepositoryRequestSchema,
+} from "@/gen/flyteidl2/aione/coderepository/code_repository_service_pb";
+import {
   DatasetMountSchema,
   RuntimeDatasetSchema,
 } from "@/gen/flyteidl2/aione/dataset/dataset_definition_pb";
@@ -499,6 +504,10 @@ async function createTrainingTaskRun(payload: unknown) {
       fallbackTaskName: values.name,
     });
   }
+  const codeRepositoryMounts = await createExternalCodeRepositories({
+    values,
+    creator: values.sourceOrg || "external-api",
+  });
 
   const created = await client.createTrainingTask(
     create(CreateTrainingTaskRequestSchema, {
@@ -520,6 +529,7 @@ async function createTrainingTaskRun(payload: unknown) {
         gpuCount: values.gpuCount,
         gpuModel: values.gpuModel,
         bandwidth: values.bandwidth,
+        codeRepositoryMounts,
         datasets: values.datasets,
       }),
       creator: values.sourceOrg || "external-api",
@@ -1013,6 +1023,7 @@ function buildExternalTrainingTaskValues(payload: unknown) {
   const image = resolveTrainingTaskImage(object);
   const resources = getPayloadObject(object.resourceDefinition);
   const datasets = parseExternalRuntimeDatasets(object.ossDatas, "ossDatas");
+  const codeRepositories = parseExternalCodeRepositories(object.codes);
   return {
     internalOrg,
     sourceOrg,
@@ -1033,8 +1044,77 @@ function buildExternalTrainingTaskValues(payload: unknown) {
     ),
     gpuModel: stringField(resources, "gpuModel"),
     bandwidth: stringField(resources, "bandwidth"),
+    codeRepositories,
     datasets,
   };
+}
+
+function parseExternalCodeRepositories(value: unknown) {
+  if (value == null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw statusError("codes must be an array", 400);
+  }
+  return value.map((item, index) => {
+    const code = getPayloadObject(item);
+    const repoURL = requiredStringField(code, "id", `codes[${index}].id`);
+    return {
+      id: repoURL,
+      repoUrl: repoURL,
+      branch: stringField(code, "branch") || "master",
+      mountPath: requiredAbsolutePathField(
+        code,
+        "path",
+        `codes[${index}].path`,
+      ),
+      token: requiredStringField(code, "token", `codes[${index}].token`),
+    };
+  });
+}
+
+async function createExternalCodeRepositories({
+  values,
+  creator,
+}: {
+  values: ReturnType<typeof buildExternalTrainingTaskValues>;
+  creator: string;
+}) {
+  if (values.codeRepositories.length === 0) {
+    return [];
+  }
+  const client = createCodeRepositoryClient();
+  const project = create(ProjectIdentifierSchema, {
+    organization: values.internalOrg,
+    name: values.project,
+    domain: values.domain,
+  });
+  const mounts = [];
+  for (const repo of values.codeRepositories) {
+    const created = await client.createCodeRepository(
+      create(CreateCodeRepositoryRequestSchema, {
+        project,
+        codeRepository: create(CodeRepositoryInputSchema, {
+          repoUrl: repo.repoUrl,
+          branch: repo.branch,
+          mountPath: repo.mountPath,
+          token: repo.token ?? "",
+        }),
+        creator,
+      }),
+    );
+    const codeRepositoryId = created.codeRepository?.id?.id;
+    if (!codeRepositoryId) {
+      throw statusError("failed to create code repository", 502);
+    }
+    mounts.push(
+      create(CodeRepositoryMountSchema, {
+        codeRepositoryId,
+        mountPath: repo.mountPath,
+      }),
+    );
+  }
+  return mounts;
 }
 
 function parseExternalRuntimeDatasets(value: unknown, fieldName: string) {
@@ -1460,6 +1540,15 @@ function urlPort(url: URL, fallback: number) {
 function createCloudStorageClient() {
   return createClient(
     CloudStorageService,
+    createConnectTransport({
+      baseUrl: getFlyteApiOrigin(),
+    }),
+  );
+}
+
+function createCodeRepositoryClient() {
+  return createClient(
+    CodeRepositoryService,
     createConnectTransport({
       baseUrl: getFlyteApiOrigin(),
     }),

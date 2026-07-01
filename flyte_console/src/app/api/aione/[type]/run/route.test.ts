@@ -11,6 +11,7 @@ const getRunDetailsMock = vi.hoisted(() => vi.fn());
 const getTrainingTaskByIdMock = vi.hoisted(() => vi.fn());
 const createTrainingTaskMock = vi.hoisted(() => vi.fn());
 const startTrainingTaskMock = vi.hoisted(() => vi.fn());
+const createCodeRepositoryMock = vi.hoisted(() => vi.fn());
 const getDevelopmentInstanceByIdMock = vi.hoisted(() => vi.fn());
 const createDevelopmentInstanceMock = vi.hoisted(() => vi.fn());
 const startDevelopmentInstanceMock = vi.hoisted(() => vi.fn());
@@ -45,6 +46,11 @@ vi.mock("@connectrpc/connect", async () => {
                 ensureCloudStorage: ensureCloudStorageMock,
                 materializeCloudStorage: materializeCloudStorageMock,
               }
+            : service.typeName ===
+                "flyteidl2.aione.coderepository.CodeRepositoryService"
+              ? {
+                  createCodeRepository: createCodeRepositoryMock,
+                }
             : {
                 createRun: createRunMock,
                 getRunDetails: getRunDetailsMock,
@@ -168,6 +174,16 @@ describe("aione external typed run route", () => {
       },
     });
     materializeCloudStorageMock.mockResolvedValue({});
+    createCodeRepositoryMock.mockResolvedValue({
+      codeRepository: {
+        id: {
+          org: "aione",
+          project: "aione",
+          domain: "development",
+          id: "cr-auto-1",
+        },
+      },
+    });
     getRunDetailsMock.mockResolvedValue({
       details: {
         action: {
@@ -352,6 +368,14 @@ describe("aione external typed run route", () => {
         body: JSON.stringify({
           ...instancePayload,
           type: "TASK",
+          codes: [
+            {
+              id: "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
+              branch: "master",
+              path: "/data/js-sample",
+              token: "code-token",
+            },
+          ],
           datasets: [
             {
               endpoint: "ignored.dataset.svc",
@@ -395,6 +419,16 @@ describe("aione external typed run route", () => {
               targetPath: "/workspace/data",
               bucket: "style-transfer",
               bucketPath: "inputs",
+            }),
+          ],
+          codeRepositoryDetails: [
+            expect.objectContaining({
+              id: "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
+              repoUrl:
+                "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
+              branch: "master",
+              mountPath: "/data/js-sample",
+              token: "code-token",
             }),
           ],
         }),
@@ -478,6 +512,14 @@ describe("aione external typed run route", () => {
         headers: { authorization: "Bearer external-key" },
         body: JSON.stringify({
           ...taskPayload,
+          codes: [
+            {
+              id: "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
+              branch: "master",
+              path: "/data/js-sample",
+              token: "code-token",
+            },
+          ],
           datasets: [
             {
               endpoint: "ignored.dataset.svc",
@@ -506,6 +548,23 @@ describe("aione external typed run route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(createCodeRepositoryMock).toHaveBeenCalledTimes(1);
+    expect(createCodeRepositoryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: expect.objectContaining({
+          name: "aione",
+          domain: "development",
+        }),
+        codeRepository: expect.objectContaining({
+          repoUrl:
+            "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
+          branch: "master",
+          mountPath: "/data/js-sample",
+          token: "code-token",
+        }),
+        creator: "external-system",
+      }),
+    );
     expect(getTrainingTaskByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: "task-contract-1" }),
     );
@@ -520,6 +579,12 @@ describe("aione external typed run route", () => {
         trainingTask: expect.objectContaining({
           name: "外部训练任务",
           command: "python train.py",
+          codeRepositoryMounts: [
+            expect.objectContaining({
+              codeRepositoryId: "cr-auto-1",
+              mountPath: "/data/js-sample",
+            }),
+          ],
           datasets: [
             expect.objectContaining({
               endpoint: "minio.flyte.svc",

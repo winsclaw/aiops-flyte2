@@ -92,8 +92,8 @@ describe("aione external instance helpers", () => {
       repoUrl: "https://git.fzyun.io/founder/e5/v4.customize/js-sample.git",
       branch: "master",
       mountPath: "/data/js-sample",
+      token: "repo-token",
     });
-    expect(mapped.values.codeRepositories?.[0]).not.toHaveProperty("token");
     expect(mapped.codeRepositoriesWithTokens[0].token).toBe("repo-token");
     expect(mapped.values.cloudStorageMounts?.[0]).toMatchObject({
       cloudStorageId: "stg-2i63j4q0z319cb63mw90qnt2mt",
