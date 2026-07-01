@@ -60,6 +60,10 @@ if [[ "$dockerfile" != *'--mount=type=cache,target=/pnpm/store'* ]]; then
   printf 'expected frontend Dockerfile to cache the pnpm store\n' >&2
   exit 1
 fi
+if [[ "$dockerfile" != *'COREPACK_NPM_REGISTRY=https://registry.npmmirror.com'* ]]; then
+  printf 'expected frontend Dockerfile to make corepack use the npm mirror\n' >&2
+  exit 1
+fi
 if [[ "$dockerfile" != *'pnpm config set store-dir /pnpm/store'* ]]; then
   printf 'expected frontend Dockerfile to set the pnpm store cache path\n' >&2
   exit 1

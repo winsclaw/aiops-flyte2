@@ -8,6 +8,7 @@ ARG NO_PROXY
 ARG no_proxy
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
 WORKDIR /app
 
 COPY package.json ./
