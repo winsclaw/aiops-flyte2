@@ -2,8 +2,13 @@ package interfaces
 
 import (
 	"context"
+	"errors"
 
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
+)
+
+var (
+	ErrDevelopmentInstanceAlreadyExists = errors.New("development instance already exists")
 )
 
 type DevelopmentInstanceRepo interface {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/flyteorg/flyte/v2/flytestdlib/database"
 	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 )
@@ -22,7 +23,7 @@ func NewDevelopmentInstanceRepo(db *sqlx.DB) interfaces.DevelopmentInstanceRepo 
 }
 
 func (r *developmentInstanceRepo) Create(ctx context.Context, instance *models.DevelopmentInstance) error {
-	_, err := r.db.ExecContext(ctx, `
+	result, err := r.db.ExecContext(ctx, `
 INSERT INTO development_instances (
 	id, org, project, domain, name, description, owner, source_system,
 	resource_display, cpu, memory, gpu_count, gpu_model, bandwidth, workspace_size, max_hours,
@@ -38,7 +39,48 @@ INSERT INTO development_instances (
 	$23, $24, $25, $26,
 	$27, $28, $29, $30, $31,
 	$32, $33, $34, $35, $36, $37, $38
-)`,
+) ON CONFLICT (id) DO UPDATE SET
+	org = EXCLUDED.org,
+	project = EXCLUDED.project,
+	domain = EXCLUDED.domain,
+	name = EXCLUDED.name,
+	description = EXCLUDED.description,
+	owner = EXCLUDED.owner,
+	source_system = EXCLUDED.source_system,
+	resource_display = EXCLUDED.resource_display,
+	cpu = EXCLUDED.cpu,
+	memory = EXCLUDED.memory,
+	gpu_count = EXCLUDED.gpu_count,
+	gpu_model = EXCLUDED.gpu_model,
+	bandwidth = EXCLUDED.bandwidth,
+	workspace_size = EXCLUDED.workspace_size,
+	max_hours = EXCLUDED.max_hours,
+	image_type = EXCLUDED.image_type,
+	official_image_id = EXCLUDED.official_image_id,
+	image_name = EXCLUDED.image_name,
+	image_uri = EXCLUDED.image_uri,
+	image_pull_secret_name = EXCLUDED.image_pull_secret_name,
+	code_repository_secret_name = EXCLUDED.code_repository_secret_name,
+	gpu_node_label_key = EXCLUDED.gpu_node_label_key,
+	base_image_mount_path = EXCLUDED.base_image_mount_path,
+	enable_ssh = EXCLUDED.enable_ssh,
+	ssh_user = EXCLUDED.ssh_user,
+	authorized_keys_json = EXCLUDED.authorized_keys_json,
+	workspace_pvc_name = EXCLUDED.workspace_pvc_name,
+	latest_run_name = EXCLUDED.latest_run_name,
+	status = EXCLUDED.status,
+	generation = GREATEST(development_instances.generation, EXCLUDED.generation),
+	node_port = EXCLUDED.node_port,
+	code_server_url = EXCLUDED.code_server_url,
+	code_server_workspace_url = EXCLUDED.code_server_workspace_url,
+	cloud_storage_mounts_json = EXCLUDED.cloud_storage_mounts_json,
+	code_repository_mounts_json = EXCLUDED.code_repository_mounts_json,
+	datasets_json = EXCLUDED.datasets_json,
+	dataset_mounts_json = EXCLUDED.dataset_mounts_json,
+	deleted_at = NULL,
+	created_at = EXCLUDED.created_at,
+	updated_at = NOW()
+WHERE development_instances.deleted_at IS NOT NULL`,
 		instance.ID, instance.Org, instance.Project, instance.Domain, instance.Name, instance.Description, instance.Owner, instance.SourceSystem,
 		instance.ResourceDisplay, instance.CPU, instance.Memory, instance.GPUCount, instance.GPUModel, instance.Bandwidth, instance.WorkspaceSize, instance.MaxHours,
 		instance.ImageType, instance.OfficialImageID, instance.ImageName, instance.ImageURI,
@@ -48,7 +90,17 @@ INSERT INTO development_instances (
 		instance.CodeServerURL, instance.CodeServerWorkspaceURL, defaultJSON(instance.CloudStorageMountsJSON), defaultJSON(instance.CodeRepositoryMountsJSON),
 		defaultJSON(instance.DatasetsJSON), defaultJSON(instance.DatasetMountsJSON))
 	if err != nil {
+		if database.IsPgErrorWithCode(err, database.PgDuplicatedKey) {
+			return fmt.Errorf("%w: %s", interfaces.ErrDevelopmentInstanceAlreadyExists, instance.ID)
+		}
 		return fmt.Errorf("failed to create development instance %s: %w", instance.ID, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("%w: %s", interfaces.ErrDevelopmentInstanceAlreadyExists, instance.ID)
 	}
 	return nil
 }

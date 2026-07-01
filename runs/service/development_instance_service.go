@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -162,20 +163,22 @@ func (s *DevelopmentInstanceService) CreateDevelopmentInstance(ctx context.Conte
 	if err := s.populateDevelopmentInstanceDatasets(ctx, req.Msg.GetProject(), req.Msg.GetDevelopmentInstance(), model); err != nil {
 		return nil, err
 	}
-	existing, getErr := s.repo.DevelopmentInstanceRepo().GetByID(ctx, model.ID)
-	if getErr == nil && existing != nil {
-		model.LatestRunName = existing.LatestRunName
-		model.Status = existing.Status
-		model.Generation = existing.Generation
-		model.NodePort = existing.NodePort
-		model.CodeServerURL = existing.CodeServerURL
-		model.CodeServerWorkspaceURL = existing.CodeServerWorkspaceURL
-		if err := s.repo.DevelopmentInstanceRepo().Update(ctx, model); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
+	if existing, getErr := s.repo.DevelopmentInstanceRepo().GetByID(ctx, model.ID); getErr == nil && existing != nil {
+		if err := s.updateExistingDevelopmentInstance(ctx, model, existing); err != nil {
+			return nil, err
 		}
 	} else {
 		if err := s.repo.DevelopmentInstanceRepo().Create(ctx, model); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
+			if !errors.Is(err, interfaces.ErrDevelopmentInstanceAlreadyExists) {
+				return nil, connect.NewError(connect.CodeInternal, err)
+			}
+			existing, getErr := s.repo.DevelopmentInstanceRepo().GetByID(ctx, model.ID)
+			if getErr != nil {
+				return nil, connect.NewError(connect.CodeAlreadyExists, err)
+			}
+			if err := s.updateExistingDevelopmentInstance(ctx, model, existing); err != nil {
+				return nil, err
+			}
 		}
 	}
 	created, err := s.repo.DevelopmentInstanceRepo().Get(ctx, model.DevelopmentInstanceKey)
@@ -183,6 +186,19 @@ func (s *DevelopmentInstanceService) CreateDevelopmentInstance(ctx context.Conte
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&developmentinstancepb.CreateDevelopmentInstanceResponse{DevelopmentInstance: s.developmentInstanceModelToProto(ctx, created)}), nil
+}
+
+func (s *DevelopmentInstanceService) updateExistingDevelopmentInstance(ctx context.Context, model *models.DevelopmentInstance, existing *models.DevelopmentInstance) error {
+	model.LatestRunName = existing.LatestRunName
+	model.Status = existing.Status
+	model.Generation = existing.Generation
+	model.NodePort = existing.NodePort
+	model.CodeServerURL = existing.CodeServerURL
+	model.CodeServerWorkspaceURL = existing.CodeServerWorkspaceURL
+	if err := s.repo.DevelopmentInstanceRepo().Update(ctx, model); err != nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	return nil
 }
 
 func (s *DevelopmentInstanceService) StartDevelopmentInstance(ctx context.Context, req *connect.Request[developmentinstancepb.StartDevelopmentInstanceRequest]) (*connect.Response[developmentinstancepb.StartDevelopmentInstanceResponse], error) {

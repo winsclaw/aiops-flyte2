@@ -2,11 +2,13 @@ package impl
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/flyteorg/flyte/v2/runs/repository/interfaces"
 	"github.com/flyteorg/flyte/v2/runs/repository/models"
 )
 
@@ -53,6 +55,54 @@ func TestDevelopmentInstanceRepoCreateGetListUpdateSoftDelete(t *testing.T) {
 	require.NoError(t, repo.Delete(ctx, key))
 	_, err = repo.Get(ctx, key)
 	require.Error(t, err)
+}
+
+func TestDevelopmentInstanceRepoCreateReturnsAlreadyExists(t *testing.T) {
+	ctx := context.Background()
+	repo := NewDevelopmentInstanceRepo(testDB)
+	key := models.DevelopmentInstanceKey{ID: "ins-repo-duplicate"}
+	_ = repo.Delete(ctx, key)
+
+	require.NoError(t, repo.Create(ctx, developmentInstanceModelForRepoTest(key.ID, "开发实例1")))
+	err := repo.Create(ctx, developmentInstanceModelForRepoTest(key.ID, "开发实例2"))
+
+	require.ErrorIs(t, err, interfaces.ErrDevelopmentInstanceAlreadyExists)
+	require.False(t, strings.Contains(strings.ToUpper(err.Error()), "UNIQUE"))
+	require.False(t, strings.Contains(strings.ToUpper(err.Error()), "DUPLICATE KEY"))
+
+	require.NoError(t, repo.Delete(ctx, key))
+}
+
+func TestDevelopmentInstanceRepoCreateRestoresSoftDeletedInstance(t *testing.T) {
+	ctx := context.Background()
+	repo := NewDevelopmentInstanceRepo(testDB)
+	key := models.DevelopmentInstanceKey{ID: "ins-repo-restore"}
+	_ = repo.Delete(ctx, key)
+
+	deleted := developmentInstanceModelForRepoTest(key.ID, "旧开发实例")
+	deleted.Generation = 2
+	deleted.Status = models.DevelopmentInstanceStatusRunning
+	deleted.LatestRunName = "ins-repo-restore-r2"
+	require.NoError(t, repo.Create(ctx, deleted))
+	require.NoError(t, repo.Delete(ctx, key))
+	_, err := repo.Get(ctx, key)
+	require.Error(t, err)
+
+	restored := developmentInstanceModelForRepoTest(key.ID, "新开发实例")
+	restored.Generation = 0
+	restored.Status = models.DevelopmentInstanceStatusNotStarted
+	restored.LatestRunName = ""
+	require.NoError(t, repo.Create(ctx, restored))
+
+	got, err := repo.Get(ctx, key)
+	require.NoError(t, err)
+	require.Equal(t, "新开发实例", got.Name)
+	require.Equal(t, models.DevelopmentInstanceStatusNotStarted, got.Status)
+	require.Equal(t, uint32(2), got.Generation)
+	require.Empty(t, got.LatestRunName)
+	require.Nil(t, got.DeletedAt)
+
+	require.NoError(t, repo.Delete(ctx, key))
 }
 
 func TestDevelopmentInstanceRepoRunHistory(t *testing.T) {
